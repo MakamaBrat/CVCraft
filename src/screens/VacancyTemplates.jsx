@@ -1,16 +1,20 @@
-import { useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
-
-const CATEGORIES = ["Всі", "Мінімал", "Сучасні", "Креативні"];
+import { useLanguage } from "../lib/i18n/index.jsx";
 
 const TEMPLATES = [
-  { id: "minimal", name: "Мінімал", cat: "Мінімал", accent: "#9aa0a6" },
-  { id: "modern", name: "Сучасний", cat: "Сучасні", accent: "#6c5ce7" },
-  { id: "bold", name: "Виразний", cat: "Креативні", accent: "#ff7a59" },
-  { id: "classic", name: "Класичний", cat: "Мінімал", accent: "#4c9be8" },
+  { id: "minimal", accent: "#9aa0a6" },
+  { id: "modern", accent: "#6c5ce7" },
+  { id: "bold", accent: "#ff7a59" },
+  { id: "classic", accent: "#4c9be8" },
 ];
 
-function MiniCard({ tpl, resume, selected, onClick }) {
+const NAMES = {
+  uk: { minimal: "Мінімал", modern: "Сучасний", bold: "Виразний", classic: "Класичний" },
+  ru: { minimal: "Минимал", modern: "Современный", bold: "Яркий", classic: "Классический" },
+  en: { minimal: "Minimal", modern: "Modern", bold: "Bold", classic: "Classic" },
+};
+
+function MiniCard({ tpl, vacancy, name, selected, onClick }) {
   return (
     <button
       onClick={onClick}
@@ -28,8 +32,8 @@ function MiniCard({ tpl, resume, selected, onClick }) {
       <div className="flex items-center gap-1.5 mb-2">
         <div className="w-5 h-5 rounded-full shrink-0" style={{ background: tpl.accent }} />
         <div className="min-w-0">
-          <p className="text-[9px] font-semibold truncate">{resume.fullName || "Іван Петренко"}</p>
-          <p className="text-[7px] text-black/50 truncate">{resume.role || "Unity Developer"}</p>
+          <p className="text-[9px] font-semibold truncate">{vacancy.position || "Unity Developer"}</p>
+          <p className="text-[7px] text-black/50 truncate">{vacancy.company || "Ubisoft"}</p>
         </div>
       </div>
       <div className="space-y-1">
@@ -37,15 +41,15 @@ function MiniCard({ tpl, resume, selected, onClick }) {
         <div className="h-1 rounded-full bg-black/10 w-4/5" />
         <div className="h-1 rounded-full bg-black/10 w-full mt-2" style={{ background: tpl.accent, opacity: 0.5 }} />
         <div className="h-1 rounded-full bg-black/10 w-3/5" />
-        <div className="h-1 rounded-full bg-black/10 w-full" />
       </div>
+      <p className="mt-2 text-[8px] font-medium text-black/60">{name}</p>
     </button>
   );
 }
 
-export default function Templates({ draft, setDraft, onBack, onNext }) {
-  const [cat, setCat] = useState("Всі");
-  const visible = cat === "Всі" ? TEMPLATES : TEMPLATES.filter((t) => t.cat === cat);
+export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
+  const { lang, t } = useLanguage();
+  const names = NAMES[lang];
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -57,32 +61,17 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
             <path d="M11 3L5 9l6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold">Оберіть шаблон</h1>
-      </div>
-
-      <div className="px-6 pb-4 flex gap-2 overflow-x-auto">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCat(c)}
-            className={`tap shrink-0 text-xs font-medium rounded-full px-3.5 py-1.5 border ${
-              cat === c
-                ? "bg-accent-500 border-accent-500 text-base-950"
-                : "border-base-700 text-white/60"
-            }`}
-          >
-            {c}
-          </button>
-        ))}
+        <h1 className="text-lg font-bold">{{ uk: "Оберіть шаблон", ru: "Выберите шаблон", en: "Choose template" }[lang]}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
         <div className="grid grid-cols-2 gap-3">
-          {visible.map((tpl) => (
+          {TEMPLATES.map((tpl) => (
             <MiniCard
               key={tpl.id}
               tpl={tpl}
-              resume={draft}
+              vacancy={draft}
+              name={names[tpl.id]}
               selected={draft.template === tpl.id}
               onClick={() => setDraft({ ...draft, template: tpl.id })}
             />
@@ -95,7 +84,7 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           onClick={onNext}
           className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          Переглянути резюме
+          {t("common.next")}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

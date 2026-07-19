@@ -4,9 +4,20 @@ import Wizard from "./screens/Wizard.jsx";
 import Templates from "./screens/Templates.jsx";
 import Preview from "./screens/Preview.jsx";
 import SharedView from "./screens/SharedView.jsx";
+import VacancyWizard from "./screens/VacancyWizard.jsx";
+import VacancyTemplates from "./screens/VacancyTemplates.jsx";
+import VacancyPreview from "./screens/VacancyPreview.jsx";
+import VacancyList from "./screens/VacancyList.jsx";
+import VacancyBrowse from "./screens/VacancyBrowse.jsx";
+import VacancyDetail from "./screens/VacancyDetail.jsx";
+import VacancyApplicants from "./screens/VacancyApplicants.jsx";
+import AdminPanel from "./screens/AdminPanel.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
 import { supabase, supabaseEnabled } from "./lib/supabase.js";
 import { getTelegramUser, initTelegramApp } from "./lib/telegram.js";
+import { MAX_RESUMES_PER_USER, MAX_VACANCIES_PER_USER, isAdmin as checkIsAdmin } from "./lib/config.js";
+import { emptyVacancy, vacancyFromRow, VACANCY_STATUS } from "./lib/vacancy.js";
+import { useLanguage } from "./lib/i18n/index.jsx";
 
 const IDENTITY_KEY = "cvcraft.identity.v1";
 const LOCAL_RESUMES_KEY = "cvcraft.resumes.v1";
@@ -50,7 +61,7 @@ function parseHashRoute() {
   const m = hash.match(/^#\/r\/([a-zA-Z0-9-]+)/);
   if (m) return m[1];
   const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
-  if (tgStartParam?.startsWith("r-")) return tgStartParam.slice(2);
+  if (tgStartParam) return tgStartParam;
   return null;
 }
 
@@ -63,6 +74,17 @@ export default function App() {
   const [route, setRoute] = useState({ screen: "home" });
   const [draft, setDraft] = useState(null);
 
+  const [vacancies, setVacancies] = useState([]);
+  const [loadingVacancies, setLoadingVacancies] = useState(true);
+  const [vacancyDraft, setVacancyDraft] = useState(null);
+  const [publicVacancies, setPublicVacancies] = useState([]);
+  const [loadingPublicVacancies, setLoadingPublicVacancies] = useState(true);
+  const [openVacancy, setOpenVacancy] = useState(null);
+  const [appliedVacancyIds, setAppliedVacancyIds] = useState(() => new Set());
+  const [applicantsVacancy, setApplicantsVacancy] = useState(null);
+  const [applicants, setApplicants] = useState([]);
+  const [loadingApplicants, setLoadingApplicants] = useState(false);
+
   useEffect(() => {
     initTelegramApp();
     const tgUser = getTelegramUser();
@@ -73,6 +95,36 @@ export default function App() {
     }
     setCheckedTelegram(true);
   }, []);
+
+  const { lang, t } = useLanguage();
+
+  useEffect(() => {
+    if (!identity || !supabaseEnabled) return;
+    supabase
+      .from("users")
+      .upsert({
+        telegram_id: identity.id,
+        telegram_username: identity.username || null,
+        first_name: identity.firstName || null,
+        last_active_at: new Date().toISOString(),
+        language_code: lang,
+      })
+      .then(() => {});
+  }, [identity, lang]);
+
+  // Оновлюємо last_active_at періодично, поки застосунок відкритий,
+  // щоб адмінська статистика "активних сьогодні" була точною.
+  useEffect(() => {
+    if (!identity || !supabaseEnabled) return;
+    const interval = setInterval(() => {
+      supabase
+        .from("users")
+        .update({ last_active_at: new Date().toISOString() })
+        .eq("telegram_id", identity.id)
+        .then(() => {});
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [identity]);
 
   useEffect(() => {
     if (sharedId || !identity) return;
@@ -113,6 +165,44 @@ export default function App() {
     }
   }, [resumes, identity]);
 
+  useEffect(() => {
+    if (sharedId || !identity || !supabaseEnabled) {
+      setLoadingVacancies(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingVacancies(true);
+      const { data, error } = await supabase
+        .from("vacancies")
+        .select("*")
+        .eq("telegram_id", identity.id)
+        .order("updated_at", { ascending: false });
+      if (!cancelled) {
+        if (!error && data) setVacancies(data.map(vacancyFromRow));
+        setLoadingVacancies(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [identity, sharedId]);
+
+  const loadPublicVacancies = async () => {
+    if (!supabaseEnabled) {
+      setLoadingPublicVacancies(false);
+      return;
+    }
+    setLoadingPublicVacancies(true);
+    const { data, error } = await supabase
+      .from("vacancies")
+      .select("*")
+      .eq("status", VACANCY_STATUS.ACTIVE)
+      .order("created_at", { ascending: false });
+    if (!error && data) setPublicVacancies(data.map(vacancyFromRow));
+    setLoadingPublicVacancies(false);
+  };
+
   if (sharedId) {
     return (
       <div className="phone-shell">
@@ -131,7 +221,7 @@ export default function App() {
     return (
       <div className="phone-shell">
         <div className="flex-1 flex items-center justify-center bg-base-950 text-white/40 text-sm">
-          Завантаження…
+          {t("common.loading")}
         </div>
       </div>
     );
@@ -150,7 +240,10 @@ export default function App() {
     );
   }
 
+  const canCreateMore = resumes.length < MAX_RESUMES_PER_USER;
+
   const startNew = () => {
+    if (!canCreateMore) return;
     const r = emptyResume();
     setDraft(r);
     setRoute({ screen: "wizard", step: 0 });
@@ -170,6 +263,13 @@ export default function App() {
 
   const commitDraft = async (updated) => {
     const next = { ...updated, updatedAt: Date.now() };
+    const isNew = !resumes.some((r) => r.id === next.id);
+
+    if (isNew && resumes.length >= MAX_RESUMES_PER_USER) {
+      goHome();
+      return;
+    }
+
     setDraft(next);
     setResumes((prev) => {
       const exists = prev.some((r) => r.id === next.id);
@@ -178,12 +278,15 @@ export default function App() {
 
     if (supabaseEnabled) {
       const { id, updatedAt, ...data } = next;
-      await supabase.from("resumes").upsert({
+      const { error } = await supabase.from("resumes").upsert({
         id,
         telegram_id: identity.id,
-        telegram_username: identity.username || null,
         data,
       });
+      if (error) {
+        // most likely the 2-resume limit trigger fired (race condition)
+        setResumes((prev) => prev.filter((r) => r.id !== id));
+      }
     }
   };
 
@@ -194,6 +297,127 @@ export default function App() {
     }
   };
 
+  const isUserAdmin = checkIsAdmin(identity?.id);
+  const canCreateMoreVacancies = vacancies.length < MAX_VACANCIES_PER_USER;
+
+  const goVacancyList = () => setRoute({ screen: "vacancies" });
+  const goVacancyTemplates = () => setRoute({ screen: "vacancyTemplates" });
+  const goVacancyPreview = () => setRoute({ screen: "vacancyPreview" });
+  const goAdmin = () => setRoute({ screen: "admin" });
+  const goBrowseVacancies = () => {
+    loadPublicVacancies();
+    setRoute({ screen: "browseVacancies" });
+  };
+
+  const startNewVacancy = () => {
+    if (!canCreateMoreVacancies) return;
+    setVacancyDraft(emptyVacancy());
+    setRoute({ screen: "vacancyWizard", step: 0 });
+  };
+
+  const editVacancy = (id) => {
+    const v = vacancies.find((x) => x.id === id);
+    if (v) {
+      setVacancyDraft(v);
+      setRoute({ screen: "vacancyWizard", step: 0 });
+    }
+  };
+
+  const commitVacancyDraft = async (updated) => {
+    const next = { ...updated, updatedAt: Date.now() };
+    const isNew = !vacancies.some((v) => v.id === next.id);
+
+    if (isNew && vacancies.length >= MAX_VACANCIES_PER_USER) {
+      goVacancyList();
+      return;
+    }
+
+    setVacancyDraft(next);
+    setVacancies((prev) => {
+      const exists = prev.some((v) => v.id === next.id);
+      return exists ? prev.map((v) => (v.id === next.id ? next : v)) : [next, ...prev];
+    });
+
+    if (supabaseEnabled) {
+      const { id, updatedAt, status, rejectReason, showsPurchased, showsUsed, isPaid, listingPrice, pricePerShow, template, ...data } = next;
+      const { error } = await supabase.from("vacancies").upsert({
+        id,
+        telegram_id: identity.id,
+        data,
+        template,
+      });
+      if (error) {
+        setVacancies((prev) => prev.filter((v) => v.id !== id));
+      }
+    }
+  };
+
+  const deleteVacancy = async (id) => {
+    setVacancies((prev) => prev.filter((v) => v.id !== id));
+    if (supabaseEnabled) {
+      await supabase.from("vacancies").delete().eq("id", id);
+    }
+  };
+
+  const sendVacancyToModeration = async (vacancy) => {
+    const next = { ...vacancy, status: VACANCY_STATUS.PENDING_REVIEW, rejectReason: null };
+    setVacancyDraft(next);
+    setVacancies((prev) => prev.map((v) => (v.id === next.id ? next : v)));
+    if (supabaseEnabled) {
+      await supabase
+        .from("vacancies")
+        .update({ status: VACANCY_STATUS.PENDING_REVIEW, reject_reason: null })
+        .eq("id", vacancy.id);
+    }
+    goVacancyList();
+  };
+
+  const openVacancyDetail = async (id) => {
+    const v = publicVacancies.find((x) => x.id === id);
+    if (!v) return;
+    setOpenVacancy(v);
+    setRoute({ screen: "vacancyDetail" });
+    if (supabaseEnabled) {
+      await supabase.rpc("register_vacancy_show", { p_vacancy_id: id });
+    }
+  };
+
+  const applyToVacancy = async (message, resumeId) => {
+    if (!openVacancy) return;
+    setAppliedVacancyIds((prev) => new Set(prev).add(openVacancy.id));
+    if (supabaseEnabled) {
+      const resume = resumeId ? resumes.find((r) => r.id === resumeId) : null;
+      const contact = (resume && resume.phone) || (identity.username ? `@${identity.username}` : null);
+      await supabase.from("vacancy_applications").insert({
+        vacancy_id: openVacancy.id,
+        telegram_id: identity.id,
+        message: message || null,
+        contact,
+        resume_id: resumeId || null,
+        resume_snapshot: resume || null,
+      });
+    }
+  };
+
+  const goApplicants = async (vacancyId) => {
+    const v = vacancies.find((x) => x.id === vacancyId);
+    if (!v) return;
+    setApplicantsVacancy(v);
+    setRoute({ screen: "vacancyApplicants" });
+    if (!supabaseEnabled) {
+      setApplicants([]);
+      return;
+    }
+    setLoadingApplicants(true);
+    const { data, error } = await supabase
+      .from("vacancy_applications")
+      .select("id, message, contact, resume_id, resume_snapshot, created_at, telegram_id")
+      .eq("vacancy_id", vacancyId)
+      .order("created_at", { ascending: false });
+    if (!error && data) setApplicants(data);
+    setLoadingApplicants(false);
+  };
+
   return (
     <div className="phone-shell">
       {route.screen === "home" && (
@@ -201,9 +425,16 @@ export default function App() {
           resumes={resumes}
           loading={loadingResumes}
           identity={identity}
+          canCreateMore={canCreateMore}
+          maxResumes={MAX_RESUMES_PER_USER}
           onCreate={startNew}
           onEdit={editExisting}
           onDelete={deleteResume}
+          onOpenVacancies={goVacancyList}
+          onCreateVacancy={startNewVacancy}
+          onBrowseVacancies={goBrowseVacancies}
+          onOpenAdmin={goAdmin}
+          isAdmin={isUserAdmin}
         />
       )}
       {route.screen === "wizard" && draft && (
@@ -239,6 +470,90 @@ export default function App() {
             goHome();
           }}
         />
+      )}
+
+      {route.screen === "vacancies" && (
+        <VacancyList
+          vacancies={vacancies}
+          loading={loadingVacancies}
+          onBack={goHome}
+          onCreate={startNewVacancy}
+          onEdit={editVacancy}
+          onDelete={deleteVacancy}
+          onOpenApplicants={goApplicants}
+          canCreateMore={canCreateMoreVacancies}
+          maxVacancies={MAX_VACANCIES_PER_USER}
+        />
+      )}
+
+      {route.screen === "vacancyWizard" && vacancyDraft && (
+        <VacancyWizard
+          draft={vacancyDraft}
+          setDraft={setVacancyDraft}
+          step={route.step}
+          setStep={(step) => setRoute({ screen: "vacancyWizard", step })}
+          onBackHome={goVacancyList}
+          onFinishInfo={() => {
+            commitVacancyDraft(vacancyDraft);
+            goVacancyTemplates();
+          }}
+        />
+      )}
+
+      {route.screen === "vacancyTemplates" && vacancyDraft && (
+        <VacancyTemplates
+          draft={vacancyDraft}
+          setDraft={(d) => {
+            setVacancyDraft(d);
+            commitVacancyDraft(d);
+          }}
+          onBack={() => setRoute({ screen: "vacancyWizard", step: 3 })}
+          onNext={goVacancyPreview}
+        />
+      )}
+
+      {route.screen === "vacancyPreview" && vacancyDraft && (
+        <VacancyPreview
+          vacancy={vacancyDraft}
+          onBack={goVacancyTemplates}
+          onSave={() => {
+            commitVacancyDraft(vacancyDraft);
+            goVacancyList();
+          }}
+          onSendToModeration={() => sendVacancyToModeration(vacancyDraft)}
+        />
+      )}
+
+      {route.screen === "browseVacancies" && (
+        <VacancyBrowse
+          vacancies={publicVacancies}
+          loading={loadingPublicVacancies}
+          onBack={goHome}
+          onOpen={openVacancyDetail}
+        />
+      )}
+
+      {route.screen === "vacancyDetail" && openVacancy && (
+        <VacancyDetail
+          vacancy={openVacancy}
+          applied={appliedVacancyIds.has(openVacancy.id)}
+          resumes={resumes}
+          onBack={() => setRoute({ screen: "browseVacancies" })}
+          onApply={applyToVacancy}
+        />
+      )}
+
+      {route.screen === "vacancyApplicants" && applicantsVacancy && (
+        <VacancyApplicants
+          vacancy={applicantsVacancy}
+          applicants={applicants}
+          loading={loadingApplicants}
+          onBack={goVacancyList}
+        />
+      )}
+
+      {route.screen === "admin" && isUserAdmin && (
+        <AdminPanel onBack={goHome} adminId={identity.id} />
       )}
     </div>
   );

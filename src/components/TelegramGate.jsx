@@ -20,11 +20,11 @@ export default function TelegramGate({ onSubmit }) {
     <div className="flex-1 flex flex-col bg-base-950">
       <StatusBar />
       <div className="flex-1 flex flex-col justify-center px-6 pb-10 fade-up">
-        <div className="w-12 h-12 rounded-2xl bg-violet-500 flex items-center justify-center mb-5">
+        <div className="w-12 h-12 rounded-2xl bg-accent-500 flex items-center justify-center mb-5">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <path
               d="M20 2L2 9.5l6 2.2M20 2l-3.5 17-6-4.8M20 2L9.7 12.9m0 0L8 20l2.3-3.7"
-              stroke="white"
+              stroke="black"
               strokeWidth="1.6"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -38,7 +38,7 @@ export default function TelegramGate({ onSubmit }) {
 
         <label className="block text-sm font-medium text-white/85 mb-1.5">Telegram ID</label>
         <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500 mb-4"
+          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-4"
           placeholder="123456789"
           inputMode="numeric"
           value={id}
@@ -52,7 +52,7 @@ export default function TelegramGate({ onSubmit }) {
           Нікнейм <span className="text-white/40 font-normal">(необов'язково)</span>
         </label>
         <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500 mb-1.5"
+          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-1.5"
           placeholder="@ivan_petrenko"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -65,7 +65,7 @@ export default function TelegramGate({ onSubmit }) {
 
         <button
           onClick={submit}
-          className="tap w-full flex items-center justify-center gap-2 bg-violet-500 text-white font-semibold text-sm rounded-xl py-3.5"
+          className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
           Продовжити
         </button>

@@ -57,8 +57,8 @@ export default function SharedView({ resumeId, onOpenApp }) {
           <p className="text-sm text-white/60">
             {status === "not-found" ? "Резюме не знайдено або посилання застаріло." : "Базу даних не підключено."}
           </p>
-          <button onClick={onOpenApp} className="tap text-sm text-violet-300 font-medium">
-            Перейти до CVCraft
+          <button onClick={onOpenApp} className="tap text-sm text-accent-300 font-medium">
+            Перейти до CV DECK
           </button>
         </div>
       </div>
@@ -73,14 +73,14 @@ export default function SharedView({ resumeId, onOpenApp }) {
 
       <div className="px-6 pt-2 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-violet-500 flex items-center justify-center">
+          <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-              <path d="M2 3h10v2H2zM2 6h10v2H2zM2 9h7v2H2z" fill="white" />
+              <path d="M2 3h10v2H2zM2 6h10v2H2zM2 9h7v2H2z" fill="black" />
             </svg>
           </div>
-          <span className="font-semibold text-sm text-white/70">CVCraft</span>
+          <span className="font-semibold text-sm text-white/70">CV DECK</span>
         </div>
-        <button onClick={onOpenApp} className="tap text-xs text-violet-300 font-medium">
+        <button onClick={onOpenApp} className="tap text-xs text-accent-300 font-medium">
           Створити своє
         </button>
       </div>

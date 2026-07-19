@@ -1,7 +1,10 @@
 import { useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
+import ShareButtons from "../components/ShareButtons.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 import { supabaseEnabled } from "../lib/supabase.js";
+import { buildShareLink } from "../lib/config.js";
+import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -131,9 +134,9 @@ function ResumeDocument({ resume }) {
 
 export default function Preview({ resume, onBack, onDone }) {
   const [copied, setCopied] = useState(false);
-  const handlePrint = () => window.print();
+  const { t } = useLanguage();
 
-  const shareUrl = `${window.location.origin}${window.location.pathname}#/r/${resume.id}`;
+  const shareUrl = buildShareLink(resume.id);
 
   const handleShare = async () => {
     try {
@@ -196,28 +199,16 @@ export default function Preview({ resume, onBack, onDone }) {
         </button>
       </div>
 
-      <div className="px-6 pb-6 pt-2 flex gap-3 print:hidden">
-        <button
-          onClick={handlePrint}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-base-800 border border-base-700 text-white font-semibold text-sm rounded-xl py-3.5"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M4 2h8v3H4zM3 6h10a1 1 0 011 1v4a1 1 0 01-1 1h-1v2H4v-2H3a1 1 0 01-1-1V7a1 1 0 011-1z"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Завантажити PDF
-        </button>
+      <div className="px-6 pb-3 pt-2 print:hidden">
         <button
           onClick={onDone}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-violet-500 text-white font-semibold text-sm rounded-xl py-3.5"
+          className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          Зберегти
+          {t("common.save")}
         </button>
       </div>
+
+      <ShareButtons shareUrl={shareUrl} shareText={`${resume.fullName || ""} — ${resume.role || ""}`.trim()} />
     </div>
   );
 }

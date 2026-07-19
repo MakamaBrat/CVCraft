@@ -1,5 +1,6 @@
 import { useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
+import TagPicker from "../components/TagPicker.jsx";
 
 const TOTAL_STEPS = 6;
 const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
@@ -15,7 +16,7 @@ function Field({ label, hint, children }) {
 }
 
 const inputCls =
-  "w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500 transition-colors";
+  "w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 transition-colors";
 
 export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onFinishInfo }) {
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
@@ -51,7 +52,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
         </div>
         <div className="h-1.5 bg-base-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-violet-500 rounded-full transition-all duration-300"
+            className="h-full bg-accent-500 rounded-full transition-all duration-300"
             style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
           />
         </div>
@@ -102,12 +103,16 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
                 onChange={(e) => set({ email: e.target.value })}
               />
             </Field>
-            <Field label="Телефон">
+            <Field label="Юзернейм у Telegram" hint="Роботодавці зв'язуватимуться з вами через цей юзернейм.">
               <input
                 className={inputCls}
-                placeholder="+380 63 123 45 67"
+                placeholder="@ivan_petrenko"
                 value={draft.phone}
-                onChange={(e) => set({ phone: e.target.value })}
+                onChange={(e) => {
+                  let v = e.target.value.replace(/\s/g, "");
+                  if (v && !v.startsWith("@")) v = "@" + v;
+                  set({ phone: v });
+                }}
               />
             </Field>
             <Field label="Місто">
@@ -131,7 +136,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
         <button
           onClick={next}
           disabled={!canNext()}
-          className="tap w-full flex items-center justify-center gap-2 bg-violet-500 disabled:bg-base-700 disabled:text-white/30 text-white font-semibold text-sm rounded-xl py-3.5"
+          className="tap w-full flex items-center justify-center gap-2 bg-accent-500 disabled:bg-base-700 disabled:text-white/30 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
           {step < TOTAL_STEPS - 1 ? "Далі" : "Обрати шаблон"}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -189,7 +194,7 @@ function ExperienceStep({ draft, set }) {
         <textarea className={inputCls + " min-h-[90px] resize-none"} placeholder="Розробка ігрової механіки, оптимізація продуктивності..."
           value={item.description} onChange={(e) => setItem({ ...item, description: e.target.value })} />
       </Field>
-      <button onClick={add} className="tap w-full border border-dashed border-violet-500/50 text-violet-300 text-sm font-medium rounded-xl py-2.5">
+      <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
         + Додати досвід
       </button>
     </div>
@@ -234,7 +239,7 @@ function EducationStep({ draft, set }) {
         <input className={inputCls} placeholder="2018 — 2022" value={item.period}
           onChange={(e) => setItem({ ...item, period: e.target.value })} />
       </Field>
-      <button onClick={add} className="tap w-full border border-dashed border-violet-500/50 text-violet-300 text-sm font-medium rounded-xl py-2.5">
+      <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
         + Додати освіту
       </button>
     </div>
@@ -299,7 +304,7 @@ function PortfolioStep({ draft, set }) {
           onChange={(e) => setItem({ ...item, url: e.target.value })}
         />
       </Field>
-      <button onClick={add} className="tap w-full border border-dashed border-violet-500/50 text-violet-300 text-sm font-medium rounded-xl py-2.5">
+      <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
         + Додати приклад роботи
       </button>
     </div>
@@ -358,48 +363,25 @@ export function MediaPreview({ item }) {
     return <img src={item.url} alt={item.title || "gif"} className="w-full rounded-lg object-cover" style={{ maxHeight: 220 }} />;
   }
   return (
-    <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-violet-300 underline break-all">
+    <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
       {item.url}
     </a>
   );
 }
 
 function SkillsStep({ draft, set }) {
-  const [val, setVal] = useState("");
-  const add = () => {
-    const v = val.trim();
-    if (!v || draft.skills.includes(v)) return;
-    set({ skills: [...draft.skills, v] });
-    setVal("");
-  };
-  const remove = (s) => set({ skills: draft.skills.filter((x) => x !== s) });
-
   return (
     <div>
-      <Field label="Навички" hint="Натисніть Enter, щоб додати навичку.">
-        <div className="flex gap-2">
-          <input
-            className={inputCls}
-            placeholder="Unity, C#, Git..."
-            value={val}
-            onChange={(e) => setVal(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
-          />
-          <button onClick={add} className="tap shrink-0 bg-base-800 border border-base-700 rounded-xl px-4 text-sm font-medium">
-            Додати
-          </button>
-        </div>
+      <Field label="Навички" hint="Клікайте на теги зі списку або впишіть свій і натисніть Enter.">
+        <TagPicker
+          value={draft.skills}
+          onChange={(skills) => set({ skills })}
+          placeholder="Свій варіант, напр. Unity"
+          addLabel="Додати"
+          moreLabel="Показати ще"
+          lessLabel="Згорнути"
+        />
       </Field>
-      <div className="flex flex-wrap gap-2">
-        {draft.skills.map((s) => (
-          <span key={s} className="flex items-center gap-1.5 bg-violet-500/15 text-violet-300 text-xs font-medium rounded-full pl-3 pr-2 py-1.5">
-            {s}
-            <button onClick={() => remove(s)} className="tap text-violet-300/60 hover:text-violet-200">
-              ✕
-            </button>
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
