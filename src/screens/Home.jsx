@@ -78,7 +78,7 @@ export default function Home({
           <button
             onClick={onCreate}
             disabled={!canCreateMore}
-            className="tap relative flex items-center justify-center gap-2 w-full bg-white text-accent-700 font-semibold text-sm rounded-xl py-3 hover:bg-white/90 disabled:bg-white/40 disabled:text-accent-700/50"
+            className="tap relative flex items-center justify-center gap-2 w-full bg-black text-white font-semibold text-sm rounded-xl py-3 hover:bg-black/85 disabled:bg-black/40 disabled:text-white/50"
           >
             <span className="text-lg leading-none">+</span> Створити резюме
           </button>

@@ -10,10 +10,38 @@ body {
   background: #060606;
   color: #f5f5f5;
   overscroll-behavior-y: none;
+  /* Забороняє браузеру/WebView зумити сторінку на подвійний тап —
+     саме це найчастіше і виглядає як "сторінка сама масштабується
+     при кліках". Pinch-зум додатково заблокований через
+     user-scalable=no у viewport-meta (index.html) — це нормально
+     для Mini App, де очікується поведінка нативного застосунку. */
+  touch-action: manipulation;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #363636; border-radius: 8px; }
+
+/*
+ * iOS Safari (і WebView, який Telegram Mini App використовує на iPhone)
+ * автоматично зумить сторінку, коли фокус потрапляє в input/textarea/select
+ * зі шрифтом менше 16px. Наші поля були 14px (text-sm), тож бачили саме цей
+ * автозум. Фікс: тримаємо реальний шрифт полів мінімум 16px — зум більше
+ * не спрацьовує. Поля стають трохи більшими за попередній дизайн (14→16px),
+ * але це стандартний і найнадійніший спосіб; варіант із transform: scale()
+ * для збереження точно 14px виглядає крихким (зсуває курсор, паддінги,
+ * фокус-обводку) і того не вартий.
+ */
+input, textarea, select {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
 
 .phone-shell {
   max-width: 420px;

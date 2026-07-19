@@ -103,7 +103,7 @@ export default function App() {
     if (!identity || !backendEnabled) return;
     apiFetch("/api/auth-sync", { method: "POST", body: { languageCode: lang } })
       .then((res) => setIsUserAdmin(Boolean(res?.isAdmin)))
-      .catch(() => {});
+      .catch((err) => console.error("auth-sync failed:", err.status, err.payload || err.message));
   }, [identity, lang]);
 
   // Оновлюємо last_active_at періодично, поки застосунок відкритий,
@@ -270,8 +270,8 @@ export default function App() {
       const { id, updatedAt, ...data } = next;
       try {
         await apiFetch("/api/resumes", { method: "POST", body: { id, data } });
-      } catch {
-        // most likely the 2-resume limit was hit server-side (race condition)
+      } catch (err) {
+        console.error("resume save failed:", err.status, err.payload || err.message);
         setResumes((prev) => prev.filter((r) => r.id !== id));
       }
     }
@@ -328,7 +328,8 @@ export default function App() {
       const { id, updatedAt, status, rejectReason, showsPurchased, showsUsed, isPaid, listingPrice, pricePerShow, template, ...data } = next;
       try {
         await apiFetch("/api/vacancies", { method: "POST", body: { id, data, template } });
-      } catch {
+      } catch (err) {
+        console.error("vacancy save failed:", err.status, err.payload || err.message);
         setVacancies((prev) => prev.filter((v) => v.id !== id));
       }
     }
