@@ -1,5 +1,6 @@
 import { useState } from "react";
 import TagPicker from "../components/TagPicker.jsx";
+import { confirmDialog } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 6;
 const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
@@ -34,6 +35,25 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
     else setStep(step - 1);
   };
 
+  const isDirty = () =>
+    Boolean(
+      draft.fullName?.trim() ||
+        draft.role?.trim() ||
+        draft.email?.trim() ||
+        draft.phone?.trim() ||
+        draft.city?.trim() ||
+        draft.summary?.trim() ||
+        (draft.experience || []).length > 0 ||
+        (draft.education || []).length > 0 ||
+        (draft.skills || []).length > 0 ||
+        (draft.portfolio || []).length > 0
+    );
+
+  const goHome = async () => {
+    if (isDirty() && !(await confirmDialog("Вийти без збереження? Введені дані буде втрачено."))) return;
+    onBackHome();
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-base-950">
 
@@ -47,6 +67,17 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
           <span className="text-xs text-white/45 font-medium">
             Крок {step + 1} з {TOTAL_STEPS}
           </span>
+          <button onClick={goHome} className="tap w-8 h-8 ml-auto flex items-center justify-center text-white/70">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path
+                d="M2.5 8L9 2.5 15.5 8M4 6.8V15h10V6.8"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
         <div className="h-1.5 bg-base-800 rounded-full overflow-hidden">
           <div

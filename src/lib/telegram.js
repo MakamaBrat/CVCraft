@@ -25,6 +25,17 @@ export function getTelegramInitData() {
   return tg?.initData || null;
 }
 
+export function confirmDialog(message) {
+  return new Promise((resolve) => {
+    const tg = getTelegramWebApp();
+    if (tg?.showConfirm) {
+      tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+    } else {
+      resolve(window.confirm(message));
+    }
+  });
+}
+
 export function initTelegramApp() {
   const tg = getTelegramWebApp();
   if (!tg) return;

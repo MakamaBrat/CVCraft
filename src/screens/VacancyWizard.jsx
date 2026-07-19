@@ -2,6 +2,7 @@ import { useState } from "react";
 import TagPicker from "../components/TagPicker.jsx";
 import { MediaPreview, detectMediaType } from "./Wizard.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { confirmDialog } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 4;
 
@@ -46,6 +47,30 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
     else setStep(step - 1);
   };
 
+  const isDirty = () =>
+    Boolean(
+      draft.position?.trim() ||
+        draft.company?.trim() ||
+        draft.salary?.trim() ||
+        draft.city?.trim() ||
+        draft.description?.trim() ||
+        draft.requirements?.trim() ||
+        draft.contact?.trim() ||
+        (draft.tags || []).length > 0 ||
+        (draft.media || []).length > 0
+    );
+
+  const exitConfirmText = {
+    uk: "Вийти без збереження? Введені дані буде втрачено.",
+    ru: "Выйти без сохранения? Введённые данные будут потеряны.",
+    en: "Leave without saving? Entered data will be lost.",
+  }[lang];
+
+  const goHome = async () => {
+    if (isDirty() && !(await confirmDialog(exitConfirmText))) return;
+    onBackHome();
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-base-950">
 
@@ -59,6 +84,17 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
           <span className="text-xs text-white/45 font-medium">
             {step + 1}/{TOTAL_STEPS}
           </span>
+          <button onClick={goHome} className="tap w-8 h-8 ml-auto flex items-center justify-center text-white/70">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path
+                d="M2.5 8L9 2.5 15.5 8M4 6.8V15h10V6.8"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
         <div className="h-1.5 bg-base-800 rounded-full overflow-hidden">
           <div
