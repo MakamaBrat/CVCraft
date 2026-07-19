@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Home from "./screens/Home.jsx";
 import Wizard from "./screens/Wizard.jsx";
 import Templates from "./screens/Templates.jsx";
@@ -66,7 +66,7 @@ function parseHashRoute() {
 }
 
 export default function App() {
-  const sharedId = useMemo(() => parseHashRoute(), []);
+  const [sharedId, setSharedId] = useState(() => parseHashRoute());
   const [identity, setIdentity] = useState(loadIdentity);
   const [checkedTelegram, setCheckedTelegram] = useState(false);
   const [resumes, setResumes] = useState([]);
@@ -199,8 +199,8 @@ export default function App() {
         <SharedView
           resumeId={sharedId}
           onOpenApp={() => {
-            window.location.hash = "";
-            window.location.reload();
+            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+            setSharedId(null);
           }}
         />
       </div>
@@ -306,6 +306,14 @@ export default function App() {
     if (v) {
       setVacancyDraft(v);
       setRoute({ screen: "vacancyWizard", step: 0 });
+    }
+  };
+
+  const payVacancy = (id) => {
+    const v = vacancies.find((x) => x.id === id);
+    if (v) {
+      setVacancyDraft(v);
+      setRoute({ screen: "vacancyPreview" });
     }
   };
 
@@ -455,6 +463,7 @@ export default function App() {
           onEdit={editVacancy}
           onDelete={deleteVacancy}
           onOpenApplicants={goApplicants}
+          onPay={payVacancy}
           canCreateMore={canCreateMoreVacancies}
           maxVacancies={MAX_VACANCIES_PER_USER}
         />
@@ -495,6 +504,18 @@ export default function App() {
             goVacancyList();
           }}
           onSendToModeration={() => sendVacancyToModeration(vacancyDraft)}
+          onPaid={async (id) => {
+            if (!backendEnabled) return;
+            try {
+              const res = await apiFetch("/api/vacancies");
+              const fresh = (res?.vacancies || []).map(vacancyFromRow);
+              setVacancies(fresh);
+              const updated = fresh.find((v) => v.id === id);
+              if (updated) setVacancyDraft(updated);
+            } catch (err) {
+              console.error("failed to refresh vacancy after payment:", err.status, err.payload || err.message);
+            }
+          }}
         />
       )}
 

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import StatusBar from "../components/StatusBar.jsx";
 import TagPicker from "../components/TagPicker.jsx";
 import { MediaPreview, detectMediaType } from "./Wizard.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -49,7 +48,6 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
 
       <div className="px-6 pt-2 pb-4">
         <div className="flex items-center gap-3 mb-4">

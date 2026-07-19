@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { buildShareLink } from "../lib/config.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
 
 function timeAgo(ts) {
   const diff = Date.now() - ts;
@@ -35,6 +38,19 @@ export default function Home({
   isAdmin,
 }) {
   const { t } = useLanguage();
+  const [activeResume, setActiveResume] = useState(null);
+
+  const shareResume = (r) => {
+    const shareUrl = buildShareLink(r.id);
+    const text = [r.fullName, r.role].filter(Boolean).join(" — ");
+    const tg = getTelegramWebApp();
+    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+    else if (tg?.openLink) tg.openLink(telegramShareUrl);
+    else window.open(telegramShareUrl, "_blank");
+    setActiveResume(null);
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <div className="px-6 pt-5 pb-4 flex items-center justify-between">
@@ -127,7 +143,7 @@ export default function Home({
             {resumes.map((r) => (
               <button
                 key={r.id}
-                onClick={() => onEdit(r.id)}
+                onClick={() => setActiveResume(r)}
                 className="tap group flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-accent-500/20 text-accent-300 font-semibold text-sm flex items-center justify-center shrink-0">
@@ -139,15 +155,6 @@ export default function Home({
                   </p>
                   <p className="text-xs text-white/45">{timeAgo(r.updatedAt)}</p>
                 </div>
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(r.id);
-                  }}
-                  className="tap opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 text-xs px-2 py-1"
-                >
-                  Видалити
-                </span>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -166,6 +173,53 @@ export default function Home({
             <span className="text-lg leading-none">🛠️</span>
             <span className="text-sm font-medium text-accent-300">{t("home.adminPanel")}</span>
           </button>
+        </div>
+      )}
+
+      {activeResume && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setActiveResume(null)} />
+          <div className="relative w-full max-w-[420px] bg-base-900 border-t border-base-700 rounded-t-2xl px-5 pt-4 pb-6 fade-up">
+            <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-white/90 truncate mb-0.5">
+              {activeResume.fullName || "Нове резюме"}
+            </p>
+            <p className="text-xs text-white/45 mb-4 truncate">{activeResume.role || "Без назви посади"}</p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => shareResume(activeResume)}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+              >
+                <span className="text-base leading-none">🔗</span> Поділитися
+              </button>
+              <button
+                onClick={() => {
+                  onEdit(activeResume.id);
+                  setActiveResume(null);
+                }}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+              >
+                <span className="text-base leading-none">✏️</span> Редагувати
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(activeResume.id);
+                  setActiveResume(null);
+                }}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400"
+              >
+                <span className="text-base leading-none">🗑️</span> Видалити
+              </button>
+            </div>
+
+            <button
+              onClick={() => setActiveResume(null)}
+              className="tap w-full mt-3 text-center text-sm font-medium text-white/50 py-2"
+            >
+              Скасувати
+            </button>
+          </div>
         </div>
       )}
     </div>

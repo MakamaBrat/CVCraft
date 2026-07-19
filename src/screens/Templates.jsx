@@ -1,5 +1,4 @@
 import { useState } from "react";
-import StatusBar from "../components/StatusBar.jsx";
 
 const CATEGORIES = ["Всі", "Мінімал", "Сучасні", "Креативні"];
 
@@ -49,7 +48,6 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
 
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">

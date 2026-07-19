@@ -1,4 +1,3 @@
-import StatusBar from "../components/StatusBar.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 export default function VacancyApplicants({ vacancy, applicants, loading, onBack }) {
@@ -6,7 +5,6 @@ export default function VacancyApplicants({ vacancy, applicants, loading, onBack
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

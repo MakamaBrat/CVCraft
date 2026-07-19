@@ -1,6 +1,8 @@
-import StatusBar from "../components/StatusBar.jsx";
+import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
+import { buildVacancyShareLink } from "../lib/config.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -19,14 +21,30 @@ export default function VacancyList({
   onEdit,
   onDelete,
   onOpenApplicants,
+  onPay,
   canCreateMore = true,
   maxVacancies = 5,
 }) {
   const { t } = useLanguage();
+  const [activeVacancy, setActiveVacancy] = useState(null);
+
+  const canPay =
+    activeVacancy &&
+    [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(activeVacancy.status);
+
+  const shareVacancy = (v) => {
+    const shareUrl = buildVacancyShareLink(v.id);
+    const text = [v.position, v.company].filter(Boolean).join(" — ");
+    const tg = getTelegramWebApp();
+    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+    else if (tg?.openLink) tg.openLink(telegramShareUrl);
+    else window.open(telegramShareUrl, "_blank");
+    setActiveVacancy(null);
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
 
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
@@ -66,7 +84,7 @@ export default function VacancyList({
           <div className="flex flex-col gap-2.5">
             {vacancies.map((v) => (
               <div key={v.id} className="group bg-base-850 border border-base-700 rounded-xl px-3.5 py-3">
-                <button onClick={() => onEdit(v.id)} className="tap flex items-center gap-3 w-full text-left">
+                <button onClick={() => setActiveVacancy(v)} className="tap flex items-center gap-3 w-full text-left">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">{v.position || "—"}</p>
                     <p className="text-xs text-white/45 truncate">{v.company}</p>
@@ -75,15 +93,6 @@ export default function VacancyList({
                       {v.status === VACANCY_STATUS.ACTIVE && ` · ${t("vacancy.showsLeft", (v.showsPurchased || 0) - (v.showsUsed || 0))}`}
                     </p>
                   </div>
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(v.id);
-                    }}
-                    className="tap opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 text-xs px-2 py-1"
-                  >
-                    {t("common.delete")}
-                  </span>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
                     <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -101,6 +110,63 @@ export default function VacancyList({
           </div>
         )}
       </div>
+
+      {activeVacancy && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setActiveVacancy(null)} />
+          <div className="relative w-full max-w-[420px] bg-base-900 border-t border-base-700 rounded-t-2xl px-5 pt-4 pb-6 fade-up">
+            <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-white/90 truncate mb-0.5">{activeVacancy.position || "—"}</p>
+            <p className="text-xs text-white/45 mb-4 truncate">{activeVacancy.company}</p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => shareVacancy(activeVacancy)}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+              >
+                <span className="text-base leading-none">🔗</span> Поділитися
+              </button>
+              <button
+                onClick={() => {
+                  onEdit(activeVacancy.id);
+                  setActiveVacancy(null);
+                }}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+              >
+                <span className="text-base leading-none">✏️</span> Редагувати
+              </button>
+              {canPay && onPay && (
+                <button
+                  onClick={() => {
+                    onPay(activeVacancy.id);
+                    setActiveVacancy(null);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-accent-500/15 border border-accent-500/30 rounded-xl px-4 py-3 text-left text-sm font-medium text-accent-300"
+                >
+                  <span className="text-base leading-none">⭐</span>{" "}
+                  {activeVacancy.status === VACANCY_STATUS.APPROVED ? t("vacancy.payAndPublish") : t("vacancy.buyMoreShows")}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  onDelete(activeVacancy.id);
+                  setActiveVacancy(null);
+                }}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400"
+              >
+                <span className="text-base leading-none">🗑️</span> {t("common.delete")}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setActiveVacancy(null)}
+              className="tap w-full mt-3 text-center text-sm font-medium text-white/50 py-2"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

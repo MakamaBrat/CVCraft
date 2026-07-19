@@ -1,7 +1,9 @@
-import StatusBar from "../components/StatusBar.jsx";
-import ShareButtons from "../components/ShareButtons.jsx";
+import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
+import { generateVacancyPdf } from "../lib/pdf.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
+import { apiFetch } from "../lib/api.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
@@ -16,6 +18,7 @@ function VacancyDocument({ vacancy }) {
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   return (
     <div
+      id="vacancy-doc"
       className="bg-white text-[#1c1c1c] rounded-xl shadow-xl mx-auto"
       style={{ width: "100%", maxWidth: 400, padding: "28px 24px", fontFamily: "Manrope, sans-serif" }}
     >
@@ -60,7 +63,7 @@ function VacancyDocument({ vacancy }) {
       )}
 
       {(vacancy.media || []).length > 0 && (
-        <section className="print:hidden">
+        <section className="print:hidden" data-pdf-hide="true">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Медіа
           </h3>
@@ -78,15 +81,102 @@ function VacancyDocument({ vacancy }) {
   );
 }
 
-export default function VacancyPreview({ vacancy, onBack, onSendToModeration, onSave }) {
+export default function VacancyPreview({ vacancy, onBack, onSendToModeration, onSave, onPaid }) {
   const { t } = useLanguage();
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const shareUrl = buildVacancyShareLink(vacancy.id);
   const status = vacancy.status || VACANCY_STATUS.DRAFT;
+
+  const listingPrice = vacancy.listingPrice || 500;
+  const perShow = vacancy.pricePerShow || 1;
+  const needsPayment = status === VACANCY_STATUS.APPROVED;
+  const canBuyMore = status === VACANCY_STATUS.ACTIVE || status === VACANCY_STATUS.PAUSED;
+
+  const [showsToBuy, setShowsToBuy] = useState(20);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState(null);
+  const totalStars = (needsPayment ? listingPrice : 0) + Math.max(0, showsToBuy) * perShow;
+
+  const handlePay = async () => {
+    if (showsToBuy < 1) return;
+    setPayError(null);
+    setPaying(true);
+    try {
+      const res = await apiFetch("/api/vacancy-invoice", {
+        method: "POST",
+        body: { id: vacancy.id, kind: needsPayment ? "listing" : "extra_shows", shows: showsToBuy },
+      });
+      const tg = getTelegramWebApp();
+      if (!tg?.openInvoice) {
+        setPayError("Оплата доступна лише в застосунку Telegram.");
+        setPaying(false);
+        return;
+      }
+      tg.openInvoice(res.invoiceLink, async (invoiceStatus) => {
+        setPaying(false);
+        if (invoiceStatus === "paid") {
+          await onPaid?.(vacancy.id);
+        } else if (invoiceStatus === "failed") {
+          setPayError("Оплата не пройшла. Спробуйте ще раз.");
+        }
+      });
+    } catch (err) {
+      console.error("[VacancyPreview] invoice failed", err);
+      setPayError("Не вдалося створити рахунок. Спробуйте ще раз.");
+      setPaying(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setShareError(null);
+    setSharing(true);
+    try {
+      const { blob, fileName } = await generateVacancyPdf(vacancy);
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      const caption = [
+        `${vacancy.position || "Вакансія"}${vacancy.company ? " — " + vacancy.company : ""}`,
+        "",
+        `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
+      ].join("\n");
+
+      // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
+      // з підписом (підтримується мобільними браузерами й Telegram
+      // in-app browser на iOS/Android).
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: fileName });
+        return;
+      }
+
+      // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
+      // PDF і одразу відкриваємо Telegram-шеринг з посиланням і підписом.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
+      const tg = getTelegramWebApp();
+      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+      else if (tg?.openLink) tg.openLink(telegramShareUrl);
+      else window.open(telegramShareUrl, "_blank");
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("[VacancyPreview] share failed", err);
+        setShareError("Не вдалося поділитися вакансією. Спробуйте ще раз.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <div className="print:hidden">
-        <StatusBar />
         <div className="px-6 pt-2 pb-4 flex items-center gap-3">
           <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -114,7 +204,78 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
         </div>
       )}
 
-      <div className="px-6 pb-3 pt-2 flex gap-3 print:hidden">
+      {shareError && <p className="px-6 pb-2 text-[11px] text-red-400 print:hidden">{shareError}</p>}
+
+      {(needsPayment || canBuyMore) && (
+        <div className="px-6 pb-4 print:hidden">
+          <div className="bg-base-850 border border-base-700 rounded-xl p-4">
+            <p className="text-sm font-semibold text-white/90 mb-1">
+              {needsPayment ? t("vacancy.payAndPublish") : t("vacancy.buyMoreShows")}
+            </p>
+            {needsPayment && (
+              <p className="text-xs text-white/45 mb-2">{t("vacancy.listingPrice", listingPrice)}</p>
+            )}
+            <p className="text-xs text-white/45 mb-3">{t("vacancy.perShowPrice", perShow)}</p>
+
+            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.chooseShows")}</label>
+            <div className="flex items-center gap-3 mb-3">
+              <button
+                onClick={() => setShowsToBuy((n) => Math.max(1, n - 10))}
+                className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min={1}
+                value={showsToBuy}
+                onChange={(e) => setShowsToBuy(Math.max(1, Number(e.target.value) || 1))}
+                className="w-20 text-center bg-base-900 border border-base-700 rounded-lg py-2 text-sm text-white outline-none focus:border-accent-500"
+              />
+              <button
+                onClick={() => setShowsToBuy((n) => n + 10)}
+                className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
+              >
+                +
+              </button>
+            </div>
+
+            {payError && <p className="text-[11px] text-red-400 mb-2">{payError}</p>}
+
+            <button
+              onClick={handlePay}
+              disabled={paying}
+              className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3 disabled:opacity-60"
+            >
+              {paying ? "Відкриваємо оплату…" : `${needsPayment ? t("vacancy.payAndPublish") : t("vacancy.buyMoreShows")} · ${t("vacancy.totalPrice", totalStars)}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="px-6 pb-3 print:hidden">
+        <button
+          onClick={handleShare}
+          disabled={sharing}
+          className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60"
+        >
+          {sharing ? (
+            "Готуємо PDF…"
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                <circle cx="3.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+              Поділитися
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="px-6 pb-6 pt-0 flex gap-3 print:hidden">
         <button
           onClick={onSave}
           className="tap flex-1 flex items-center justify-center gap-2 bg-base-800 border border-base-700 text-white font-semibold text-sm rounded-xl py-3.5"
@@ -124,14 +285,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
         {(status === VACANCY_STATUS.DRAFT || status === VACANCY_STATUS.REJECTED) && (
           <button
             onClick={onSendToModeration}
-            className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+            className="tap flex-1 flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-semibold text-sm rounded-xl py-3.5"
           >
             {t("vacancy.sendToModeration")}
           </button>
         )}
       </div>
-
-      <ShareButtons shareUrl={shareUrl} shareText={`${vacancy.position || ""} — ${vacancy.company || ""}`.trim()} />
     </div>
   );
 }

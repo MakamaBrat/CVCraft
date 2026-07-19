@@ -1,5 +1,4 @@
 import { useState } from "react";
-import StatusBar from "./StatusBar.jsx";
 
 export default function TelegramGate({ onSubmit }) {
   const [id, setId] = useState("");
@@ -18,7 +17,6 @@ export default function TelegramGate({ onSubmit }) {
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
       <div className="flex-1 flex flex-col justify-center px-6 pb-10 fade-up">
         <div className="w-12 h-12 rounded-2xl bg-accent-500 flex items-center justify-center mb-5">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">

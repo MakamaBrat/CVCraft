@@ -1,5 +1,4 @@
 import { useState } from "react";
-import StatusBar from "../components/StatusBar.jsx";
 import TagPicker from "../components/TagPicker.jsx";
 
 const TOTAL_STEPS = 6;
@@ -37,7 +36,6 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
 
       <div className="px-6 pt-2 pb-4">
         <div className="flex items-center gap-3 mb-4">

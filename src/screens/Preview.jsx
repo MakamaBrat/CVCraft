@@ -1,9 +1,9 @@
 import { useState } from "react";
-import StatusBar from "../components/StatusBar.jsx";
-import ShareButtons from "../components/ShareButtons.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
+import { generateResumePdf } from "../lib/pdf.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = {
@@ -114,7 +114,7 @@ function ResumeDocument({ resume }) {
       )}
 
       {(resume.portfolio || []).length > 0 && (
-        <section className="print:hidden">
+        <section className="print:hidden" data-pdf-hide="true">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Портфоліо
           </h3>
@@ -133,25 +133,62 @@ function ResumeDocument({ resume }) {
 }
 
 export default function Preview({ resume, onBack, onDone }) {
-  const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const { t } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
 
   const handleShare = async () => {
+    setShareError(null);
+    setSharing(true);
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      window.prompt("Скопіюйте посилання:", shareUrl);
+      const { blob, fileName } = await generateResumePdf(resume);
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      const caption = [
+        `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`,
+        "",
+        `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
+      ].join("\n");
+
+      // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
+      // з підписом (підтримується мобільними браузерами й Telegram
+      // in-app browser на iOS/Android).
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: fileName });
+        return;
+      }
+
+      // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
+      // PDF і одразу відкриваємо Telegram-шеринг з посиланням і підписом,
+      // щоб отримати той самий результат у два кроки.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
+      const tg = getTelegramWebApp();
+      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+      else if (tg?.openLink) tg.openLink(telegramShareUrl);
+      else window.open(telegramShareUrl, "_blank");
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("[Preview] share failed", err);
+        setShareError("Не вдалося поділитися резюме. Спробуйте ще раз.");
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <div className="print:hidden">
-        <StatusBar />
         <div className="px-6 pt-2 pb-4 flex items-center gap-3">
           <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -178,13 +215,16 @@ export default function Preview({ resume, onBack, onDone }) {
         </p>
       )}
 
+      {shareError && <p className="px-6 pb-2 text-[11px] text-red-400 print:hidden">{shareError}</p>}
+
       <div className="px-6 pb-3 print:hidden">
         <button
           onClick={handleShare}
-          className="tap w-full flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-medium text-sm rounded-xl py-3"
+          disabled={sharing}
+          className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60"
         >
-          {copied ? (
-            "Посилання скопійовано"
+          {sharing ? (
+            "Готуємо PDF…"
           ) : (
             <>
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -193,22 +233,20 @@ export default function Preview({ resume, onBack, onDone }) {
                 <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
               </svg>
-              Поділитись резюме
+              Поділитися
             </>
           )}
         </button>
       </div>
 
-      <div className="px-6 pb-3 pt-2 print:hidden">
+      <div className="px-6 pb-6 print:hidden">
         <button
           onClick={onDone}
-          className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+          className="tap w-full flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-medium text-sm rounded-xl py-3.5"
         >
           {t("common.save")}
         </button>
       </div>
-
-      <ShareButtons shareUrl={shareUrl} shareText={`${resume.fullName || ""} — ${resume.role || ""}`.trim()} />
     </div>
   );
 }

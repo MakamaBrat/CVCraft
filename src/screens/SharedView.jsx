@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api.js";
-import StatusBar from "../components/StatusBar.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 
 const ACCENTS = {
@@ -35,7 +34,6 @@ export default function SharedView({ resumeId, onOpenApp }) {
   if (status === "loading") {
     return (
       <div className="flex-1 flex flex-col bg-base-950">
-        <StatusBar />
         <div className="flex-1 flex items-center justify-center text-white/40 text-sm">Завантаження резюме…</div>
       </div>
     );
@@ -44,7 +42,6 @@ export default function SharedView({ resumeId, onOpenApp }) {
   if (status === "not-found") {
     return (
       <div className="flex-1 flex flex-col bg-base-950">
-        <StatusBar />
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
           <p className="text-sm text-white/60">Резюме не знайдено або посилання застаріло.</p>
           <button onClick={onOpenApp} className="tap text-sm text-accent-300 font-medium">
@@ -59,20 +56,14 @@ export default function SharedView({ resumeId, onOpenApp }) {
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
 
-      <div className="px-6 pt-2 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-              <path d="M2 3h10v2H2zM2 6h10v2H2zM2 9h7v2H2z" fill="black" />
-            </svg>
-          </div>
-          <span className="font-semibold text-sm text-white/70">CV DECK</span>
+      <div className="px-6 pt-2 pb-4 flex items-center gap-2">
+        <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <path d="M2 3h10v2H2zM2 6h10v2H2zM2 9h7v2H2z" fill="black" />
+          </svg>
         </div>
-        <button onClick={onOpenApp} className="tap text-xs text-accent-300 font-medium">
-          Створити своє
-        </button>
+        <span className="font-semibold text-sm text-white/70">CV DECK</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-8 fade-up">
@@ -188,6 +179,13 @@ export default function SharedView({ resumeId, onOpenApp }) {
             </section>
           )}
         </div>
+
+        <button
+          onClick={onOpenApp}
+          className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+        >
+          Створити своє резюме
+        </button>
       </div>
     </div>
   );

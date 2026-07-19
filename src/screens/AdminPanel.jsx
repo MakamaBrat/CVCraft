@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import StatusBar from "../components/StatusBar.jsx";
 import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { vacancyFromRow } from "../lib/vacancy.js";
@@ -40,30 +39,46 @@ export default function AdminPanel({ onBack, adminId }) {
     loadAll();
   }, []);
 
+  const [actionError, setActionError] = useState(null);
+
   const approve = async (id) => {
-    await apiFetch("/api/admin", { method: "POST", body: { action: "moderate", id, decision: "approve" } }).catch(() => {});
-    setPending((prev) => prev.filter((v) => v.id !== id));
+    setActionError(null);
+    try {
+      await apiFetch("/api/admin", { method: "POST", body: { action: "moderate", id, decision: "approve" } });
+      setPending((prev) => prev.filter((v) => v.id !== id));
+    } catch (err) {
+      setActionError(`Помилка модерації: ${err?.payload?.error || err.message}`);
+    }
   };
 
   const reject = async (id) => {
-    await apiFetch("/api/admin", {
-      method: "POST",
-      body: { action: "moderate", id, decision: "reject", rejectReason: rejectReason || null },
-    }).catch(() => {});
-    setPending((prev) => prev.filter((v) => v.id !== id));
-    setRejectingId(null);
-    setRejectReason("");
+    setActionError(null);
+    try {
+      await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "moderate", id, decision: "reject", rejectReason: rejectReason || null },
+      });
+      setPending((prev) => prev.filter((v) => v.id !== id));
+      setRejectingId(null);
+      setRejectReason("");
+    } catch (err) {
+      setActionError(`Помилка модерації: ${err?.payload?.error || err.message}`);
+    }
   };
 
   const toggleBan = async (u) => {
+    setActionError(null);
     const nextBanned = !u.is_banned;
-    await apiFetch("/api/admin", { method: "POST", body: { action: "ban", telegramId: u.telegram_id, banned: nextBanned } }).catch(() => {});
-    setUsers((prev) => prev.map((x) => (x.telegram_id === u.telegram_id ? { ...x, is_banned: nextBanned } : x)));
+    try {
+      await apiFetch("/api/admin", { method: "POST", body: { action: "ban", telegramId: u.telegram_id, banned: nextBanned } });
+      setUsers((prev) => prev.map((x) => (x.telegram_id === u.telegram_id ? { ...x, is_banned: nextBanned } : x)));
+    } catch (err) {
+      setActionError(`Помилка: ${err?.payload?.error || err.message}`);
+    }
   };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -86,6 +101,15 @@ export default function AdminPanel({ onBack, adminId }) {
           </button>
         ))}
       </div>
+
+      {actionError && (
+        <div className="mx-6 mb-3 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center justify-between gap-2">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError(null)} className="tap shrink-0 text-red-400/70">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         {loading ? (
