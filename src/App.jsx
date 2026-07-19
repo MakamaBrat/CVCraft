@@ -18,6 +18,7 @@ const emptyResume = () => ({
   experience: [],
   education: [],
   skills: [],
+  portfolio: [],
   template: "minimal",
 });
 

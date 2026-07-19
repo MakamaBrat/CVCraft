@@ -1,8 +1,8 @@
 import { useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
 
-const TOTAL_STEPS = 5;
-const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички"];
+const TOTAL_STEPS = 6;
+const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
 
 function Field({ label, hint, children }) {
   return (
@@ -124,6 +124,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
         {step === 2 && <ExperienceStep draft={draft} set={set} />}
         {step === 3 && <EducationStep draft={draft} set={set} />}
         {step === 4 && <SkillsStep draft={draft} set={set} />}
+        {step === 5 && <PortfolioStep draft={draft} set={set} />}
       </div>
 
       <div className="px-6 pb-6 pt-2">
@@ -237,6 +238,129 @@ function EducationStep({ draft, set }) {
         + Додати освіту
       </button>
     </div>
+  );
+}
+
+export function detectMediaType(url) {
+  if (!url) return null;
+  const u = url.trim();
+  if (/\.(gif)(\?.*)?$/i.test(u)) return "gif";
+  if (/\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(u)) return "video";
+  if (/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)) return "youtube";
+  if (/youtube\.com\/shorts\//i.test(u)) return "youtube";
+  if (/vimeo\.com\//i.test(u)) return "vimeo";
+  return "link";
+}
+
+function PortfolioStep({ draft, set }) {
+  const [item, setItem] = useState({ title: "", url: "" });
+  const portfolio = draft.portfolio || [];
+
+  const add = () => {
+    if (!item.url.trim()) return;
+    set({
+      portfolio: [
+        ...portfolio,
+        { id: crypto.randomUUID(), title: item.title.trim(), url: item.url.trim(), type: detectMediaType(item.url) },
+      ],
+    });
+    setItem({ title: "", url: "" });
+  };
+  const remove = (id) => set({ portfolio: portfolio.filter((x) => x.id !== id) });
+
+  return (
+    <div>
+      {portfolio.map((p) => (
+        <div key={p.id} className="bg-base-850 border border-base-700 rounded-xl p-3 mb-3">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <p className="font-medium text-sm truncate">{p.title || "Без назви"}</p>
+            <button onClick={() => remove(p.id)} className="tap shrink-0 text-white/30 hover:text-red-400 text-xs">
+              Видалити
+            </button>
+          </div>
+          <p className="text-xs text-white/40 truncate mb-2">{p.url}</p>
+          <MediaPreview item={p} />
+        </div>
+      ))}
+
+      <Field label="Назва прикладу" hint="Наприклад: демо гри, трейлер, дизайн UI.">
+        <input
+          className={inputCls}
+          placeholder="Демо мобільної гри"
+          value={item.title}
+          onChange={(e) => setItem({ ...item, title: e.target.value })}
+        />
+      </Field>
+      <Field label="Посилання на відео або гіф" hint="YouTube, Vimeo, пряме посилання на .mp4 або .gif.">
+        <input
+          className={inputCls}
+          placeholder="https://youtube.com/watch?v=..."
+          value={item.url}
+          onChange={(e) => setItem({ ...item, url: e.target.value })}
+        />
+      </Field>
+      <button onClick={add} className="tap w-full border border-dashed border-violet-500/50 text-violet-300 text-sm font-medium rounded-xl py-2.5">
+        + Додати приклад роботи
+      </button>
+    </div>
+  );
+}
+
+function youtubeId(url) {
+  const m = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function vimeoId(url) {
+  const m = url.match(/vimeo\.com\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+export function MediaPreview({ item }) {
+  const type = item.type || detectMediaType(item.url);
+  if (type === "youtube") {
+    const id = youtubeId(item.url);
+    if (!id) return null;
+    return (
+      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+        <iframe
+          src={`https://www.youtube.com/embed/${id}`}
+          title={item.title || "video"}
+          className="absolute inset-0 w-full h-full"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+  if (type === "vimeo") {
+    const id = vimeoId(item.url);
+    if (!id) return null;
+    return (
+      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+        <iframe
+          src={`https://player.vimeo.com/video/${id}`}
+          title={item.title || "video"}
+          className="absolute inset-0 w-full h-full"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+  if (type === "video") {
+    return (
+      <video src={item.url} controls className="w-full rounded-lg bg-black" style={{ maxHeight: 220 }} />
+    );
+  }
+  if (type === "gif") {
+    return <img src={item.url} alt={item.title || "gif"} className="w-full rounded-lg object-cover" style={{ maxHeight: 220 }} />;
+  }
+  return (
+    <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-violet-300 underline break-all">
+      {item.url}
+    </a>
   );
 }
 

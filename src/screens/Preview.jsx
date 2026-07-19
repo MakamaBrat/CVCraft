@@ -1,4 +1,5 @@
 import StatusBar from "../components/StatusBar.jsx";
+import { MediaPreview } from "./Wizard.jsx";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -89,7 +90,7 @@ function ResumeDocument({ resume }) {
       )}
 
       {resume.skills.length > 0 && (
-        <section>
+        <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Навички
           </h3>
@@ -102,6 +103,22 @@ function ResumeDocument({ resume }) {
               >
                 {s}
               </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(resume.portfolio || []).length > 0 && (
+        <section className="print:hidden">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+            Портфоліо
+          </h3>
+          <div className="space-y-3">
+            {resume.portfolio.map((p) => (
+              <div key={p.id}>
+                {p.title && <p className="text-[11.5px] font-semibold mb-1">{p.title}</p>}
+                <MediaPreview item={p} />
+              </div>
             ))}
           </div>
         </section>
@@ -130,6 +147,12 @@ export default function Preview({ resume, onBack, onDone }) {
       <div className="flex-1 overflow-y-auto px-6 pb-4">
         <ResumeDocument resume={resume} />
       </div>
+
+      {(resume.portfolio || []).length > 0 && (
+        <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
+          Відео та гіфки з портфоліо відтворюються на сторінці, але не включаються у PDF.
+        </p>
+      )}
 
       <div className="px-6 pb-6 pt-2 flex gap-3 print:hidden">
         <button
