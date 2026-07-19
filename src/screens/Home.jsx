@@ -63,7 +63,7 @@ export default function Home({
       </div>
 
       <div className="px-6 pb-6">
-        <div className="rounded-2xl bg-gradient-to-br from-accent-600 to-accent-500/70 p-5 shadow-glow relative overflow-hidden">
+        <div className="rounded-2xl bg-black p-5 shadow-glow relative overflow-hidden">
           <div className="absolute -right-6 -top-8 w-28 h-28 rounded-full bg-white/10 blur-2xl" />
           <h1 className="text-xl font-bold leading-snug mb-1.5 relative">
             Створіть резюме,
@@ -78,7 +78,7 @@ export default function Home({
           <button
             onClick={onCreate}
             disabled={!canCreateMore}
-            className="tap relative flex items-center justify-center gap-2 w-full bg-black text-white font-semibold text-sm rounded-xl py-3 hover:bg-black/85 disabled:bg-black/40 disabled:text-white/50"
+            className="tap relative flex items-center justify-center gap-2 w-full bg-white text-black font-semibold text-sm rounded-xl py-3 hover:bg-white/90 disabled:bg-white/40 disabled:text-black/50"
           >
             <span className="text-lg leading-none">+</span> Створити резюме
           </button>
