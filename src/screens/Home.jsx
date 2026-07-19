@@ -51,14 +51,6 @@ export default function Home({
             </span>
           )}
         </div>
-        <button className="tap w-8 h-8 rounded-full flex items-center justify-center bg-base-800/70 text-white/70">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M8 1.5a1.2 1.2 0 011.2 1v.4a5.1 5.1 0 011.5.6l.3-.3a1.2 1.2 0 011.7 1.7l-.3.3c.3.5.5 1 .6 1.5h.4a1.2 1.2 0 010 2.4h-.4a5.1 5.1 0 01-.6 1.5l.3.3a1.2 1.2 0 01-1.7 1.7l-.3-.3a5.1 5.1 0 01-1.5.6v.4a1.2 1.2 0 01-2.4 0v-.4a5.1 5.1 0 01-1.5-.6l-.3.3a1.2 1.2 0 01-1.7-1.7l.3-.3a5.1 5.1 0 01-.6-1.5h-.4a1.2 1.2 0 010-2.4h.4c.1-.5.3-1 .6-1.5l-.3-.3a1.2 1.2 0 011.7-1.7l.3.3c.5-.3 1-.5 1.5-.6v-.4A1.2 1.2 0 018 1.5zM8 6a2 2 0 100 4 2 2 0 000-4z"
-              fill="currentColor"
-            />
-          </svg>
-        </button>
       </div>
 
       <div className="px-6 pb-6">
