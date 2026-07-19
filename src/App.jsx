@@ -6,6 +6,7 @@ import Preview from "./screens/Preview.jsx";
 import SharedView from "./screens/SharedView.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
 import { supabase, supabaseEnabled } from "./lib/supabase.js";
+import { getTelegramUser, initTelegramApp } from "./lib/telegram.js";
 
 const IDENTITY_KEY = "cvcraft.identity.v1";
 const LOCAL_RESUMES_KEY = "cvcraft.resumes.v1";
@@ -47,16 +48,31 @@ function loadLocalResumes() {
 function parseHashRoute() {
   const hash = window.location.hash;
   const m = hash.match(/^#\/r\/([a-zA-Z0-9-]+)/);
-  return m ? m[1] : null;
+  if (m) return m[1];
+  const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+  if (tgStartParam?.startsWith("r-")) return tgStartParam.slice(2);
+  return null;
 }
 
 export default function App() {
   const sharedId = useMemo(() => parseHashRoute(), []);
   const [identity, setIdentity] = useState(loadIdentity);
+  const [checkedTelegram, setCheckedTelegram] = useState(false);
   const [resumes, setResumes] = useState([]);
   const [loadingResumes, setLoadingResumes] = useState(true);
   const [route, setRoute] = useState({ screen: "home" });
   const [draft, setDraft] = useState(null);
+
+  useEffect(() => {
+    initTelegramApp();
+    const tgUser = getTelegramUser();
+    if (tgUser) {
+      const resolved = { id: tgUser.id, username: tgUser.username, firstName: tgUser.firstName };
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify(resolved));
+      setIdentity(resolved);
+    }
+    setCheckedTelegram(true);
+  }, []);
 
   useEffect(() => {
     if (sharedId || !identity) return;
@@ -107,6 +123,16 @@ export default function App() {
             window.location.reload();
           }}
         />
+      </div>
+    );
+  }
+
+  if (!checkedTelegram) {
+    return (
+      <div className="phone-shell">
+        <div className="flex-1 flex items-center justify-center bg-base-950 text-white/40 text-sm">
+          Завантаження…
+        </div>
       </div>
     );
   }

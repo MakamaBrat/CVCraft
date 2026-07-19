@@ -33,7 +33,7 @@ export default function TelegramGate({ onSubmit }) {
         </div>
         <h1 className="text-xl font-bold mb-1.5">Вхід через Telegram</h1>
         <p className="text-sm text-white/50 mb-6">
-          Резюме зберігаються за вашим Telegram, щоб ви могли повернутися до них з будь-якого пристрою.
+          Схоже, застосунок відкрито поза Telegram. Усередині Telegram Mini App ці дані підтягуються автоматично — тут введіть їх вручну для перевірки.
         </p>
 
         <label className="block text-sm font-medium text-white/85 mb-1.5">Telegram ID</label>
