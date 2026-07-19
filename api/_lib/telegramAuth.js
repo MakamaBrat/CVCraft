@@ -89,7 +89,19 @@ export function requireUser(req, botToken) {
 export function isAdminId(telegramId) {
   const admins = String(process.env.ADMIN_TELEGRAM_IDS || "")
     .split(",")
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/^["']|["']$/g, ""))
     .filter(Boolean);
-  return admins.includes(String(telegramId));
+  const result = admins.includes(String(telegramId));
+
+  // ТИМЧАСОВЕ логування для діагностики. Видивіться у Vercel →
+  // Deployments → відповідний деплой → Functions → Logs після спроби
+  // відкрити застосунок. Приберіть цей console.log, коли проблему знайдено.
+  console.log("[isAdminId]", {
+    incomingId: String(telegramId),
+    configuredAdmins: admins,
+    envRaw: process.env.ADMIN_TELEGRAM_IDS,
+    match: result,
+  });
+
+  return result;
 }
