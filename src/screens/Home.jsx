@@ -1,4 +1,3 @@
-import StatusBar from "../components/StatusBar.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 function timeAgo(ts) {
@@ -38,9 +37,7 @@ export default function Home({
   const { t } = useLanguage();
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <StatusBar />
-
-      <div className="px-6 pt-2 pb-4 flex items-center justify-between">
+      <div className="px-6 pt-5 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-accent-500 flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -48,9 +45,11 @@ export default function Home({
             </svg>
           </div>
           <span className="font-bold text-lg tracking-tight">CV DECK</span>
-          <span className="text-[10px] font-bold text-accent-300 bg-accent-500/20 rounded px-1.5 py-0.5">
-            PRO
-          </span>
+          {isAdmin && (
+            <span className="text-[10px] font-bold text-accent-300 bg-accent-500/20 rounded px-1.5 py-0.5 shadow-glow animate-pulse">
+              PRO
+            </span>
+          )}
         </div>
         <button className="tap w-8 h-8 rounded-full flex items-center justify-center bg-base-800/70 text-white/70">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -107,15 +106,6 @@ export default function Home({
           <span className="text-lg leading-none">🔍</span>
           <span className="text-xs font-medium text-white/85">{t("home.browseVacancies")}</span>
         </button>
-        {isAdmin && (
-          <button
-            onClick={onOpenAdmin}
-            className="tap flex flex-col items-start gap-1 bg-accent-500/15 border border-accent-500/30 rounded-xl px-3.5 py-3 text-left"
-          >
-            <span className="text-lg leading-none">🛠️</span>
-            <span className="text-xs font-medium text-accent-300">{t("home.adminPanel")}</span>
-          </button>
-        )}
       </div>
 
       <div className="px-6 flex-1 flex flex-col min-h-0">
@@ -175,20 +165,17 @@ export default function Home({
         )}
       </div>
 
-      <nav className="mt-auto grid grid-cols-3 border-t border-base-800 bg-base-900/80 backdrop-blur px-4 py-2.5">
-        {[
-          { label: "Головна", active: true },
-          { label: "Шаблони", active: false },
-          { label: "Профіль", active: false },
-        ].map((n) => (
-          <div key={n.label} className="flex flex-col items-center gap-1">
-            <div className={`w-1.5 h-1.5 rounded-full ${n.active ? "bg-accent-400" : "bg-transparent"}`} />
-            <span className={`text-[11px] ${n.active ? "text-accent-300 font-medium" : "text-white/40"}`}>
-              {n.label}
-            </span>
-          </div>
-        ))}
-      </nav>
+      {isAdmin && (
+        <div className="px-6 pt-2 pb-4">
+          <button
+            onClick={onOpenAdmin}
+            className="tap w-full flex items-center justify-center gap-2 bg-accent-500/15 border border-accent-500/30 rounded-xl px-3.5 py-3"
+          >
+            <span className="text-lg leading-none">🛠️</span>
+            <span className="text-sm font-medium text-accent-300">{t("home.adminPanel")}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
