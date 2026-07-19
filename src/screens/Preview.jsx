@@ -2,7 +2,7 @@ import { useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
 import ShareButtons from "../components/ShareButtons.jsx";
 import { MediaPreview } from "./Wizard.jsx";
-import { supabaseEnabled } from "../lib/supabase.js";
+import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
@@ -172,7 +172,7 @@ export default function Preview({ resume, onBack, onDone }) {
         </p>
       )}
 
-      {!supabaseEnabled && (
+      {!backendEnabled && (
         <p className="px-6 pb-2 text-[11px] text-amber-400/70 print:hidden">
           Базу даних не підключено — посилання "Поділитись" відкриється лише у вашому браузері.
         </p>

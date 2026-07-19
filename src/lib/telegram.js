@@ -17,6 +17,14 @@ export function getTelegramUser() {
   };
 }
 
+// Сирий, підписаний Telegram-ом рядок initData. Саме його, а не
+// initDataUnsafe.user.id, треба довіряти для запитів до /api — сервер сам
+// перераховує HMAC і лише тоді видає telegram_id, якому можна вірити.
+export function getTelegramInitData() {
+  const tg = getTelegramWebApp();
+  return tg?.initData || null;
+}
+
 export function initTelegramApp() {
   const tg = getTelegramWebApp();
   if (!tg) return;

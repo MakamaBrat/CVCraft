@@ -12,7 +12,8 @@
    Ліміт у 2 резюме на користувача забезпечується тригером бази даних (`resumes_limit_check`), тож обійти його неможливо навіть напряму через API.
 3. Перейдіть у **Project Settings → API** і скопіюйте:
    - `Project URL`
-   - `anon public` ключ
+   - `service_role` ключ (Settings → API → Project API keys → `service_role`, **секретний**, використовується тільки серверним кодом у `/api`)
+4. Виконайте по черзі решту файлів з `supabase/` (`migration_02_vacancies.sql`, `migration_03_applications_resume.sql`, `migration_04_security_hardening.sql`) — останній закриває прямий запис/читання в БД для anon-ключа: усі write-операції та приватні read-операції відтепер йдуть через `/api/*`, які самі перевіряють підпис Telegram `initData` і пишуть у базу вже через `service_role`.
 
 ## 2. Налаштування бота і посилань
 
@@ -35,12 +36,13 @@ https://t.me/cvdeckbot/Work?startapp=<id_резюме>
 
 ```bash
 cp .env.example .env
-# вставте свої значення VITE_SUPABASE_URL і VITE_SUPABASE_ANON_KEY у .env
+# вставте свої значення VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+# TELEGRAM_BOT_TOKEN і ADMIN_TELEGRAM_IDS у .env
 npm install
 npm run dev
 ```
 
-Якщо змінні не вказані, застосунок автоматично працює в офлайн-режимі (дані лише в localStorage браузера, ліміт у 2 резюме теж діє, але тільки на клієнті).
+Якщо змінні не вказані, застосунок автоматично працює в офлайн-режимі (дані лише в localStorage браузера, ліміт у 2 резюме теж діє, але тільки на клієнті). Локальні `/api`-функції піднімаються через `vercel dev`, звичайний `vite dev` їх не обслуговує.
 
 ## 4. Деплой на Vercel
 
@@ -48,7 +50,10 @@ npm run dev
 2. На vercel.com → **Add New → Project** → оберіть репозиторій.
 3. У розділі **Environment Variables** додайте:
    - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `TELEGRAM_BOT_TOKEN`
+   - `PUBLIC_APP_URL`
+   - `ADMIN_TELEGRAM_IDS`
 4. Натисніть **Deploy**.
 
 ## 5. Підключення як Telegram Mini App

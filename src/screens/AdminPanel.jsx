@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
-import { supabase } from "../lib/supabase.js";
+import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { vacancyFromRow, VACANCY_STATUS } from "../lib/vacancy.js";
+import { vacancyFromRow } from "../lib/vacancy.js";
 
 const TABS = ["stats", "moderation", "applications", "users"];
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 export default function AdminPanel({ onBack, adminId }) {
   const { t } = useLanguage();
@@ -25,28 +19,20 @@ export default function AdminPanel({ onBack, adminId }) {
 
   const loadAll = async () => {
     setLoading(true);
-    const today = startOfToday();
-
-    const [{ count: totalUsers }, { count: usersToday }, { count: activeToday }, { count: totalVacancies }, { count: pendingCount }, pendingRows, appRows, usersRows] =
-      await Promise.all([
-        supabase.from("users").select("*", { count: "exact", head: true }),
-        supabase.from("users").select("*", { count: "exact", head: true }).gte("created_at", today),
-        supabase.from("users").select("*", { count: "exact", head: true }).gte("last_active_at", today),
-        supabase.from("vacancies").select("*", { count: "exact", head: true }),
-        supabase.from("vacancies").select("*", { count: "exact", head: true }).eq("status", VACANCY_STATUS.PENDING_REVIEW),
-        supabase.from("vacancies").select("*").eq("status", VACANCY_STATUS.PENDING_REVIEW).order("created_at", { ascending: true }),
-        supabase
-          .from("vacancy_applications")
-          .select("id, message, contact, created_at, telegram_id, vacancy_id, vacancies(data)")
-          .order("created_at", { ascending: false })
-          .limit(100),
-        supabase.from("users").select("*").order("created_at", { ascending: false }).limit(200),
+    try {
+      const [statsRes, moderationRes, applicationsRes, usersRes] = await Promise.all([
+        apiFetch("/api/admin?action=stats"),
+        apiFetch("/api/admin?action=moderation"),
+        apiFetch("/api/admin?action=applications"),
+        apiFetch("/api/admin?action=users"),
       ]);
-
-    setStats({ totalUsers, usersToday, activeToday, totalVacancies, pendingCount });
-    setPending((pendingRows.data || []).map(vacancyFromRow));
-    setApplications(appRows.data || []);
-    setUsers(usersRows.data || []);
+      setStats(statsRes);
+      setPending((moderationRes?.vacancies || []).map(vacancyFromRow));
+      setApplications(applicationsRes?.applications || []);
+      setUsers(usersRes?.users || []);
+    } catch {
+      // сервер сам відхилить не-адмінів (403) — тут просто лишаємо порожній стан
+    }
     setLoading(false);
   };
 
@@ -55,18 +41,15 @@ export default function AdminPanel({ onBack, adminId }) {
   }, []);
 
   const approve = async (id) => {
-    await supabase
-      .from("vacancies")
-      .update({ status: VACANCY_STATUS.APPROVED, moderated_by: adminId, moderated_at: new Date().toISOString(), reject_reason: null })
-      .eq("id", id);
+    await apiFetch("/api/admin", { method: "POST", body: { action: "moderate", id, decision: "approve" } }).catch(() => {});
     setPending((prev) => prev.filter((v) => v.id !== id));
   };
 
   const reject = async (id) => {
-    await supabase
-      .from("vacancies")
-      .update({ status: VACANCY_STATUS.REJECTED, moderated_by: adminId, moderated_at: new Date().toISOString(), reject_reason: rejectReason || null })
-      .eq("id", id);
+    await apiFetch("/api/admin", {
+      method: "POST",
+      body: { action: "moderate", id, decision: "reject", rejectReason: rejectReason || null },
+    }).catch(() => {});
     setPending((prev) => prev.filter((v) => v.id !== id));
     setRejectingId(null);
     setRejectReason("");
@@ -74,7 +57,7 @@ export default function AdminPanel({ onBack, adminId }) {
 
   const toggleBan = async (u) => {
     const nextBanned = !u.is_banned;
-    await supabase.from("users").update({ is_banned: nextBanned }).eq("telegram_id", u.telegram_id);
+    await apiFetch("/api/admin", { method: "POST", body: { action: "ban", telegramId: u.telegram_id, banned: nextBanned } }).catch(() => {});
     setUsers((prev) => prev.map((x) => (x.telegram_id === u.telegram_id ? { ...x, is_banned: nextBanned } : x)));
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase, supabaseEnabled } from "../lib/supabase.js";
+import { apiFetch } from "../lib/api.js";
 import StatusBar from "../components/StatusBar.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 
@@ -17,22 +17,14 @@ export default function SharedView({ resumeId, onOpenApp }) {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!supabaseEnabled) {
-        setStatus("no-backend");
-        return;
+      try {
+        const res = await apiFetch(`/api/resume-share?id=${encodeURIComponent(resumeId)}`);
+        if (cancelled) return;
+        setResume(res.data);
+        setStatus("ready");
+      } catch {
+        if (!cancelled) setStatus("not-found");
       }
-      const { data, error } = await supabase
-        .from("resumes")
-        .select("data")
-        .eq("id", resumeId)
-        .single();
-      if (cancelled) return;
-      if (error || !data) {
-        setStatus("not-found");
-        return;
-      }
-      setResume(data.data);
-      setStatus("ready");
     }
     load();
     return () => {
@@ -49,14 +41,12 @@ export default function SharedView({ resumeId, onOpenApp }) {
     );
   }
 
-  if (status === "no-backend" || status === "not-found") {
+  if (status === "not-found") {
     return (
       <div className="flex-1 flex flex-col bg-base-950">
         <StatusBar />
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
-          <p className="text-sm text-white/60">
-            {status === "not-found" ? "Резюме не знайдено або посилання застаріло." : "Базу даних не підключено."}
-          </p>
+          <p className="text-sm text-white/60">Резюме не знайдено або посилання застаріло.</p>
           <button onClick={onOpenApp} className="tap text-sm text-accent-300 font-medium">
             Перейти до CV DECK
           </button>

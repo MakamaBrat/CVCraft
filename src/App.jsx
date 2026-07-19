@@ -13,9 +13,9 @@ import VacancyDetail from "./screens/VacancyDetail.jsx";
 import VacancyApplicants from "./screens/VacancyApplicants.jsx";
 import AdminPanel from "./screens/AdminPanel.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
-import { supabase, supabaseEnabled } from "./lib/supabase.js";
+import { apiFetch, backendEnabled } from "./lib/api.js";
 import { getTelegramUser, initTelegramApp } from "./lib/telegram.js";
-import { MAX_RESUMES_PER_USER, MAX_VACANCIES_PER_USER, isAdmin as checkIsAdmin } from "./lib/config.js";
+import { MAX_RESUMES_PER_USER, MAX_VACANCIES_PER_USER } from "./lib/config.js";
 import { emptyVacancy, vacancyFromRow, VACANCY_STATUS } from "./lib/vacancy.js";
 import { useLanguage } from "./lib/i18n/index.jsx";
 
@@ -84,6 +84,7 @@ export default function App() {
   const [applicantsVacancy, setApplicantsVacancy] = useState(null);
   const [applicants, setApplicants] = useState([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
 
   useEffect(() => {
     initTelegramApp();
@@ -99,32 +100,21 @@ export default function App() {
   const { lang, t } = useLanguage();
 
   useEffect(() => {
-    if (!identity || !supabaseEnabled) return;
-    supabase
-      .from("users")
-      .upsert({
-        telegram_id: identity.id,
-        telegram_username: identity.username || null,
-        first_name: identity.firstName || null,
-        last_active_at: new Date().toISOString(),
-        language_code: lang,
-      })
-      .then(() => {});
+    if (!identity || !backendEnabled) return;
+    apiFetch("/api/auth-sync", { method: "POST", body: { languageCode: lang } })
+      .then((res) => setIsUserAdmin(Boolean(res?.isAdmin)))
+      .catch(() => {});
   }, [identity, lang]);
 
   // Оновлюємо last_active_at періодично, поки застосунок відкритий,
   // щоб адмінська статистика "активних сьогодні" була точною.
   useEffect(() => {
-    if (!identity || !supabaseEnabled) return;
+    if (!identity || !backendEnabled) return;
     const interval = setInterval(() => {
-      supabase
-        .from("users")
-        .update({ last_active_at: new Date().toISOString() })
-        .eq("telegram_id", identity.id)
-        .then(() => {});
+      apiFetch("/api/auth-sync", { method: "POST", body: { languageCode: lang } }).catch(() => {});
     }, 60_000);
     return () => clearInterval(interval);
-  }, [identity]);
+  }, [identity, lang]);
 
   useEffect(() => {
     if (sharedId || !identity) return;
@@ -132,20 +122,22 @@ export default function App() {
 
     async function load() {
       setLoadingResumes(true);
-      if (supabaseEnabled) {
-        const { data, error } = await supabase
-          .from("resumes")
-          .select("id, data, updated_at")
-          .eq("telegram_id", identity.id)
-          .order("updated_at", { ascending: false });
-        if (!cancelled) {
-          if (!error && data) {
+      if (backendEnabled) {
+        try {
+          const res = await apiFetch("/api/resumes");
+          if (!cancelled) {
             setResumes(
-              data.map((row) => ({ ...row.data, id: row.id, updatedAt: new Date(row.updated_at).getTime() }))
+              (res?.resumes || []).map((row) => ({
+                ...row.data,
+                id: row.id,
+                updatedAt: new Date(row.updated_at).getTime(),
+              }))
             );
           }
-          setLoadingResumes(false);
+        } catch {
+          // ignore, keep whatever was already in state
         }
+        if (!cancelled) setLoadingResumes(false);
       } else {
         if (!cancelled) {
           setResumes(loadLocalResumes());
@@ -160,28 +152,26 @@ export default function App() {
   }, [identity, sharedId]);
 
   useEffect(() => {
-    if (!supabaseEnabled && identity) {
+    if (!backendEnabled && identity) {
       localStorage.setItem(LOCAL_RESUMES_KEY, JSON.stringify(resumes));
     }
   }, [resumes, identity]);
 
   useEffect(() => {
-    if (sharedId || !identity || !supabaseEnabled) {
+    if (sharedId || !identity || !backendEnabled) {
       setLoadingVacancies(false);
       return;
     }
     let cancelled = false;
     (async () => {
       setLoadingVacancies(true);
-      const { data, error } = await supabase
-        .from("vacancies")
-        .select("*")
-        .eq("telegram_id", identity.id)
-        .order("updated_at", { ascending: false });
-      if (!cancelled) {
-        if (!error && data) setVacancies(data.map(vacancyFromRow));
-        setLoadingVacancies(false);
+      try {
+        const res = await apiFetch("/api/vacancies");
+        if (!cancelled) setVacancies((res?.vacancies || []).map(vacancyFromRow));
+      } catch {
+        // ignore
       }
+      if (!cancelled) setLoadingVacancies(false);
     })();
     return () => {
       cancelled = true;
@@ -189,17 +179,17 @@ export default function App() {
   }, [identity, sharedId]);
 
   const loadPublicVacancies = async () => {
-    if (!supabaseEnabled) {
+    if (!backendEnabled) {
       setLoadingPublicVacancies(false);
       return;
     }
     setLoadingPublicVacancies(true);
-    const { data, error } = await supabase
-      .from("vacancies")
-      .select("*")
-      .eq("status", VACANCY_STATUS.ACTIVE)
-      .order("created_at", { ascending: false });
-    if (!error && data) setPublicVacancies(data.map(vacancyFromRow));
+    try {
+      const res = await apiFetch("/api/vacancies?scope=public");
+      setPublicVacancies((res?.vacancies || []).map(vacancyFromRow));
+    } catch {
+      // ignore
+    }
     setLoadingPublicVacancies(false);
   };
 
@@ -276,15 +266,12 @@ export default function App() {
       return exists ? prev.map((r) => (r.id === next.id ? next : r)) : [next, ...prev];
     });
 
-    if (supabaseEnabled) {
+    if (backendEnabled) {
       const { id, updatedAt, ...data } = next;
-      const { error } = await supabase.from("resumes").upsert({
-        id,
-        telegram_id: identity.id,
-        data,
-      });
-      if (error) {
-        // most likely the 2-resume limit trigger fired (race condition)
+      try {
+        await apiFetch("/api/resumes", { method: "POST", body: { id, data } });
+      } catch {
+        // most likely the 2-resume limit was hit server-side (race condition)
         setResumes((prev) => prev.filter((r) => r.id !== id));
       }
     }
@@ -292,12 +279,11 @@ export default function App() {
 
   const deleteResume = async (id) => {
     setResumes((prev) => prev.filter((r) => r.id !== id));
-    if (supabaseEnabled) {
-      await supabase.from("resumes").delete().eq("id", id);
+    if (backendEnabled) {
+      await apiFetch(`/api/resumes?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
     }
   };
 
-  const isUserAdmin = checkIsAdmin(identity?.id);
   const canCreateMoreVacancies = vacancies.length < MAX_VACANCIES_PER_USER;
 
   const goVacancyList = () => setRoute({ screen: "vacancies" });
@@ -338,15 +324,11 @@ export default function App() {
       return exists ? prev.map((v) => (v.id === next.id ? next : v)) : [next, ...prev];
     });
 
-    if (supabaseEnabled) {
+    if (backendEnabled) {
       const { id, updatedAt, status, rejectReason, showsPurchased, showsUsed, isPaid, listingPrice, pricePerShow, template, ...data } = next;
-      const { error } = await supabase.from("vacancies").upsert({
-        id,
-        telegram_id: identity.id,
-        data,
-        template,
-      });
-      if (error) {
+      try {
+        await apiFetch("/api/vacancies", { method: "POST", body: { id, data, template } });
+      } catch {
         setVacancies((prev) => prev.filter((v) => v.id !== id));
       }
     }
@@ -354,8 +336,8 @@ export default function App() {
 
   const deleteVacancy = async (id) => {
     setVacancies((prev) => prev.filter((v) => v.id !== id));
-    if (supabaseEnabled) {
-      await supabase.from("vacancies").delete().eq("id", id);
+    if (backendEnabled) {
+      await apiFetch(`/api/vacancies?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
     }
   };
 
@@ -363,11 +345,8 @@ export default function App() {
     const next = { ...vacancy, status: VACANCY_STATUS.PENDING_REVIEW, rejectReason: null };
     setVacancyDraft(next);
     setVacancies((prev) => prev.map((v) => (v.id === next.id ? next : v)));
-    if (supabaseEnabled) {
-      await supabase
-        .from("vacancies")
-        .update({ status: VACANCY_STATUS.PENDING_REVIEW, reject_reason: null })
-        .eq("id", vacancy.id);
+    if (backendEnabled) {
+      await apiFetch("/api/vacancies", { method: "POST", body: { action: "submit", id: vacancy.id } }).catch(() => {});
     }
     goVacancyList();
   };
@@ -377,25 +356,19 @@ export default function App() {
     if (!v) return;
     setOpenVacancy(v);
     setRoute({ screen: "vacancyDetail" });
-    if (supabaseEnabled) {
-      await supabase.rpc("register_vacancy_show", { p_vacancy_id: id });
+    if (backendEnabled) {
+      await apiFetch("/api/vacancy-view", { method: "POST", body: { id } }).catch(() => {});
     }
   };
 
   const applyToVacancy = async (message, resumeId) => {
     if (!openVacancy) return;
     setAppliedVacancyIds((prev) => new Set(prev).add(openVacancy.id));
-    if (supabaseEnabled) {
-      const resume = resumeId ? resumes.find((r) => r.id === resumeId) : null;
-      const contact = (resume && resume.phone) || (identity.username ? `@${identity.username}` : null);
-      await supabase.from("vacancy_applications").insert({
-        vacancy_id: openVacancy.id,
-        telegram_id: identity.id,
-        message: message || null,
-        contact,
-        resume_id: resumeId || null,
-        resume_snapshot: resume || null,
-      });
+    if (backendEnabled) {
+      await apiFetch("/api/vacancy-apply", {
+        method: "POST",
+        body: { vacancyId: openVacancy.id, message: message || null, resumeId: resumeId || null },
+      }).catch(() => {});
     }
   };
 
@@ -404,17 +377,17 @@ export default function App() {
     if (!v) return;
     setApplicantsVacancy(v);
     setRoute({ screen: "vacancyApplicants" });
-    if (!supabaseEnabled) {
+    if (!backendEnabled) {
       setApplicants([]);
       return;
     }
     setLoadingApplicants(true);
-    const { data, error } = await supabase
-      .from("vacancy_applications")
-      .select("id, message, contact, resume_id, resume_snapshot, created_at, telegram_id")
-      .eq("vacancy_id", vacancyId)
-      .order("created_at", { ascending: false });
-    if (!error && data) setApplicants(data);
+    try {
+      const res = await apiFetch(`/api/vacancy-applicants?vacancyId=${encodeURIComponent(vacancyId)}`);
+      setApplicants(res?.applicants || []);
+    } catch {
+      setApplicants([]);
+    }
     setLoadingApplicants(false);
   };
 
