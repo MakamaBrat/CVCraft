@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Home from "./screens/Home.jsx";
 import Wizard from "./screens/Wizard.jsx";
 import Templates from "./screens/Templates.jsx";
 import Preview from "./screens/Preview.jsx";
+import SharedView from "./screens/SharedView.jsx";
+import TelegramGate from "./components/TelegramGate.jsx";
+import { supabase, supabaseEnabled } from "./lib/supabase.js";
 
-const STORAGE_KEY = "cvcraft.resumes.v1";
+const IDENTITY_KEY = "cvcraft.identity.v1";
+const LOCAL_RESUMES_KEY = "cvcraft.resumes.v1";
 
 const emptyResume = () => ({
   id: crypto.randomUUID(),
@@ -22,25 +26,103 @@ const emptyResume = () => ({
   template: "minimal",
 });
 
-function loadResumes() {
+function loadIdentity() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(IDENTITY_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadLocalResumes() {
+  try {
+    const raw = localStorage.getItem(LOCAL_RESUMES_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveResumes(resumes) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(resumes));
+function parseHashRoute() {
+  const hash = window.location.hash;
+  const m = hash.match(/^#\/r\/([a-zA-Z0-9-]+)/);
+  return m ? m[1] : null;
 }
 
 export default function App() {
-  const [resumes, setResumes] = useState(loadResumes);
+  const sharedId = useMemo(() => parseHashRoute(), []);
+  const [identity, setIdentity] = useState(loadIdentity);
+  const [resumes, setResumes] = useState([]);
+  const [loadingResumes, setLoadingResumes] = useState(true);
   const [route, setRoute] = useState({ screen: "home" });
   const [draft, setDraft] = useState(null);
 
-  useEffect(() => saveResumes(resumes), [resumes]);
+  useEffect(() => {
+    if (sharedId || !identity) return;
+    let cancelled = false;
+
+    async function load() {
+      setLoadingResumes(true);
+      if (supabaseEnabled) {
+        const { data, error } = await supabase
+          .from("resumes")
+          .select("id, data, updated_at")
+          .eq("telegram_id", identity.id)
+          .order("updated_at", { ascending: false });
+        if (!cancelled) {
+          if (!error && data) {
+            setResumes(
+              data.map((row) => ({ ...row.data, id: row.id, updatedAt: new Date(row.updated_at).getTime() }))
+            );
+          }
+          setLoadingResumes(false);
+        }
+      } else {
+        if (!cancelled) {
+          setResumes(loadLocalResumes());
+          setLoadingResumes(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [identity, sharedId]);
+
+  useEffect(() => {
+    if (!supabaseEnabled && identity) {
+      localStorage.setItem(LOCAL_RESUMES_KEY, JSON.stringify(resumes));
+    }
+  }, [resumes, identity]);
+
+  if (sharedId) {
+    return (
+      <div className="phone-shell">
+        <SharedView
+          resumeId={sharedId}
+          onOpenApp={() => {
+            window.location.hash = "";
+            window.location.reload();
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!identity) {
+    return (
+      <div className="phone-shell">
+        <TelegramGate
+          onSubmit={(id) => {
+            localStorage.setItem(IDENTITY_KEY, JSON.stringify(id));
+            setIdentity(id);
+          }}
+        />
+      </div>
+    );
+  }
 
   const startNew = () => {
     const r = emptyResume();
@@ -60,21 +142,43 @@ export default function App() {
   const goPreview = () => setRoute({ screen: "preview" });
   const goHome = () => setRoute({ screen: "home" });
 
-  const commitDraft = (updated) => {
+  const commitDraft = async (updated) => {
     const next = { ...updated, updatedAt: Date.now() };
     setDraft(next);
     setResumes((prev) => {
       const exists = prev.some((r) => r.id === next.id);
       return exists ? prev.map((r) => (r.id === next.id ? next : r)) : [next, ...prev];
     });
+
+    if (supabaseEnabled) {
+      const { id, updatedAt, ...data } = next;
+      await supabase.from("resumes").upsert({
+        id,
+        telegram_id: identity.id,
+        telegram_username: identity.username || null,
+        data,
+      });
+    }
   };
 
-  const deleteResume = (id) => setResumes((prev) => prev.filter((r) => r.id !== id));
+  const deleteResume = async (id) => {
+    setResumes((prev) => prev.filter((r) => r.id !== id));
+    if (supabaseEnabled) {
+      await supabase.from("resumes").delete().eq("id", id);
+    }
+  };
 
   return (
     <div className="phone-shell">
       {route.screen === "home" && (
-        <Home resumes={resumes} onCreate={startNew} onEdit={editExisting} onDelete={deleteResume} />
+        <Home
+          resumes={resumes}
+          loading={loadingResumes}
+          identity={identity}
+          onCreate={startNew}
+          onEdit={editExisting}
+          onDelete={deleteResume}
+        />
       )}
       {route.screen === "wizard" && draft && (
         <Wizard
@@ -96,7 +200,7 @@ export default function App() {
             setDraft(d);
             commitDraft(d);
           }}
-          onBack={() => setRoute({ screen: "wizard", step: 4 })}
+          onBack={() => setRoute({ screen: "wizard", step: 5 })}
           onNext={goPreview}
         />
       )}

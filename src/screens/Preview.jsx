@@ -1,5 +1,7 @@
+import { useState } from "react";
 import StatusBar from "../components/StatusBar.jsx";
 import { MediaPreview } from "./Wizard.jsx";
+import { supabaseEnabled } from "../lib/supabase.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -128,7 +130,20 @@ function ResumeDocument({ resume }) {
 }
 
 export default function Preview({ resume, onBack, onDone }) {
+  const [copied, setCopied] = useState(false);
   const handlePrint = () => window.print();
+
+  const shareUrl = `${window.location.origin}${window.location.pathname}#/r/${resume.id}`;
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Скопіюйте посилання:", shareUrl);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -153,6 +168,33 @@ export default function Preview({ resume, onBack, onDone }) {
           Відео та гіфки з портфоліо відтворюються на сторінці, але не включаються у PDF.
         </p>
       )}
+
+      {!supabaseEnabled && (
+        <p className="px-6 pb-2 text-[11px] text-amber-400/70 print:hidden">
+          Базу даних не підключено — посилання "Поділитись" відкриється лише у вашому браузері.
+        </p>
+      )}
+
+      <div className="px-6 pb-3 print:hidden">
+        <button
+          onClick={handleShare}
+          className="tap w-full flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-medium text-sm rounded-xl py-3"
+        >
+          {copied ? (
+            "Посилання скопійовано"
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                <circle cx="3.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+              Поділитись резюме
+            </>
+          )}
+        </button>
+      </div>
 
       <div className="px-6 pb-6 pt-2 flex gap-3 print:hidden">
         <button

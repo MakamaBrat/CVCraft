@@ -20,7 +20,7 @@ const initials = (name) =>
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("") || "?";
 
-export default function Home({ resumes, onCreate, onEdit, onDelete }) {
+export default function Home({ resumes, loading, onCreate, onEdit, onDelete }) {
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <StatusBar />
@@ -75,7 +75,9 @@ export default function Home({ resumes, onCreate, onEdit, onDelete }) {
           )}
         </div>
 
-        {resumes.length === 0 ? (
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center text-white/40 text-sm">Завантаження…</div>
+        ) : resumes.length === 0 ? (
           <div className="fade-up flex-1 flex flex-col items-center justify-center text-center pb-16 gap-2">
             <div className="w-14 h-14 rounded-2xl bg-base-800 flex items-center justify-center mb-1">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
