@@ -14,9 +14,16 @@ const MAX_AGE_SECONDS = 24 * 60 * 60; // 24 години — запобігає 
 
 export function verifyInitData(initData, botToken) {
   if (!initData || typeof initData !== "string") {
+    console.error("[verifyInitData] missing_init_data", {
+      // Означає, що фронтенд не передав Authorization: "tma <initData>"
+      // (напр. відкрито поза Telegram, або window.Telegram.WebApp.initData
+      // порожній - типово, коли Mini App відкрито у звичайному браузері).
+      typeofInitData: typeof initData,
+    });
     return { ok: false, error: "missing_init_data" };
   }
   if (!botToken) {
+    console.error("[verifyInitData] server_misconfigured: TELEGRAM_BOT_TOKEN is not set");
     return { ok: false, error: "server_misconfigured" };
   }
 
@@ -40,11 +47,22 @@ export function verifyInitData(initData, botToken) {
     crypto.timingSafeEqual(Buffer.from(computedHash, "hex"), Buffer.from(hash, "hex"));
 
   if (!validSignature) {
+    // Найчастіша причина: TELEGRAM_BOT_TOKEN у Vercel не збігається з
+    // токеном бота, через якого відкрито Mini App, або взагалі не заданий
+    // (тоді botToken=="" і secretKey рахується від порожнього рядка).
+    console.error("[verifyInitData] bad_signature", {
+      hasBotToken: Boolean(botToken),
+      botTokenLength: botToken ? botToken.length : 0,
+    });
     return { ok: false, error: "bad_signature" };
   }
 
   const authDate = Number(params.get("auth_date"));
   if (!authDate || Date.now() / 1000 - authDate > MAX_AGE_SECONDS) {
+    console.error("[verifyInitData] expired", {
+      authDate,
+      ageSeconds: authDate ? Math.round(Date.now() / 1000 - authDate) : null,
+    });
     return { ok: false, error: "expired" };
   }
 
@@ -93,9 +111,16 @@ export function isAdminId(telegramId) {
     .filter(Boolean);
   const result = admins.includes(String(telegramId));
 
-  // ТИМЧАСОВЕ логування для діагностики. Видивіться у Vercel →
-  // Deployments → відповідний деплой → Functions → Logs після спроби
-  // відкрити застосунок. Приберіть цей console.log, коли проблему знайдено.
+  // Діагностика доступу до адмінки. Дивіться у Vercel → Deployments →
+  // [деплой] → Functions → Logs після спроби відкрити адмін-панель.
+  // Типові причини, чому match: false для реального адміна:
+  //  - ADMIN_TELEGRAM_IDS не заданий у потрібному оточенні Vercel
+  //    (Production/Preview/Development різні - треба перевірити те саме,
+  //    де відкрито застосунок);
+  //  - зайві пробіли/лапки в значенні (envRaw покаже сире значення);
+  //  - переплутаний Telegram ID (не той акаунт/бот у Telegram Desktop
+  //    показує числовий id інакше, ніж очікується) - звірте incomingId
+  //    з тим, що реально вписано в змінну.
   console.log("[isAdminId]", {
     incomingId: String(telegramId),
     configuredAdmins: admins,

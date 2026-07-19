@@ -12,8 +12,30 @@ export function supabaseAdmin() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
+    // ВАЖЛИВО для діагностики "зникнення" записів: якщо ключ не заданий
+    // (або заданий з помилкою) у Vercel → Project Settings → Environment
+    // Variables, кожен запит до /api впаде тут з 500, а фронтенд може
+    // це проковтнути і просто показати порожній список. Дивіться
+    // Vercel → Deployments → [деплой] → Functions → Logs на рядок [supabaseAdmin].
+    console.error("[supabaseAdmin] missing configuration", {
+      hasUrl: Boolean(url),
+      hasServiceRoleKey: Boolean(key),
+      // Не логуємо самі значення (секрет), лише довжину - щоб перевірити,
+      // що змінна не порожня і не з зайвими лапками/пробілами.
+      urlLength: url ? url.length : 0,
+      serviceRoleKeyLength: key ? key.length : 0,
+    });
     throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY is not configured");
   }
+  console.log("[supabaseAdmin] client initialized", {
+    urlHost: (() => {
+      try {
+        return new URL(url).host;
+      } catch {
+        return "invalid_url";
+      }
+    })(),
+  });
   client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

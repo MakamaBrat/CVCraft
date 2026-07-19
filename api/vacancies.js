@@ -1,25 +1,24 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
-import { sendJson, methodNotAllowed, authenticate } from "./_lib/respond.js";
+import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
 
 const MAX_VACANCIES_PER_USER = 5;
-// Поля, які клієнт НІКОЛИ не може встановлювати напряму — статус,
-// оплата й лічильники показів рухаються тільки через окремі серверні дії
-// (submit / модерація адміном / вебхук оплати).
 const CLIENT_WRITABLE = new Set(["data", "template"]);
 
-export default async function handler(req, res) {
+async function handlerImpl(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const admin = supabaseAdmin();
 
-  // Публічний перелік активних вакансій — доступний без авторизації,
-  // це навмисно публічна вітрина (те саме, що раніше відкривала RLS-policy).
   if (req.method === "GET" && req.query?.scope === "public") {
     const { data, error } = await admin
       .from("vacancies")
       .select("*")
       .eq("status", "active")
       .order("created_at", { ascending: false });
-    if (error) return sendJson(res, 500, { error: "db_error" });
+    if (error) {
+      logDbError("vacancies GET public", error);
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("vacancies GET public: ok", { count: data?.length });
     return sendJson(res, 200, { vacancies: data });
   }
 
@@ -32,7 +31,11 @@ export default async function handler(req, res) {
       .select("*")
       .eq("telegram_id", user.id)
       .order("updated_at", { ascending: false });
-    if (error) return sendJson(res, 500, { error: "db_error" });
+    if (error) {
+      logDbError("vacancies GET own", error, { telegramId: user.id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("vacancies GET own: ok", { telegramId: user.id, count: data?.length });
     return sendJson(res, 200, { vacancies: data });
   }
 
@@ -42,15 +45,22 @@ export default async function handler(req, res) {
     if (action === "submit") {
       const id = req.body?.id;
       if (!id) return sendJson(res, 400, { error: "missing_id" });
-      // тільки власник і тільки з draft/rejected можна відправити на модерацію
-      const { data: existing } = await admin
+      const { data: existing, error: existingError } = await admin
         .from("vacancies")
         .select("id, status")
         .eq("id", id)
         .eq("telegram_id", user.id)
         .maybeSingle();
-      if (!existing) return sendJson(res, 404, { error: "not_found" });
+      if (existingError) {
+        logDbError("vacancies POST submit: lookup", existingError, { telegramId: user.id, id });
+        return sendJson(res, 500, { error: "db_error" });
+      }
+      if (!existing) {
+        console.warn("[vacancies] submit: not_found", { telegramId: user.id, id });
+        return sendJson(res, 404, { error: "not_found" });
+      }
       if (!["draft", "rejected"].includes(existing.status)) {
+        console.warn("[vacancies] submit: invalid_status", { telegramId: user.id, id, status: existing.status });
         return sendJson(res, 409, { error: "invalid_status" });
       }
       const { error } = await admin
@@ -58,44 +68,59 @@ export default async function handler(req, res) {
         .update({ status: "pending_review", reject_reason: null })
         .eq("id", id)
         .eq("telegram_id", user.id);
-      if (error) return sendJson(res, 500, { error: "db_error" });
+      if (error) {
+        logDbError("vacancies POST submit: update", error, { telegramId: user.id, id });
+        return sendJson(res, 500, { error: "db_error" });
+      }
+      logInfo("vacancies POST submit: ok", { telegramId: user.id, id });
       return sendJson(res, 200, { ok: true });
     }
 
-    // action === "save": створення/редагування чернетки
     const { id, data, template } = req.body || {};
     if (!id || !data || typeof data !== "object") {
+      console.warn("[vacancies] save: invalid_body", { telegramId: user.id, id, hasData: Boolean(data) });
       return sendJson(res, 400, { error: "invalid_body" });
     }
 
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
       .from("vacancies")
       .select("id, status")
       .eq("id", id)
       .eq("telegram_id", user.id)
       .maybeSingle();
+    if (existingError) {
+      logDbError("vacancies POST save: lookup", existingError, { telegramId: user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
 
     if (!existing) {
       const { count, error: countError } = await admin
         .from("vacancies")
         .select("id", { count: "exact", head: true })
         .eq("telegram_id", user.id);
-      if (countError) return sendJson(res, 500, { error: "db_error" });
+      if (countError) {
+        logDbError("vacancies POST save: count", countError, { telegramId: user.id });
+        return sendJson(res, 500, { error: "db_error" });
+      }
       if ((count || 0) >= MAX_VACANCIES_PER_USER) {
+        console.warn("[vacancies] save: limit_reached", { telegramId: user.id, count });
         return sendJson(res, 409, { error: "vacancy_limit_reached" });
       }
     } else if (!["draft", "rejected"].includes(existing.status)) {
-      // не даємо редагувати вміст вакансії, що вже на модерації/активна —
-      // інакше можна було б підмінити текст після схвалення
+      console.warn("[vacancies] save: not_editable", { telegramId: user.id, id, status: existing.status });
       return sendJson(res, 409, { error: "not_editable" });
     }
 
     const payload = { id, telegram_id: user.id, data };
     if (template) payload.template = template;
-    void CLIENT_WRITABLE; // документує намір: тільки ці поля приймаються від клієнта
+    void CLIENT_WRITABLE;
 
     const { error } = await admin.from("vacancies").upsert(payload);
-    if (error) return sendJson(res, 500, { error: "db_error" });
+    if (error) {
+      logDbError("vacancies POST save: upsert", error, { telegramId: user.id, id, isNew: !existing });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("vacancies POST save: ok", { telegramId: user.id, id, isNew: !existing });
     return sendJson(res, 200, { ok: true });
   }
 
@@ -103,9 +128,29 @@ export default async function handler(req, res) {
     const id = req.query?.id || req.body?.id;
     if (!id) return sendJson(res, 400, { error: "missing_id" });
     const { error } = await admin.from("vacancies").delete().eq("id", id).eq("telegram_id", user.id);
-    if (error) return sendJson(res, 500, { error: "db_error" });
+    if (error) {
+      logDbError("vacancies DELETE", error, { telegramId: user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("vacancies DELETE: ok", { telegramId: user.id, id });
     return sendJson(res, 200, { ok: true });
   }
 
   return methodNotAllowed(res, ["GET", "POST", "DELETE"]);
+}
+
+export default async function handler(req, res) {
+  try {
+    await handlerImpl(req, res);
+  } catch (err) {
+    console.error("[vacancies] unhandled exception", {
+      message: err?.message,
+      stack: err?.stack,
+      method: req.method,
+      query: req.query,
+    });
+    if (!res.headersSent) {
+      sendJson(res, 500, { error: "internal_error" });
+    }
+  }
 }
