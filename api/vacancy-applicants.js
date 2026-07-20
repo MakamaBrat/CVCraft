@@ -23,9 +23,17 @@ export default async function handler(req, res) {
 
   const { data, error } = await admin
     .from("vacancy_applications")
-    .select("id, message, contact, resume_id, resume_snapshot, created_at, telegram_id")
+    .select("id, message, contact, resume_id, resume_snapshot, created_at, telegram_id, users(telegram_username)")
     .eq("vacancy_id", vacancyId)
     .order("created_at", { ascending: false });
   if (error) return sendJson(res, 500, { error: "db_error" });
-  sendJson(res, 200, { applicants: data });
+
+  // Розгортаємо вкладений об'єкт users(...) у пласке поле telegram_username,
+  // щоб фронтенду не треба було знати про структуру джойну.
+  const applicants = (data || []).map(({ users, ...rest }) => ({
+    ...rest,
+    telegram_username: users?.telegram_username || null,
+  }));
+
+  sendJson(res, 200, { applicants });
 }
