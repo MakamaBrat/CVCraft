@@ -95,6 +95,9 @@ export default function VacancyList({
                         ` · ${t("vacancy.activeUntilShort", new Date(v.expiresAt).toLocaleDateString())}`}
                       {v.topUntil && new Date(v.topUntil).getTime() > Date.now() && ` · ${t("vacancy.topBadge")}`}
                     </p>
+                    <p className="text-[11px] text-white/35 mt-0.5">
+                      {t("vacancy.viewsCount", v.viewsCount || 0)}
+                    </p>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
                     <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

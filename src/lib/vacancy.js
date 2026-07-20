@@ -14,6 +14,8 @@ export const emptyVacancy = () => ({
   description: "",
   requirements: "",
   contact: "",
+  requireResume: false,
+  colorScheme: "dark",
   tags: [],
   media: [],
   template: "minimal",
@@ -47,5 +49,6 @@ export function vacancyFromRow(row) {
     topUntil: row.top_until,
     isPaid: row.is_paid,
     template: row.template,
+    viewsCount: row.views_count ?? 0,
   };
 }

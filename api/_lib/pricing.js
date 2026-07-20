@@ -4,8 +4,8 @@ import { logDbError } from "./respond.js";
 // міграцію ще не накотили) або запит впав. Мають збігатися зі значеннями
 // за замовчуванням у supabase/migration_05_pricing_settings.sql /
 // migration_06_duration_pricing.sql.
-export const DEFAULT_LISTING_PRICE_STARS = 500; // за 1 тиждень звичайного розміщення
-export const DEFAULT_TOP_PRICE_STARS = 5; // за 1 тиждень топ-розміщення (додатково)
+export const DEFAULT_LISTING_PRICE_STARS = 500; // за 1 період (5 днів) звичайного розміщення
+export const DEFAULT_TOP_PRICE_STARS = 5; // за 1 період (5 днів) топ-розміщення (додатково)
 
 // Єдина точка читання актуальних цін. Використовується і публічним
 // /api/pricing.js (для відображення на фронті), і /api/vacancy-invoice.js

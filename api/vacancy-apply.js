@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const { data: vacancy } = await admin
     .from("vacancies")
-    .select("id, status")
+    .select("id, status, data")
     .eq("id", vacancyId)
     .maybeSingle();
   if (!vacancy || vacancy.status !== "active") {
@@ -30,6 +30,13 @@ export default async function handler(req, res) {
       .eq("telegram_id", user.id) // не можна прикріпити чуже резюме
       .maybeSingle();
     resumeSnapshot = resume?.data || null;
+  }
+
+  // Якщо вакансія позначена "тільки з резюме" — не приймаємо відгук без
+  // валідного (реально належного цьому юзеру) резюме, навіть якщо фронт
+  // з якоїсь причини не заблокував кнопку.
+  if (vacancy.data?.requireResume && !resumeSnapshot) {
+    return sendJson(res, 400, { error: "resume_required" });
   }
 
   const contact = (resumeSnapshot && resumeSnapshot.phone) || (user.username ? `@${user.username}` : null);

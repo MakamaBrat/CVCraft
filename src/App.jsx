@@ -36,6 +36,7 @@ const emptyResume = () => ({
   skills: [],
   portfolio: [],
   template: "minimal",
+  colorScheme: "dark",
 });
 
 function loadIdentity() {
@@ -381,6 +382,9 @@ export default function App() {
     if (!v) return;
     setOpenVacancy(v);
     setRoute({ screen: "vacancyDetail" });
+    if (backendEnabled) {
+      apiFetch("/api/vacancy-view", { method: "POST", body: { id } }).catch(() => {});
+    }
   };
 
   const applyToVacancy = async (message, resumeId) => {

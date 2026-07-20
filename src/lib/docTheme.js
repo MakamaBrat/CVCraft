@@ -34,8 +34,10 @@ export const ALIGNMENTS = [
   { id: "center", name: { uk: "По центру", ru: "По центру", en: "Center" } },
 ];
 
+export const DEFAULT_COLOR_THEME = "dark";
+
 export function getColorTheme(id) {
-  return COLOR_THEMES.find((c) => c.id === id) || COLOR_THEMES[0];
+  return COLOR_THEMES.find((c) => c.id === id) || COLOR_THEMES.find((c) => c.id === DEFAULT_COLOR_THEME);
 }
 
 export function getAlign(id) {

@@ -171,6 +171,38 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
                 lessLabel={{ uk: "Згорнути", ru: "Свернуть", en: "Show less" }[lang]}
               />
             </Field>
+
+            <button
+              type="button"
+              onClick={() => set({ requireResume: !draft.requireResume })}
+              className="tap w-full flex items-start gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left mb-2"
+            >
+              <span
+                className={`shrink-0 mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                  draft.requireResume ? "bg-accent-500 border-accent-500" : "border-base-600"
+                }`}
+              >
+                {draft.requireResume && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              <span>
+                <span className="block text-sm font-medium text-white/85">
+                  {{ uk: "Приймати відгуки тільки з резюме", ru: "Принимать отклики только с резюме", en: "Only accept applicants with a resume" }[lang]}
+                </span>
+                <span className="block text-xs text-white/40 mt-0.5">
+                  {
+                    {
+                      uk: "Якщо вимкнено — відгукнутися зможе будь-хто, навіть без резюме.",
+                      ru: "Если выключено — откликнуться сможет любой, даже без резюме.",
+                      en: "If off, anyone can apply, even without a resume.",
+                    }[lang]
+                  }
+                </span>
+              </span>
+            </button>
           </>
         )}
 

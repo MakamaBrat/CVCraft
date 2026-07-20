@@ -4,6 +4,7 @@ import { useLanguage } from "../lib/i18n/index.jsx";
 export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
   const { t } = useLanguage();
   const [activeTags, setActiveTags] = useState([]);
+  const [activeCity, setActiveCity] = useState("");
 
   const allTags = useMemo(() => {
     const set = new Set();
@@ -11,13 +12,24 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
     return [...set];
   }, [vacancies]);
 
+  const allCities = useMemo(() => {
+    const set = new Set();
+    vacancies.forEach((v) => {
+      if (v.city && v.city.trim()) set.add(v.city.trim());
+    });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [vacancies]);
+
   const toggleTag = (tg) =>
     setActiveTags((prev) => (prev.includes(tg) ? prev.filter((x) => x !== tg) : [...prev, tg]));
 
   const filtered = useMemo(() => {
-    if (activeTags.length === 0) return vacancies;
-    return vacancies.filter((v) => (v.tags || []).some((tg) => activeTags.includes(tg)));
-  }, [vacancies, activeTags]);
+    return vacancies.filter((v) => {
+      const matchesTags = activeTags.length === 0 || (v.tags || []).some((tg) => activeTags.includes(tg));
+      const matchesCity = !activeCity || (v.city || "").trim() === activeCity;
+      return matchesTags && matchesCity;
+    });
+  }, [vacancies, activeTags, activeCity]);
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -30,6 +42,24 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
         </button>
         <h1 className="text-lg font-bold">{t("vacancy.listTitle")}</h1>
       </div>
+
+      {allCities.length > 0 && (
+        <div className="px-6 pb-3">
+          <p className="text-xs text-white/40 font-medium mb-2">{t("vacancy.filterByCity")}</p>
+          <select
+            value={activeCity}
+            onChange={(e) => setActiveCity(e.target.value)}
+            className="w-full bg-base-850 border border-base-700 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-accent-500"
+          >
+            <option value="">{t("vacancy.allCities")}</option>
+            {allCities.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {allTags.length > 0 && (
         <div className="px-6 pb-3">

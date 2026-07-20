@@ -71,7 +71,8 @@ async function handlePreCheckoutQuery(query, token) {
   await answerPreCheckoutQuery(token, query.id, true);
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const PERIOD_DAYS = 5;
+const PERIOD_MS = PERIOD_DAYS * 24 * 60 * 60 * 1000;
 
 async function handleSuccessfulPayment(message) {
   const sp = message.successful_payment;
@@ -103,7 +104,7 @@ async function handleSuccessfulPayment(message) {
   }
 
   const now = Date.now();
-  const addMs = payload.w * WEEK_MS;
+  const addMs = payload.w * PERIOD_MS;
   const update = {};
 
   if (payload.k === "listing") {
@@ -135,14 +136,14 @@ async function handleSuccessfulPayment(message) {
     telegram_id: String(payload.t),
     kind: payload.k,
     stars_amount: sp.total_amount,
-    weeks_added: payload.w,
+    periods_added: payload.w,
     telegram_payment_charge_id: sp.telegram_payment_charge_id,
   });
   if (insertError) {
     logDbError("bot: vacancy_payments insert", insertError, { vacancyId: payload.v });
   }
 
-  logInfo("bot: payment processed", { vacancyId: payload.v, kind: payload.k, weeks: payload.w });
+  logInfo("bot: payment processed", { vacancyId: payload.v, kind: payload.k, periods: payload.w });
 }
 
 export default async function handler(req, res) {

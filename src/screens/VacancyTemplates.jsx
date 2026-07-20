@@ -1,5 +1,5 @@
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { COLOR_THEMES, ALIGNMENTS } from "../lib/docTheme.js";
+import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.js";
 
 const SECTION_LABELS = {
   theme: { uk: "Кольорова тема", ru: "Цветовая тема", en: "Color theme" },
@@ -97,7 +97,7 @@ function AlignOption({ align, selected, onClick, label }) {
 export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
   const { lang, t } = useLanguage();
   const names = NAMES[lang];
-  const colorScheme = draft.colorScheme || "light";
+  const colorScheme = draft.colorScheme || DEFAULT_COLOR_THEME;
   const align = draft.align || "left";
 
   return (

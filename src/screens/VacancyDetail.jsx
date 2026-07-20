@@ -15,7 +15,11 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
   const align = getAlign(vacancy.align);
   const isCenter = align === "center";
 
+  const requiresResume = Boolean(vacancy.requireResume);
+  const canSubmit = !requiresResume || Boolean(resumeId);
+
   const submit = async () => {
+    if (!canSubmit) return;
     await onApply(message, resumeId || null);
     setSent(true);
   };
@@ -123,6 +127,9 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             ) : (
               <p className="text-xs text-amber-400/80 mb-3">{t("vacancy.createResumeFirst")}</p>
             )}
+            {requiresResume && (
+              <p className="text-xs text-amber-400/80 mb-3">{t("vacancy.resumeRequiredNotice")}</p>
+            )}
             <label className="block text-sm font-medium text-white/85 mb-1.5">{t("vacancy.applyMessage")}</label>
             <textarea
               className="w-full bg-base-900 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 min-h-[90px] resize-none mb-3"
@@ -131,7 +138,8 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             />
             <button
               onClick={submit}
-              className="tap w-full bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3"
+              disabled={!canSubmit}
+              className="tap w-full bg-accent-500 disabled:bg-base-700 disabled:text-white/30 text-base-950 font-semibold text-sm rounded-xl py-3"
             >
               {resumes.length > 0 ? t("vacancy.applyWithResume") : t("vacancy.apply")}
             </button>

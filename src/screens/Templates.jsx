@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COLOR_THEMES, ALIGNMENTS } from "../lib/docTheme.js";
+import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.js";
 
 const CATEGORIES = ["Всі", "Мінімал", "Сучасні", "Креативні"];
 
@@ -88,7 +88,7 @@ function AlignOption({ align, selected, onClick, label }) {
 export default function Templates({ draft, setDraft, onBack, onNext }) {
   const [cat, setCat] = useState("Всі");
   const visible = cat === "Всі" ? TEMPLATES : TEMPLATES.filter((t) => t.cat === cat);
-  const colorScheme = draft.colorScheme || "light";
+  const colorScheme = draft.colorScheme || DEFAULT_COLOR_THEME;
   const align = draft.align || "left";
 
   return (

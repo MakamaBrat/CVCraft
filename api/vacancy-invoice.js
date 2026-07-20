@@ -4,9 +4,11 @@ import { getCurrentPricing } from "./_lib/pricing.js";
 
 // POST /api/vacancy-invoice
 // body: { id: vacancyId, kind: "listing" | "extend" | "top", weeks: number }
-//   listing — перша публікація на N тижнів (тільки зі статусу approved)
-//   extend  — продовження звичайного розміщення ще на N тижнів
-//   top     — купівля/продовження топ-розміщення ще на N тижнів
+//   weeks тут насправді — кількість періодів по 5 днів (назва поля збережена
+//   для сумісності з payload/DB, оплата рахується щоп'ять днів).
+//   listing — перша публікація на N періодів по 5 днів (тільки зі статусу approved)
+//   extend  — продовження звичайного розміщення ще на N періодів по 5 днів
+//   top     — купівля/продовження топ-розміщення ще на N періодів по 5 днів
 //
 // Створює Telegram Stars invoice-link через Bot API (createInvoiceLink,
 // currency "XTR") і повертає його клієнту. Клієнт відкриває посилання
@@ -25,8 +27,8 @@ export default async function handler(req, res) {
   if (!id || !["listing", "extend", "top"].includes(kind)) {
     return sendJson(res, 400, { error: "invalid_body" });
   }
-  const weeksCount = Number.isFinite(weeks) ? Math.floor(weeks) : 0;
-  if (weeksCount < 1 || weeksCount > 52) {
+  const periodsCount = Number.isFinite(weeks) ? Math.floor(weeks) : 0;
+  if (periodsCount < 1 || periodsCount > 100) {
     return sendJson(res, 400, { error: "invalid_weeks" });
   }
 
@@ -51,8 +53,8 @@ export default async function handler(req, res) {
   }
 
   const { listingPrice, topPrice } = await getCurrentPricing(admin);
-  const pricePerWeek = kind === "top" ? topPrice : listingPrice;
-  const totalStars = weeksCount * pricePerWeek;
+  const pricePerPeriod = kind === "top" ? topPrice : listingPrice;
+  const totalStars = periodsCount * pricePerPeriod;
   if (totalStars < 1) return sendJson(res, 400, { error: "invalid_amount" });
 
   if (!botToken) {
@@ -62,7 +64,7 @@ export default async function handler(req, res) {
 
   // payload: доступний назад незмінним у successful_payment.invoice_payload —
   // Telegram сам його переносить, клієнт не може підмінити. Обмеження 128 байт.
-  const payload = JSON.stringify({ v: vacancy.id, k: kind, w: weeksCount, t: user.id });
+  const payload = JSON.stringify({ v: vacancy.id, k: kind, w: periodsCount, t: user.id });
   if (payload.length > 128) return sendJson(res, 400, { error: "payload_too_long" });
 
   const titles = {
@@ -72,7 +74,7 @@ export default async function handler(req, res) {
   };
   const title = titles[kind];
   const position = vacancy.data?.position || "Вакансія";
-  const weeksLabel = `${weeksCount} тижд.`;
+  const weeksLabel = `${periodsCount * 5} дн.`;
   const descriptions = {
     listing: `Публікація "${position}" на ${weeksLabel}`,
     extend: `Продовження показу "${position}" на ${weeksLabel}`,
@@ -97,7 +99,7 @@ export default async function handler(req, res) {
       console.error("[vacancy-invoice] createInvoiceLink failed", tgJson);
       return sendJson(res, 502, { error: "telegram_error", details: tgJson.description });
     }
-    logInfo("vacancy-invoice: created", { telegramId: user.id, id, kind, weeksCount, totalStars });
+    logInfo("vacancy-invoice: created", { telegramId: user.id, id, kind, periodsCount, totalStars });
     return sendJson(res, 200, { invoiceLink: tgJson.result, totalStars });
   } catch (err) {
     console.error("[vacancy-invoice] request failed", err);

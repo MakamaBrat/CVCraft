@@ -1,17 +1,29 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
-import { sendJson, methodNotAllowed } from "./_lib/respond.js";
+import { sendJson, methodNotAllowed, logDbError } from "./_lib/respond.js";
 
-// POST /api/vacancy-view { id } — раніше клієнт викликав
-// supabase.rpc('register_vacancy_show', ...) напряму з anon-ключем, тож
-// будь-хто міг накрутити/спалити чужі показники show. Тепер лічильник
-// рухає тільки service-role.
+// POST /api/vacancy-view
+// body: { id: vacancyId }
+// Публічний ендпоінт (без авторизації) — викликається фронтом, коли
+// кандидат відкриває деталі вакансії (VacancyDetail). Інкремент
+// атомарний і рахується тільки для активних вакансій (див.
+// increment_vacancy_views у migration_08_vacancy_views.sql). Ніяких чутливих
+// даних не повертається й не приймається, тож окрема авторизація не потрібна.
 export default async function handler(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
-  const id = req.body?.id;
+
+  const { id } = req.body || {};
   if (!id) return sendJson(res, 400, { error: "missing_id" });
 
-  const admin = supabaseAdmin();
-  const { error } = await admin.rpc("register_vacancy_show", { p_vacancy_id: id });
-  if (error) return sendJson(res, 500, { error: "db_error" });
-  sendJson(res, 200, { ok: true });
+  try {
+    const admin = supabaseAdmin();
+    const { error } = await admin.rpc("increment_vacancy_views", { p_vacancy_id: id });
+    if (error) {
+      logDbError("vacancy-view: increment", error, { id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    console.error("[vacancy-view] unhandled exception", { message: err?.message, stack: err?.stack });
+    return sendJson(res, 500, { error: "internal_error" });
+  }
 }

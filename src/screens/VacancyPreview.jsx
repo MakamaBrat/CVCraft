@@ -113,8 +113,8 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   // Ціни більше не беремо із замороженого значення в рядку вакансії —
   // тягнемо актуальні з /api/pricing (окрема таблиця pricing_settings у
   // Supabase), щоб зміна ціни в адмінці одразу відображалась тут.
-  // listingPrice — ⭐ за 1 тиждень звичайного розміщення,
-  // topPrice — ⭐ за 1 тиждень топ-розміщення (додатково).
+  // listingPrice — ⭐ за 1 період (5 днів) звичайного розміщення,
+  // topPrice — ⭐ за 1 період (5 днів) топ-розміщення (додатково).
   const [listingPrice, setListingPrice] = useState(500);
   const [topPrice, setTopPrice] = useState(5);
 
@@ -141,14 +141,14 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   const canExtend = status === VACANCY_STATUS.ACTIVE || status === VACANCY_STATUS.PAUSED;
   const canBuyTop = canExtend;
 
-  const [weeksToBuy, setWeeksToBuy] = useState(1);
-  const [topWeeksToBuy, setTopWeeksToBuy] = useState(1);
+  const [periodsToBuy, setPeriodsToBuy] = useState(1);
+  const [topPeriodsToBuy, setTopPeriodsToBuy] = useState(1);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState(null);
   const [payingTop, setPayingTop] = useState(false);
   const [topPayError, setTopPayError] = useState(null);
-  const totalStars = Math.max(0, weeksToBuy) * listingPrice;
-  const totalTopStars = Math.max(0, topWeeksToBuy) * topPrice;
+  const totalStars = Math.max(0, periodsToBuy) * listingPrice;
+  const totalTopStars = Math.max(0, topPeriodsToBuy) * topPrice;
 
   const openInvoice = (kind, weeks, onDone) => {
     return apiFetch("/api/vacancy-invoice", {
@@ -165,11 +165,11 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   };
 
   const handlePay = async () => {
-    if (weeksToBuy < 1) return;
+    if (periodsToBuy < 1) return;
     setPayError(null);
     setPaying(true);
     try {
-      await openInvoice(needsPayment ? "listing" : "extend", weeksToBuy, async (invoiceStatus) => {
+      await openInvoice(needsPayment ? "listing" : "extend", periodsToBuy, async (invoiceStatus) => {
         setPaying(false);
         if (invoiceStatus === "paid") {
           await onPaid?.(vacancy.id);
@@ -187,11 +187,11 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   };
 
   const handlePayTop = async () => {
-    if (topWeeksToBuy < 1) return;
+    if (topPeriodsToBuy < 1) return;
     setTopPayError(null);
     setPayingTop(true);
     try {
-      await openInvoice("top", topWeeksToBuy, async (invoiceStatus) => {
+      await openInvoice("top", topPeriodsToBuy, async (invoiceStatus) => {
         setPayingTop(false);
         if (invoiceStatus === "paid") {
           await onPaid?.(vacancy.id);
@@ -337,12 +337,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
             <p className="text-sm font-semibold text-white/90 mb-1">
               {needsPayment ? t("vacancy.payAndPublish") : t("vacancy.extendListing")}
             </p>
-            <p className="text-xs text-white/45 mb-3">{t("vacancy.listingPricePerWeek", listingPrice)}</p>
+            <p className="text-xs text-white/45 mb-3">{t("vacancy.listingPricePerPeriod", listingPrice)}</p>
 
-            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.chooseWeeks")}</label>
+            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.choosePeriods")}</label>
             <div className="flex items-center gap-3 mb-3">
               <button
-                onClick={() => setWeeksToBuy((n) => Math.max(1, n - 1))}
+                onClick={() => setPeriodsToBuy((n) => Math.max(1, n - 1))}
                 className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
               >
                 −
@@ -350,12 +350,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
               <input
                 type="number"
                 min={1}
-                value={weeksToBuy}
-                onChange={(e) => setWeeksToBuy(Math.max(1, Number(e.target.value) || 1))}
+                value={periodsToBuy}
+                onChange={(e) => setPeriodsToBuy(Math.max(1, Number(e.target.value) || 1))}
                 className="w-20 text-center bg-base-900 border border-base-700 rounded-lg py-2 text-sm text-white outline-none focus:border-accent-500"
               />
               <button
-                onClick={() => setWeeksToBuy((n) => n + 1)}
+                onClick={() => setPeriodsToBuy((n) => n + 1)}
                 className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
               >
                 +
@@ -379,12 +379,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
         <div className="px-6 pb-4 print:hidden">
           <div className="bg-base-850 border border-base-700 rounded-xl p-4">
             <p className="text-sm font-semibold text-white/90 mb-1">{t("vacancy.buyTop")}</p>
-            <p className="text-xs text-white/45 mb-3">{t("vacancy.topPricePerWeek", topPrice)}</p>
+            <p className="text-xs text-white/45 mb-3">{t("vacancy.topPricePerPeriod", topPrice)}</p>
 
-            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.chooseWeeks")}</label>
+            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.choosePeriods")}</label>
             <div className="flex items-center gap-3 mb-3">
               <button
-                onClick={() => setTopWeeksToBuy((n) => Math.max(1, n - 1))}
+                onClick={() => setTopPeriodsToBuy((n) => Math.max(1, n - 1))}
                 className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
               >
                 −
@@ -392,12 +392,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
               <input
                 type="number"
                 min={1}
-                value={topWeeksToBuy}
-                onChange={(e) => setTopWeeksToBuy(Math.max(1, Number(e.target.value) || 1))}
+                value={topPeriodsToBuy}
+                onChange={(e) => setTopPeriodsToBuy(Math.max(1, Number(e.target.value) || 1))}
                 className="w-20 text-center bg-base-900 border border-base-700 rounded-lg py-2 text-sm text-white outline-none focus:border-accent-500"
               />
               <button
-                onClick={() => setTopWeeksToBuy((n) => n + 1)}
+                onClick={() => setTopPeriodsToBuy((n) => n + 1)}
                 className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
               >
                 +
