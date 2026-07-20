@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
+import { getCurrentPricing } from "./_lib/pricing.js";
 
 // POST /api/vacancy-invoice
 // body: { id: vacancyId, kind: "listing" | "extra_shows", shows: number }
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
 
   const { data: vacancy, error: fetchError } = await admin
     .from("vacancies")
-    .select("id, telegram_id, status, listing_price, price_per_show, data")
+    .select("id, telegram_id, status, data")
     .eq("id", id)
     .eq("telegram_id", user.id)
     .maybeSingle();
@@ -46,8 +47,9 @@ export default async function handler(req, res) {
     return sendJson(res, 409, { error: "invalid_status" });
   }
 
-  const perShow = vacancy.price_per_show || 1;
-  const listingFee = kind === "listing" ? vacancy.listing_price || 0 : 0;
+  const { listingPrice, pricePerShow } = await getCurrentPricing(admin);
+  const perShow = pricePerShow;
+  const listingFee = kind === "listing" ? listingPrice : 0;
   const totalStars = listingFee + showsCount * perShow;
   if (totalStars < 1) return sendJson(res, 400, { error: "invalid_amount" });
 

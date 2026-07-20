@@ -77,12 +77,7 @@ export default function Home({
       {/* content */}
       <div className="relative z-10 flex-1 flex flex-col">
         <div className="px-6 pt-4 pb-1 flex flex-col items-center text-center">
-          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-40 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
-          {isAdmin && (
-            <span className="mt-1 text-[10px] font-bold text-amber-200 bg-amber-500/20 border border-amber-400/30 rounded px-1.5 py-0.5">
-              PRO
-            </span>
-          )}
+          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
         </div>
 
         <div className="px-6 pt-3 pb-5">

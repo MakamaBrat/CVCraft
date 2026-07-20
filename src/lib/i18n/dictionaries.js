@@ -119,6 +119,7 @@ export const uk = {
     banned: "Забанений",
     noPending: "Немає вакансій на модерації",
     noApplications: "Заявок поки немає",
+    pricing: "Ціни",
   },
   gate: {
     title: "Відкрийте застосунок у Telegram",
@@ -244,6 +245,7 @@ export const ru = {
     banned: "Забанен",
     noPending: "Нет вакансий на модерации",
     noApplications: "Заявок пока нет",
+    pricing: "Цены",
   },
   gate: {
     title: "Откройте приложение в Telegram",
@@ -369,6 +371,7 @@ export const en = {
     banned: "Banned",
     noPending: "No job posts pending review",
     noApplications: "No applications yet",
+    pricing: "Pricing",
   },
   gate: {
     title: "Open this app in Telegram",

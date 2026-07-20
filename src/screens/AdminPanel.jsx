@@ -3,7 +3,7 @@ import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { vacancyFromRow } from "../lib/vacancy.js";
 
-const TABS = ["stats", "moderation", "applications", "users"];
+const TABS = ["stats", "moderation", "applications", "users", "pricing"];
 
 export default function AdminPanel({ onBack, adminId }) {
   const { t } = useLanguage();
@@ -15,20 +15,30 @@ export default function AdminPanel({ onBack, adminId }) {
   const [users, setUsers] = useState([]);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [pricing, setPricing] = useState(null);
+  const [pricingForm, setPricingForm] = useState({ listingPrice: "", pricePerShow: "" });
+  const [savingPricing, setSavingPricing] = useState(false);
+  const [pricingSaved, setPricingSaved] = useState(false);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [statsRes, moderationRes, applicationsRes, usersRes] = await Promise.all([
+      const [statsRes, moderationRes, applicationsRes, usersRes, pricingRes] = await Promise.all([
         apiFetch("/api/admin?action=stats"),
         apiFetch("/api/admin?action=moderation"),
         apiFetch("/api/admin?action=applications"),
         apiFetch("/api/admin?action=users"),
+        apiFetch("/api/admin?action=pricing"),
       ]);
       setStats(statsRes);
       setPending((moderationRes?.vacancies || []).map(vacancyFromRow));
       setApplications(applicationsRes?.applications || []);
       setUsers(usersRes?.users || []);
+      setPricing(pricingRes);
+      setPricingForm({
+        listingPrice: String(pricingRes?.listingPrice ?? ""),
+        pricePerShow: String(pricingRes?.pricePerShow ?? ""),
+      });
     } catch {
       // сервер сам відхилить не-адмінів (403) — тут просто лишаємо порожній стан
     }
@@ -75,6 +85,29 @@ export default function AdminPanel({ onBack, adminId }) {
     } catch (err) {
       setActionError(`Помилка: ${err?.payload?.error || err.message}`);
     }
+  };
+
+  const savePricing = async () => {
+    setActionError(null);
+    setPricingSaved(false);
+    const listing = Number(pricingForm.listingPrice);
+    const perShow = Number(pricingForm.pricePerShow);
+    if (!Number.isInteger(listing) || listing < 0 || !Number.isInteger(perShow) || perShow < 0) {
+      setActionError("Ціни мають бути цілими невід'ємними числами.");
+      return;
+    }
+    setSavingPricing(true);
+    try {
+      const res = await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "setPricing", listingPrice: listing, pricePerShow: perShow },
+      });
+      setPricing({ listingPrice: res.listingPrice, pricePerShow: res.pricePerShow });
+      setPricingSaved(true);
+    } catch (err) {
+      setActionError(`Помилка збереження цін: ${err?.payload?.error || err.message}`);
+    }
+    setSavingPricing(false);
   };
 
   return (
@@ -183,6 +216,57 @@ export default function AdminPanel({ onBack, adminId }) {
                     {a.message && <p className="text-xs text-white/70">{a.message}</p>}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {tab === "pricing" && (
+              <div className="flex flex-col gap-4">
+                <p className="text-xs text-white/45">
+                  Ціни зберігаються в окремій таблиці pricing_settings у Supabase і застосовуються одразу до всіх
+                  нових оплат (публікація вакансій та докупівля показів).
+                </p>
+                <div className="bg-base-850 border border-base-700 rounded-xl p-4 flex flex-col gap-3">
+                  <label className="text-xs text-white/60">
+                    Публікація вакансії (⭐)
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={pricingForm.listingPrice}
+                      onChange={(e) => {
+                        setPricingSaved(false);
+                        setPricingForm((f) => ({ ...f, listingPrice: e.target.value }));
+                      }}
+                      className="mt-1 w-full bg-base-900 border border-base-700 rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="text-xs text-white/60">
+                    Ціна за 1 показ (⭐)
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={pricingForm.pricePerShow}
+                      onChange={(e) => {
+                        setPricingSaved(false);
+                        setPricingForm((f) => ({ ...f, pricePerShow: e.target.value }));
+                      }}
+                      className="mt-1 w-full bg-base-900 border border-base-700 rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                  </label>
+                  {pricing && (
+                    <p className="text-[11px] text-white/35">
+                      Поточні збережені значення: {pricing.listingPrice} ⭐ за публікацію, {pricing.pricePerShow} ⭐ за показ.
+                    </p>
+                  )}
+                  <button
+                    onClick={savePricing}
+                    disabled={savingPricing}
+                    className="tap bg-accent-500 text-base-950 text-xs font-semibold rounded-lg py-2.5 disabled:opacity-50"
+                  >
+                    {savingPricing ? "Зберігаємо…" : pricingSaved ? "Збережено ✓" : "Зберегти ціни"}
+                  </button>
+                </div>
               </div>
             )}
 

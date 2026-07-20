@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { generateVacancyPdf } from "../lib/pdf.js";
@@ -88,8 +88,28 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   const shareUrl = buildVacancyShareLink(vacancy.id);
   const status = vacancy.status || VACANCY_STATUS.DRAFT;
 
-  const listingPrice = vacancy.listingPrice || 500;
-  const perShow = vacancy.pricePerShow || 1;
+  // Ціни більше не беремо із замороженого значення в рядку вакансії —
+  // тягнемо актуальні з /api/pricing (окрема таблиця pricing_settings у
+  // Supabase), щоб зміна ціни в адмінці одразу відображалась тут.
+  const [listingPrice, setListingPrice] = useState(vacancy.listingPrice || 500);
+  const [perShow, setPerShow] = useState(vacancy.pricePerShow || 1);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch("/api/pricing")
+      .then((res) => {
+        if (cancelled || !res) return;
+        if (Number.isFinite(res.listingPrice)) setListingPrice(res.listingPrice);
+        if (Number.isFinite(res.pricePerShow)) setPerShow(res.pricePerShow);
+      })
+      .catch(() => {
+        // залишаємось на значеннях за замовчуванням/зі старого рядка вакансії
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const needsPayment = status === VACANCY_STATUS.APPROVED;
   const canBuyMore = status === VACANCY_STATUS.ACTIVE || status === VACANCY_STATUS.PAUSED;
 

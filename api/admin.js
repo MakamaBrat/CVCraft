@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { requireUser, isAdminId } from "./_lib/telegramAuth.js";
 import { sendJson, methodNotAllowed, logDbError, logInfo } from "./_lib/respond.js";
+import { getCurrentPricing } from "./_lib/pricing.js";
 
 async function handlerImpl(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -91,6 +92,36 @@ async function handlerImpl(req, res) {
       return sendJson(res, 500, { error: "db_error" });
     }
     return sendJson(res, 200, { users: data });
+  }
+
+  if (req.method === "GET" && action === "pricing") {
+    const pricing = await getCurrentPricing(admin);
+    return sendJson(res, 200, pricing);
+  }
+
+  if (req.method === "POST" && action === "setPricing") {
+    const { listingPrice, pricePerShow } = req.body || {};
+    const listing = Number(listingPrice);
+    const perShow = Number(pricePerShow);
+    if (!Number.isInteger(listing) || listing < 0 || listing > 1000000) {
+      return sendJson(res, 400, { error: "invalid_listing_price" });
+    }
+    if (!Number.isInteger(perShow) || perShow < 0 || perShow > 1000000) {
+      return sendJson(res, 400, { error: "invalid_price_per_show" });
+    }
+    const { error } = await admin.from("pricing_settings").upsert({
+      id: 1,
+      listing_price_stars: listing,
+      price_per_show_stars: perShow,
+      updated_by: auth.user.id,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      logDbError("admin setPricing POST", error, { telegramId: auth.user.id, listing, perShow });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("admin setPricing POST: ok", { telegramId: auth.user.id, listing, perShow });
+    return sendJson(res, 200, { ok: true, listingPrice: listing, pricePerShow: perShow });
   }
 
   if (req.method === "POST" && action === "moderate") {
