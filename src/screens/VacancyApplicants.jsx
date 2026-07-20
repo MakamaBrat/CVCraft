@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -88,16 +89,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
               className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
               style={{ borderBottom: `2px solid ${accent}` }}
             >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
-                style={{ background: accent, color: theme.avatarText }}
-              >
-                {(r.fullName || "?")
-                  .split(/\s+/)
-                  .slice(0, 2)
-                  .map((w) => w[0]?.toUpperCase())
-                  .join("")}
-              </div>
+              <Avatar url={r.avatarUrl} name={r.fullName} accent={accent} theme={theme} />
               <div className="min-w-0">
                 <h2 className="text-lg font-bold leading-tight truncate">{r.fullName || "—"}</h2>
                 <p className="text-sm font-medium truncate" style={{ color: accent }}>

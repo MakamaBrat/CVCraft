@@ -38,6 +38,7 @@ const emptyResume = () => ({
   template: "minimal",
   colorScheme: "dark",
   backgroundUrl: "",
+  avatarUrl: "",
 });
 
 function loadIdentity() {

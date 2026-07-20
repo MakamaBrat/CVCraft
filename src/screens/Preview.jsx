@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
 import { generateResumePdf } from "../lib/pdf.js";
@@ -37,16 +38,7 @@ function ResumeDocument({ resume }) {
         className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
         style={{ borderBottom: `2px solid ${accent}` }}
       >
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
-          style={{ background: accent, color: theme.avatarText }}
-        >
-          {(resume.fullName || "?")
-            .split(/\s+/)
-            .slice(0, 2)
-            .map((w) => w[0]?.toUpperCase())
-            .join("")}
-        </div>
+        <Avatar url={resume.avatarUrl} name={resume.fullName} accent={accent} theme={theme} />
         <div className="min-w-0">
           <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || "Ваше ім'я"}</h2>
           <p className="text-sm font-medium truncate" style={{ color: accent }}>
@@ -174,7 +166,11 @@ export default function Preview({ resume, onBack, onDone }) {
   const shareUrl = buildShareLink(resume.id);
 
   const handleShareLink = () => {
-    const text = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+    const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+    // url передаємо окремим параметром — Telegram сам зробить з нього
+    // клікабельну картку-прев'ю під текстом, тому саме посилання в text
+    // дублювати не треба.
+    const text = `${title}\n\n${t("share.resumeClickHint")}`;
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     const tg = getTelegramWebApp();
     if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
@@ -188,11 +184,11 @@ export default function Preview({ resume, onBack, onDone }) {
     try {
       const { blob, fileName } = await generateResumePdf(resume);
       const file = new File([blob], fileName, { type: "application/pdf" });
-      const caption = [
-        `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`,
-        "",
-        `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
-      ].join("\n");
+      const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+      // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+      // будує з url клікабельну картку — лишаємо посилання явно в тексті,
+      // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
+      const caption = [title, "", `${t("share.resumeClickHint")}: ${shareUrl}`].join("\n");
 
       // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
       // з підписом (підтримується мобільними браузерами й Telegram
@@ -203,8 +199,9 @@ export default function Preview({ resume, onBack, onDone }) {
       }
 
       // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
-      // PDF і одразу відкриваємо Telegram-шеринг з посиланням і підписом,
-      // щоб отримати той самий результат у два кроки.
+      // PDF і одразу відкриваємо Telegram-шеринг. Тут url іде окремим
+      // параметром, тому в text лишаємо тільки локалізовану підказку —
+      // Telegram сам покаже посилання як клікабельну картку.
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -214,7 +211,8 @@ export default function Preview({ resume, onBack, onDone }) {
       a.remove();
       URL.revokeObjectURL(blobUrl);
 
-      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
+      const shareText = `${title}\n\n${t("share.resumeClickHint")}`;
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
       const tg = getTelegramWebApp();
       if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
       else if (tg?.openLink) tg.openLink(telegramShareUrl);

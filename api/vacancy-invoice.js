@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
 import { getCurrentPricing } from "./_lib/pricing.js";
+import { applyVacancyPayment } from "./_lib/applyVacancyPayment.js";
 
 // POST /api/vacancy-invoice
 // body: { id: vacancyId, kind: "listing" | "extend" | "top", weeks: number }
@@ -55,7 +56,26 @@ export default async function handler(req, res) {
   const { listingPrice, topPrice } = await getCurrentPricing(admin);
   const pricePerPeriod = kind === "top" ? topPrice : listingPrice;
   const totalStars = periodsCount * pricePerPeriod;
-  if (totalStars < 1) return sendJson(res, 400, { error: "invalid_amount" });
+
+  // Якщо ціна (звичайного розміщення або топу) виставлена як 0 ⭐ — це
+  // означає "безкоштовно". У такому разі інвойс через Telegram не
+  // потрібен і навіть неможливий (Bot API не дозволяє суму 0): одразу
+  // застосовуємо продовження/активацію так само, як це робить
+  // successful_payment у /api/bot.js, і повертаємо клієнту { free: true },
+  // щоб він не намагався відкривати tg.openInvoice.
+  if (totalStars <= 0) {
+    const result = await applyVacancyPayment(admin, {
+      vacancy,
+      kind,
+      periods: periodsCount,
+      telegramId: user.id,
+      starsAmount: 0,
+      chargeId: null,
+    });
+    if (!result.ok) return sendJson(res, 500, { error: "db_error" });
+    logInfo("vacancy-invoice: granted free", { telegramId: user.id, id, kind, periodsCount });
+    return sendJson(res, 200, { free: true, totalStars: 0 });
+  }
 
   if (!botToken) {
     console.error("[vacancy-invoice] TELEGRAM_BOT_TOKEN is not set");

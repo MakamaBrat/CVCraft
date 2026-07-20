@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
@@ -48,9 +49,12 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             textAlign: align,
           }}
         >
-          <div className="pb-4 mb-4" style={{ borderBottom: `2px solid ${accent}` }}>
-            <h2 className="text-lg font-bold leading-tight mb-1">{vacancy.position}</h2>
-            <p className="text-sm font-medium" style={{ color: accent }}>{vacancy.company}</p>
+          <div className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`} style={{ borderBottom: `2px solid ${accent}` }}>
+            <Avatar url={vacancy.avatarUrl} name={vacancy.company || vacancy.position} accent={accent} theme={theme} />
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold leading-tight mb-1 truncate">{vacancy.position}</h2>
+              <p className="text-sm font-medium truncate" style={{ color: accent }}>{vacancy.company}</p>
+            </div>
           </div>
           <div
             className={`flex flex-wrap gap-x-4 gap-y-1 text-[11px] mb-4 ${isCenter ? "justify-center" : ""}`}

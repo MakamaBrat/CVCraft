@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
+import Avatar from "../components/Avatar.jsx";
+import { getColorTheme } from "../lib/docTheme.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+
+const ACCENTS = { minimal: "#9aa0a6", modern: "#6c5ce7", bold: "#ff7a59", classic: "#4c9be8" };
 
 export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
   const { t } = useLanguage();
@@ -106,6 +110,13 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
                 onClick={() => onOpen(v.id)}
                 className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
               >
+                <Avatar
+                  url={v.avatarUrl}
+                  name={v.company || v.position}
+                  accent={ACCENTS[v.template] || ACCENTS.minimal}
+                  theme={getColorTheme(v.colorScheme)}
+                  size={10}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm truncate">{v.position || "—"}</p>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { generateVacancyPdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
@@ -35,11 +36,17 @@ export function VacancyDocument({ vacancy }) {
         textAlign: align,
       }}
     >
-      <div className="pb-4 mb-4" style={{ borderBottom: `2px solid ${accent}` }}>
-        <h2 className="text-lg font-bold leading-tight mb-1">{vacancy.position || t("vacancy.positionPlaceholder")}</h2>
-        <p className="text-sm font-medium" style={{ color: accent }}>
-          {vacancy.company || t("vacancy.companyPlaceholder")}
-        </p>
+      <div
+        className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
+        style={{ borderBottom: `2px solid ${accent}` }}
+      >
+        <Avatar url={vacancy.avatarUrl} name={vacancy.company || vacancy.position} accent={accent} theme={theme} />
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold leading-tight mb-1 truncate">{vacancy.position || t("vacancy.positionPlaceholder")}</h2>
+          <p className="text-sm font-medium truncate" style={{ color: accent }}>
+            {vacancy.company || t("vacancy.companyPlaceholder")}
+          </p>
+        </div>
       </div>
 
       <div
@@ -155,6 +162,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       method: "POST",
       body: { id: vacancy.id, kind, weeks },
     }).then((res) => {
+      // Ціна 0 ⭐ — сервер одразу застосував продовження/активацію без
+      // створення інвойсу Telegram, тут просто підтверджуємо "paid".
+      if (res.free) {
+        onDone("paid");
+        return;
+      }
       const tg = getTelegramWebApp();
       if (!tg?.openInvoice) {
         onDone("no_telegram");
@@ -209,7 +222,10 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   };
 
   const handleShareLink = () => {
-    const text = [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+    const title = [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+    // url — окремим параметром, Telegram сам покаже його клікабельною
+    // карткою-прев'ю під текстом, дублювати посилання в text не треба.
+    const text = `${title}\n\n${t("share.vacancyClickHint")}`;
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     const tg = getTelegramWebApp();
     if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
@@ -223,11 +239,11 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     try {
       const { blob, fileName } = await generateVacancyPdf(vacancy);
       const file = new File([blob], fileName, { type: "application/pdf" });
-      const caption = [
-        `${vacancy.position || t("vacancy.vacancyPlaceholder")}${vacancy.company ? " — " + vacancy.company : ""}`,
-        "",
-        `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
-      ].join("\n");
+      const title = `${vacancy.position || t("vacancy.vacancyPlaceholder")}${vacancy.company ? " — " + vacancy.company : ""}`;
+      // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+      // будує з url клікабельну картку — лишаємо посилання явно в тексті,
+      // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
+      const caption = [title, "", `${t("share.vacancyClickHint")}: ${shareUrl}`].join("\n");
 
       // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
       // з підписом (підтримується мобільними браузерами й Telegram
@@ -238,7 +254,8 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       }
 
       // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
-      // PDF і одразу відкриваємо Telegram-шеринг з посиланням і підписом.
+      // PDF і одразу відкриваємо Telegram-шеринг. url іде окремим
+      // параметром, тому в text лишаємо тільки локалізовану підказку.
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -248,7 +265,8 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       a.remove();
       URL.revokeObjectURL(blobUrl);
 
-      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
+      const shareText = `${title}\n\n${t("share.vacancyClickHint")}`;
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
       const tg = getTelegramWebApp();
       if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
       else if (tg?.openLink) tg.openLink(telegramShareUrl);

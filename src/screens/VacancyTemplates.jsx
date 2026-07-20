@@ -4,11 +4,17 @@ import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.j
 const SECTION_LABELS = {
   theme: { uk: "Кольорова тема", ru: "Цветовая тема", en: "Color theme" },
   align: { uk: "Вирівнювання тексту", ru: "Выравнивание текста", en: "Text alignment" },
+  avatar: { uk: "Лого / фото компанії", ru: "Лого / фото компании", en: "Company logo / photo" },
+  avatarHint: {
+    uk: "Вставте посилання на лого чи фото — воно стане аватаром вакансії замість ініціалів. Немає, де хостити фото? Завантажте на",
+    ru: "Вставьте ссылку на лого или фото — оно станет аватаром вакансии вместо инициалов. Негде хостить фото? Загрузите на",
+    en: "Paste a link to a logo or photo — it becomes the vacancy's avatar instead of initials. No place to host it? Upload to",
+  },
   background: { uk: "Фон (картинка або гіф)", ru: "Фон (картинка или гиф)", en: "Background (image or GIF)" },
   backgroundHint: {
-    uk: "Вставте посилання на зображення чи гіфку — вона стане фоном вакансії. Залиште порожнім, щоб лишити колір теми.",
-    ru: "Вставьте ссылку на изображение или гиф — она станет фоном вакансии. Оставьте пустым, чтобы оставить цвет темы.",
-    en: "Paste a link to an image or GIF — it becomes the job post's background. Leave empty to keep the theme color.",
+    uk: "Вставте посилання на зображення чи гіфку — вона стане фоном вакансії. Залиште порожнім, щоб лишити колір теми. Шукайте гіфки на",
+    ru: "Вставьте ссылку на изображение или гиф — она станет фоном вакансии. Оставьте пустым, чтобы оставить цвет темы. Ищите гифки на",
+    en: "Paste a link to an image or GIF — it becomes the job post's background. Leave empty to keep the theme color. Find GIFs on",
   },
 };
 
@@ -145,6 +151,26 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
           ))}
         </div>
 
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.avatar[lang]}</p>
+        <input
+          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+          placeholder="https://i.imgur.com/..."
+          value={draft.avatarUrl || ""}
+          onChange={(e) => setDraft({ ...draft, avatarUrl: e.target.value.trim() })}
+        />
+        <p className="text-xs text-white/40 mt-1.5 mb-6">
+          {SECTION_LABELS.avatarHint[lang]}{" "}
+          <a
+            href="https://imgur.com/upload"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-400 underline underline-offset-2"
+          >
+            imgur.com
+          </a>
+          .
+        </p>
+
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.background[lang]}</p>
         <input
           className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
@@ -152,7 +178,18 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
           value={draft.backgroundUrl || ""}
           onChange={(e) => setDraft({ ...draft, backgroundUrl: e.target.value.trim() })}
         />
-        <p className="text-xs text-white/40 mt-1.5 mb-6">{SECTION_LABELS.backgroundHint[lang]}</p>
+        <p className="text-xs text-white/40 mt-1.5 mb-6">
+          {SECTION_LABELS.backgroundHint[lang]}{" "}
+          <a
+            href="https://giphy.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-400 underline underline-offset-2"
+          >
+            giphy.com
+          </a>
+          .
+        </p>
 
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.align[lang]}</p>
         <div className="flex gap-3">

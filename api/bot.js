@@ -15,6 +15,7 @@
 
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { logDbError, logInfo } from "./_lib/respond.js";
+import { applyVacancyPayment } from "./_lib/applyVacancyPayment.js";
 
 async function answerPreCheckoutQuery(token, preCheckoutQueryId, ok, errorMessage) {
   await fetch(`https://api.telegram.org/bot${token}/answerPreCheckoutQuery`, {
@@ -71,9 +72,6 @@ async function handlePreCheckoutQuery(query, token) {
   await answerPreCheckoutQuery(token, query.id, true);
 }
 
-const PERIOD_DAYS = 5;
-const PERIOD_MS = PERIOD_DAYS * 24 * 60 * 60 * 1000;
-
 async function handleSuccessfulPayment(message) {
   const sp = message.successful_payment;
   let payload;
@@ -103,45 +101,15 @@ async function handleSuccessfulPayment(message) {
     return;
   }
 
-  const now = Date.now();
-  const addMs = payload.w * PERIOD_MS;
-  const update = {};
-
-  if (payload.k === "listing") {
-    // Перша публікація: термін рахується від моменту оплати, незалежно
-    // від того, що там було раніше (approved-вакансія ще не показувалась).
-    update.expires_at = new Date(now + addMs).toISOString();
-    update.status = "active";
-    update.is_paid = true;
-  } else if (payload.k === "extend") {
-    // Продовжуємо від more пізньої з (поточний expires_at, зараз) — щоб не
-    // втрачати вже сплачений залишок терміну і не дозволяти "накопичувати"
-    // час, купуючи продовження заздалегідь по старій ціні на прострочену дату.
-    const base = Math.max(now, vacancy.expires_at ? new Date(vacancy.expires_at).getTime() : now);
-    update.expires_at = new Date(base + addMs).toISOString();
-    update.status = "active";
-  } else if (payload.k === "top") {
-    const base = Math.max(now, vacancy.top_until ? new Date(vacancy.top_until).getTime() : now);
-    update.top_until = new Date(base + addMs).toISOString();
-  }
-
-  const { error: updateError } = await admin.from("vacancies").update(update).eq("id", payload.v);
-  if (updateError) {
-    logDbError("bot: successful_payment update", updateError, { vacancyId: payload.v });
-    return;
-  }
-
-  const { error: insertError } = await admin.from("vacancy_payments").insert({
-    vacancy_id: payload.v,
-    telegram_id: String(payload.t),
+  const result = await applyVacancyPayment(admin, {
+    vacancy,
     kind: payload.k,
-    stars_amount: sp.total_amount,
-    periods_added: payload.w,
-    telegram_payment_charge_id: sp.telegram_payment_charge_id,
+    periods: payload.w,
+    telegramId: payload.t,
+    starsAmount: sp.total_amount,
+    chargeId: sp.telegram_payment_charge_id,
   });
-  if (insertError) {
-    logDbError("bot: vacancy_payments insert", insertError, { vacancyId: payload.v });
-  }
+  if (!result.ok) return;
 
   logInfo("bot: payment processed", { vacancyId: payload.v, kind: payload.k, periods: payload.w });
 }

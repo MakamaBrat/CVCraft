@@ -131,6 +131,8 @@ export const uk = {
     shareApp: "Поділитися через застосунок",
     shareAppHint: "Відео/гіф-перегляд + швидкий доступ у Telegram",
     downloadPdf: "Завантажити PDF",
+    resumeClickHint: "Натисніть, щоб побачити повне резюме",
+    vacancyClickHint: "Натисніть, щоб побачити повну вакансію",
   },
   admin: {
     title: "Адмін-панель",
@@ -287,6 +289,8 @@ export const ru = {
     shareApp: "Поделиться через приложение",
     shareAppHint: "Видео/гиф-превью + быстрый доступ в Telegram",
     downloadPdf: "Скачать PDF",
+    resumeClickHint: "Нажмите, чтобы увидеть полное резюме",
+    vacancyClickHint: "Нажмите, чтобы увидеть полную вакансию",
   },
   admin: {
     title: "Админ-панель",
@@ -443,6 +447,8 @@ export const en = {
     shareApp: "Share via app",
     shareAppHint: "Video/GIF preview + quick access in Telegram",
     downloadPdf: "Download PDF",
+    resumeClickHint: "Tap to see the full resume",
+    vacancyClickHint: "Tap to see the full job post",
   },
   admin: {
     title: "Admin panel",
