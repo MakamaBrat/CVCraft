@@ -4,6 +4,7 @@ import Wizard from "./screens/Wizard.jsx";
 import Templates from "./screens/Templates.jsx";
 import Preview from "./screens/Preview.jsx";
 import SharedView from "./screens/SharedView.jsx";
+import SharedVacancyView from "./screens/SharedVacancyView.jsx";
 import VacancyWizard from "./screens/VacancyWizard.jsx";
 import VacancyTemplates from "./screens/VacancyTemplates.jsx";
 import VacancyPreview from "./screens/VacancyPreview.jsx";
@@ -61,7 +62,7 @@ function loadLocalResumes() {
 
 function parseHashRoute() {
   const hash = window.location.hash;
-  const m = hash.match(/^#\/r\/([a-zA-Z0-9-]+)/);
+  const m = hash.match(/^#\/r\/([a-zA-Z0-9_-]+)/);
   if (m) return m[1];
   const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
   if (tgStartParam) return tgStartParam;
@@ -197,15 +198,18 @@ export default function App() {
   };
 
   if (sharedId) {
+    const isVacancyShare = sharedId.startsWith("v_");
+    const closeShared = () => {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      setSharedId(null);
+    };
     return (
       <div className="phone-shell">
-        <SharedView
-          resumeId={sharedId}
-          onOpenApp={() => {
-            window.history.replaceState(null, "", window.location.pathname + window.location.search);
-            setSharedId(null);
-          }}
-        />
+        {isVacancyShare ? (
+          <SharedVacancyView vacancyId={sharedId.slice(2)} onOpenApp={closeShared} />
+        ) : (
+          <SharedView resumeId={sharedId} onOpenApp={closeShared} />
+        )}
       </div>
     );
   }
