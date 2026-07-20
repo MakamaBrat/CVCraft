@@ -139,61 +139,65 @@ export default function Preview({ resume, onBack, onDone }) {
 
   const shareUrl = buildShareLink(resume.id);
 
-  const handleShareLink = () => {
-    const text = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
-    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
-    const tg = getTelegramWebApp();
-    if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
-    else if (tg?.openLink) tg.openLink(telegramShareUrl);
-    else window.open(telegramShareUrl, "_blank");
-  };
-
   const handleShare = async () => {
-    setShareError(null);
-    setSharing(true);
-    try {
-      const { blob, fileName } = await generateResumePdf(resume);
-      const file = new File([blob], fileName, { type: "application/pdf" });
-      const caption = [
-        `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`,
-        "",
-        `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
-      ].join("\n");
+  setShareError(null);
+  setSharing(true);
 
-      // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
-      // з підписом (підтримується мобільними браузерами й Telegram
-      // in-app browser на iOS/Android).
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], text: caption, title: fileName });
-        return;
+  try {
+    const { blob, fileName } = await generateResumePdf(resume);
+
+    const file = new File(
+      [blob],
+      fileName,
+      {
+        type: "application/pdf",
       }
+    );
 
-      // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
-      // PDF і одразу відкриваємо Telegram-шеринг з посиланням і підписом,
-      // щоб отримати той самий результат у два кроки.
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
+    const caption = [
+      `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`,
+      "",
+      `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
+    ].join("\n");
 
-      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
-      const tg = getTelegramWebApp();
-      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
-      else if (tg?.openLink) tg.openLink(telegramShareUrl);
-      else window.open(telegramShareUrl, "_blank");
-    } catch (err) {
-      if (err?.name !== "AbortError") {
-        console.error("[Preview] share failed", err);
-        setShareError("Не вдалося поділитися резюме. Спробуйте ще раз.");
-      }
-    } finally {
-      setSharing(false);
+    if (
+      navigator.canShare &&
+      navigator.canShare({
+        files: [file],
+      })
+    ) {
+      await navigator.share({
+        files: [file],
+        title: fileName,
+        text: caption,
+      });
+
+      return;
     }
-  };
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+
+    handleShareLink();
+  } catch (e) {
+    console.error(e);
+
+    setShareError(
+      "Не вдалося створити PDF."
+    );
+  } finally {
+    setSharing(false);
+  }
+};
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
