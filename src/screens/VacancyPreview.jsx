@@ -265,7 +265,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       a.remove();
       URL.revokeObjectURL(blobUrl);
 
-      const shareText = `${title}\n\n${t("share.vacancyClickHint")}`;
+      const shareText = `${t("share.vacancyClickHint")}\n\n${title}`;
       const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
       const tg = getTelegramWebApp();
       if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);

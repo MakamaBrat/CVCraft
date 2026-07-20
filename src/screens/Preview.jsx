@@ -211,7 +211,7 @@ export default function Preview({ resume, onBack, onDone }) {
       a.remove();
       URL.revokeObjectURL(blobUrl);
 
-      const shareText = `${title}\n\n${t("share.resumeClickHint")}`;
+      const shareText = `${t("share.resumeClickHint")}\n\n${title}`;
       const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
       const tg = getTelegramWebApp();
       if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
