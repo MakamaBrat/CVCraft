@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import TagPicker from "../components/TagPicker.jsx";
 import { confirmDialog } from "../lib/telegram.js";
 
@@ -356,14 +356,94 @@ function vimeoId(url) {
   const m = url.match(/vimeo\.com\/(\d+)/);
   return m ? m[1] : null;
 }
+// Прямі iframe-посилання виду tiktok.com/embed/v2/... та
+// instagram.com/p/.../embed платформи давно закрили для сторонніх
+// сайтів. Єдиний офіційний і робочий спосіб — той самий <blockquote> +
+// зовнішній embed.js, який використовує кнопка "Поділитися → Вбудувати"
+// на самих TikTok/Instagram. Скрипт сам знаходить блоки на сторінці й
+// підміняє їх на iframe з постом.
+function loadEmbedScript(src, readyFlag) {
+  return new Promise((resolve) => {
+    if (window[readyFlag]) return resolve();
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      window[readyFlag] = true;
+      resolve();
+    };
+    document.body.appendChild(script);
+  });
+}
+
 function tiktokId(url) {
   const m = url.match(/video\/(\d+)/);
   return m ? m[1] : null;
 }
-function instagramEmbedUrl(url) {
-  const m = url.match(/instagram\.com\/(p|reel|reels)\/([a-zA-Z0-9_-]+)/);
-  if (!m) return null;
-  return `https://www.instagram.com/${m[1]}/${m[2]}/embed`;
+
+function TikTokEmbed({ url, title }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    // На відміну від Instagram, у TikTok немає публічного API для
+    // повторної обробки нових блоків — скрипт сканує сторінку лише під
+    // час свого виконання. Тому для карток, доданих пізніше (React),
+    // додаємо свіжий тег скрипта щоразу; сам TikTok ігнорує вже
+    // відрендерені блоки, тому дублі нешкідливі.
+    const s = document.createElement("script");
+    s.src = "https://www.tiktok.com/embed.js";
+    s.async = true;
+    document.body.appendChild(s);
+    return () => {
+      s.remove();
+    };
+  }, [url]);
+
+  return (
+    <blockquote
+      ref={ref}
+      className="tiktok-embed"
+      cite={url}
+      data-video-id={tiktokId(url)}
+      style={{ maxWidth: 400, minWidth: 260, margin: "0 auto" }}
+    >
+      <section>
+        <a target="_blank" rel="noreferrer" href={url}>
+          {title || "TikTok"}
+        </a>
+      </section>
+    </blockquote>
+  );
+}
+
+function InstagramEmbed({ url, title }) {
+  useEffect(() => {
+    let cancelled = false;
+    loadEmbedScript("https://www.instagram.com/embed.js", "__instagramEmbedLoaded").then(() => {
+      if (cancelled) return;
+      if (window.instgrm?.Embeds?.process) window.instgrm.Embeds.process();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  return (
+    <blockquote
+      className="instagram-media"
+      data-instgrm-permalink={url}
+      data-instgrm-version="14"
+      style={{ maxWidth: 400, minWidth: 260, margin: "0 auto" }}
+    >
+      <a target="_blank" rel="noreferrer" href={url}>
+        {title || "Instagram"}
+      </a>
+    </blockquote>
+  );
 }
 // Перетворює звичайне посилання Google Maps на embed-версію (додає
 // output=embed). Для скорочених посилань (maps.app.goo.gl, goo.gl/maps)
@@ -428,46 +508,24 @@ export function MediaPreview({ item }) {
     );
   }
   if (type === "tiktok") {
-    const id = tiktokId(item.url);
-    if (!id) {
+    if (!tiktokId(item.url)) {
       return (
         <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
           {item.url}
         </a>
       );
     }
-    return (
-      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "9/16", maxHeight: 480, margin: "0 auto" }}>
-        <iframe
-          src={`https://www.tiktok.com/embed/v2/${id}`}
-          title={item.title || "tiktok"}
-          className="absolute inset-0 w-full h-full"
-          frameBorder="0"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-    );
+    return <TikTokEmbed url={item.url} title={item.title} />;
   }
   if (type === "instagram") {
-    const embedUrl = instagramEmbedUrl(item.url);
-    if (!embedUrl) {
+    if (!/instagram\.com\/(p|reel|reels)\/[a-zA-Z0-9_-]+/i.test(item.url)) {
       return (
         <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
           {item.url}
         </a>
       );
     }
-    return (
-      <iframe
-        src={embedUrl}
-        title={item.title || "instagram"}
-        className="w-full rounded-lg bg-white"
-        style={{ height: 480, border: 0, maxWidth: 400, margin: "0 auto", display: "block" }}
-        allowTransparency
-        scrolling="no"
-      />
-    );
+    return <InstagramEmbed url={item.url} title={item.title} />;
   }
   if (type === "figma") {
     return (
