@@ -145,6 +145,17 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           ))}
         </div>
 
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Фон (картинка або гіф)</p>
+        <input
+          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+          placeholder="https://... .jpg / .png / .gif"
+          value={draft.backgroundUrl || ""}
+          onChange={(e) => setDraft({ ...draft, backgroundUrl: e.target.value.trim() })}
+        />
+        <p className="text-xs text-white/40 mt-1.5 mb-6">
+          Вставте посилання на зображення чи гіфку — вона стане фоном резюме. Залиште порожнім, щоб лишити колір теми.
+        </p>
+
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Вирівнювання тексту</p>
         <div className="flex gap-3">
           {ALIGNMENTS.map((a) => (

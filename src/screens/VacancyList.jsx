@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { buildVacancyShareLink } from "../lib/config.js";
-import { getTelegramWebApp } from "../lib/telegram.js";
+import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -165,7 +165,8 @@ export default function VacancyList({
                 </button>
               )}
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (!(await confirmDialog(t("common.confirmDeleteVacancy")))) return;
                   onDelete(activeVacancy.id);
                   setActiveVacancy(null);
                 }}

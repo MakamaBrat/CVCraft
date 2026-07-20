@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { vacancyFromRow } from "../lib/vacancy.js";
+import { VacancyDocument } from "./VacancyPreview.jsx";
 
 const TABS = ["stats", "moderation", "applications", "users", "pricing"];
 
@@ -15,6 +16,7 @@ export default function AdminPanel({ onBack, adminId }) {
   const [users, setUsers] = useState([]);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [previewVacancy, setPreviewVacancy] = useState(null);
   const [pricing, setPricing] = useState(null);
   const [pricingForm, setPricingForm] = useState({ listingPrice: "", topPrice: "" });
   const [savingPricing, setSavingPricing] = useState(false);
@@ -174,6 +176,12 @@ export default function AdminPanel({ onBack, adminId }) {
                     <p className="font-semibold text-sm">{v.position}</p>
                     <p className="text-xs text-white/50 mb-2">{v.company} · {v.city}</p>
                     <p className="text-xs text-white/70 whitespace-pre-line mb-3 line-clamp-4">{v.description}</p>
+                    <button
+                      onClick={() => setPreviewVacancy(v)}
+                      className="tap w-full mb-3 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
+                    >
+                      {t("admin.viewFull")}
+                    </button>
                     {rejectingId === v.id ? (
                       <div>
                         <textarea
@@ -298,6 +306,44 @@ export default function AdminPanel({ onBack, adminId }) {
           </>
         )}
       </div>
+
+      {previewVacancy && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setPreviewVacancy(null)} />
+          <div className="relative w-full max-w-[420px] max-h-[85vh] flex flex-col bg-base-900 border-t border-base-700 rounded-t-2xl px-5 pt-4 pb-6 fade-up">
+            <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-4 shrink-0" />
+            <div className="flex-1 overflow-y-auto pb-2">
+              <VacancyDocument vacancy={previewVacancy} />
+            </div>
+            <div className="flex gap-2 pt-3 shrink-0">
+              <button
+                onClick={() => {
+                  approve(previewVacancy.id);
+                  setPreviewVacancy(null);
+                }}
+                className="tap flex-1 bg-emerald-500/90 text-white text-xs font-semibold rounded-lg py-2.5"
+              >
+                {t("common.approve")}
+              </button>
+              <button
+                onClick={() => {
+                  setRejectingId(previewVacancy.id);
+                  setPreviewVacancy(null);
+                }}
+                className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2.5"
+              >
+                {t("common.reject")}
+              </button>
+            </div>
+            <button
+              onClick={() => setPreviewVacancy(null)}
+              className="tap w-full mt-2 text-center text-sm font-medium text-white/50 py-2 shrink-0"
+            >
+              {t("common.close")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

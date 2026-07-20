@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api.js";
 import { MediaPreview } from "./Wizard.jsx";
-import { getColorTheme, getAlign } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -77,7 +77,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
             maxWidth: 400,
             padding: "28px 24px",
             fontFamily: "Manrope, sans-serif",
-            background: theme.bg,
+            ...getDocBackgroundStyle(theme, resume.backgroundUrl),
             color: theme.text,
             textAlign: align,
           }}

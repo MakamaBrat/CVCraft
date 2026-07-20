@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { buildShareLink } from "../lib/config.js";
-import { getTelegramWebApp } from "../lib/telegram.js";
+import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
 
@@ -235,7 +235,8 @@ export default function Home({
                 <span className="text-base leading-none">✏️</span> {t("common.edit")}
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (!(await confirmDialog(t("common.confirmDeleteResume")))) return;
                   onDelete(activeResume.id);
                   setActiveResume(null);
                 }}

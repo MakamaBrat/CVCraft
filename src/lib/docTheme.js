@@ -40,6 +40,22 @@ export function getColorTheme(id) {
   return COLOR_THEMES.find((c) => c.id === id) || COLOR_THEMES.find((c) => c.id === DEFAULT_COLOR_THEME);
 }
 
+// Фон документа (резюме/вакансії): звичайний суцільний колір теми, або, якщо
+// вказано backgroundUrl (картинка чи гіф), — те саме зображення з напівпрозорим
+// градієнтом кольору теми поверх нього, щоб текст лишався читабельним
+// незалежно від того, що на картинці. GIF у background-image анімується
+// нормально в браузері; у PDF (html2canvas) застигне на одному кадрі.
+export function getDocBackgroundStyle(theme, backgroundUrl) {
+  if (!backgroundUrl) return { background: theme.bg };
+  return {
+    backgroundColor: theme.bg,
+    backgroundImage: `linear-gradient(${theme.bg}d9, ${theme.bg}d9), url("${backgroundUrl}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  };
+}
+
 export function getAlign(id) {
   return id === "center" ? "center" : "left";
 }

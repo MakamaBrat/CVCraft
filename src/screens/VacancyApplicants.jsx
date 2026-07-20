@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
-import { getColorTheme, getAlign } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
@@ -79,7 +79,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
               maxWidth: 400,
               padding: "28px 24px",
               fontFamily: "Manrope, sans-serif",
-              background: theme.bg,
+              ...getDocBackgroundStyle(theme, r?.backgroundUrl),
               color: theme.text,
               textAlign: align,
             }}

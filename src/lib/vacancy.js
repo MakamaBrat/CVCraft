@@ -16,6 +16,7 @@ export const emptyVacancy = () => ({
   contact: "",
   requireResume: false,
   colorScheme: "dark",
+  backgroundUrl: "",
   tags: [],
   media: [],
   template: "minimal",

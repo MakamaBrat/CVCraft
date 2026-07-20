@@ -5,7 +5,7 @@ import { buildShareLink } from "../lib/config.js";
 import { generateResumePdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { getColorTheme, getAlign } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -28,7 +28,7 @@ function ResumeDocument({ resume }) {
         maxWidth: 400,
         padding: "28px 24px",
         fontFamily: "Manrope, sans-serif",
-        background: theme.bg,
+        ...getDocBackgroundStyle(theme, resume.backgroundUrl),
         color: theme.text,
         textAlign: align,
       }}

@@ -6,7 +6,7 @@ import { getTelegramWebApp } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { getColorTheme, getAlign } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -15,7 +15,7 @@ const ACCENTS = {
   classic: "#2f6fb0",
 };
 
-function VacancyDocument({ vacancy }) {
+export function VacancyDocument({ vacancy }) {
   const { t } = useLanguage();
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy.colorScheme);
@@ -30,7 +30,7 @@ function VacancyDocument({ vacancy }) {
         maxWidth: 400,
         padding: "28px 24px",
         fontFamily: "Manrope, sans-serif",
-        background: theme.bg,
+        ...getDocBackgroundStyle(theme, vacancy.backgroundUrl),
         color: theme.text,
         textAlign: align,
       }}

@@ -37,6 +37,7 @@ const emptyResume = () => ({
   portfolio: [],
   template: "minimal",
   colorScheme: "dark",
+  backgroundUrl: "",
 });
 
 function loadIdentity() {
