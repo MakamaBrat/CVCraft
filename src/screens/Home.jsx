@@ -2,22 +2,19 @@ import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { buildShareLink } from "../lib/config.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
+import BG_URL from "../assets/bg-home.png";
+import LOGO_URL from "../assets/logo.gif";
 
-const BG_URL =
-  "https://i.postimg.cc/4NSzKDpz/Chat-GPT-Image-20-iul-2026-g-16-09-54.png";
-const LOGO_URL =
-  "https://i.postimg.cc/vTjtdkz3/online-video-cutter-com-3-1-ezgif-com-remove-background.gif";
-
-function timeAgo(ts) {
+function timeAgo(ts, t) {
   const diff = Date.now() - ts;
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "Оновлено щойно";
-  if (min < 60) return `Оновлено ${min} хв тому`;
+  if (min < 1) return t("timeAgo.justNow");
+  if (min < 60) return t("timeAgo.minutes", min);
   const hrs = Math.floor(min / 60);
-  if (hrs < 24) return `Оновлено ${hrs} год тому`;
+  if (hrs < 24) return t("timeAgo.hours", hrs);
   const days = Math.floor(hrs / 24);
-  if (days === 1) return "Оновлено вчора";
-  return `Оновлено ${days} дн тому`;
+  if (days === 1) return t("timeAgo.yesterday");
+  return t("timeAgo.days", days);
 }
 
 const initials = (name) =>
@@ -79,11 +76,8 @@ export default function Home({
 
       {/* content */}
       <div className="relative z-10 flex-1 flex flex-col">
-        <div className="px-6 pt-6 pb-3 flex flex-col items-center text-center">
-          <img src={LOGO_URL} alt="CV Deck" className="w-16 h-16 object-contain drop-shadow-[0_0_18px_rgba(255,190,90,0.45)]" />
-          <span className="mt-1 font-serif font-bold text-2xl tracking-wide text-amber-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
-            CV DECK
-          </span>
+        <div className="px-6 pt-4 pb-1 flex flex-col items-center text-center">
+          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-40 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
           {isAdmin && (
             <span className="mt-1 text-[10px] font-bold text-amber-200 bg-amber-500/20 border border-amber-400/30 rounded px-1.5 py-0.5">
               PRO
@@ -97,11 +91,11 @@ export default function Home({
             disabled={!canCreateMore}
             className="tap relative flex items-center justify-center gap-2 w-full bg-gradient-to-b from-amber-300 to-amber-500 text-black font-semibold text-sm rounded-full py-3.5 shadow-[0_4px_20px_rgba(245,180,60,0.35)] hover:brightness-105 disabled:from-white/30 disabled:to-white/20 disabled:text-black/50 disabled:shadow-none"
           >
-            <span className="text-lg leading-none">+</span> Створити резюме
+            <span className="text-lg leading-none">+</span> {t("home.createNew")}
           </button>
           {!canCreateMore && (
             <p className="text-xs text-white/60 text-center mt-2">
-              Досягнуто ліміт {maxResumes} резюме на акаунт. Видаліть одне, щоб створити нове.
+              {t("home.limitReached", maxResumes)}
             </p>
           )}
         </div>
@@ -146,7 +140,7 @@ export default function Home({
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="h-px flex-1 bg-amber-400/25" />
             <h2 className="font-semibold text-[13px] tracking-wide text-amber-100/80 whitespace-nowrap">
-              Мої резюме
+              {t("home.title")}
             </h2>
             <span className="h-px flex-1 bg-amber-400/25" />
             <span className="text-xs text-amber-100/50 font-medium border border-amber-400/25 rounded-full px-2 py-0.5 shrink-0">
@@ -155,7 +149,7 @@ export default function Home({
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-white/40 text-sm">Завантаження…</div>
+            <div className="flex-1 flex items-center justify-center text-white/40 text-sm">{t("common.loading")}</div>
           ) : resumes.length === 0 ? (
             <div className="fade-up flex-1 flex flex-col items-center justify-center text-center pb-16 gap-2">
               <div className="w-14 h-14 rounded-2xl bg-black/50 border border-amber-500/25 flex items-center justify-center mb-1">
@@ -165,7 +159,7 @@ export default function Home({
                 </svg>
               </div>
               <p className="text-sm text-white/50 max-w-[220px]">
-                Резюме поки немає. Створіть перше — це займе кілька хвилин.
+                {t("home.emptyHint")}
               </p>
             </div>
           ) : (
@@ -177,13 +171,13 @@ export default function Home({
                   className="tap group flex items-center gap-3 bg-black/50 backdrop-blur-sm border border-amber-500/20 rounded-2xl px-3.5 py-3 text-left"
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-black font-semibold text-sm flex items-center justify-center shrink-0">
-                    {initials(r.fullName || "Нове резюме")}
+                    {initials(r.fullName || t("home.newResume"))}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate text-amber-50">
-                      {r.role || "Без назви посади"}
+                      {r.role || t("home.noRole")}
                     </p>
-                    <p className="text-xs text-white/45">{timeAgo(r.updatedAt)}</p>
+                    <p className="text-xs text-white/45">{timeAgo(r.updatedAt, t)}</p>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-amber-300/50 shrink-0">
                     <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -213,16 +207,16 @@ export default function Home({
           <div className="relative w-full max-w-[420px] bg-base-900 border-t border-amber-500/25 rounded-t-2xl px-5 pt-4 pb-6 fade-up">
             <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-4" />
             <p className="text-sm font-semibold text-white/90 truncate mb-0.5">
-              {activeResume.fullName || "Нове резюме"}
+              {activeResume.fullName || t("home.newResume")}
             </p>
-            <p className="text-xs text-white/45 mb-4 truncate">{activeResume.role || "Без назви посади"}</p>
+            <p className="text-xs text-white/45 mb-4 truncate">{activeResume.role || t("home.noRole")}</p>
 
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => shareResume(activeResume)}
                 className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
               >
-                <span className="text-base leading-none">🔗</span> Поділитися
+                <span className="text-base leading-none">🔗</span> {t("common.share")}
               </button>
               <button
                 onClick={() => {
@@ -231,7 +225,7 @@ export default function Home({
                 }}
                 className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
               >
-                <span className="text-base leading-none">✏️</span> Редагувати
+                <span className="text-base leading-none">✏️</span> {t("common.edit")}
               </button>
               <button
                 onClick={() => {
@@ -240,7 +234,7 @@ export default function Home({
                 }}
                 className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400"
               >
-                <span className="text-base leading-none">🗑️</span> Видалити
+                <span className="text-base leading-none">🗑️</span> {t("common.delete")}
               </button>
             </div>
 
@@ -248,7 +242,7 @@ export default function Home({
               onClick={() => setActiveResume(null)}
               className="tap w-full mt-3 text-center text-sm font-medium text-white/50 py-2"
             >
-              Скасувати
+              {t("common.cancel")}
             </button>
           </div>
         </div>
