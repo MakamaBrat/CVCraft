@@ -145,16 +145,16 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           ))}
         </div>
 
-        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Фото (аватар)</p>
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Фото (аватар, можна гіф)</p>
         <input
           className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
-          placeholder="https://i.imgur.com/..."
+          placeholder="https://i.imgur.com/... або .gif"
           value={draft.avatarUrl || ""}
           onChange={(e) => setDraft({ ...draft, avatarUrl: e.target.value.trim() })}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
-          Вставте посилання на своє фото — воно стане аватаром у резюме замість ініціалів. Немає, де хостити фото?
-          Завантажте його на{" "}
+          Вставте посилання на своє фото чи гіфку — вона стане аватаром у резюме замість ініціалів. Немає, де хостити
+          фото? Завантажте його на{" "}
           <a
             href="https://imgur.com/upload"
             target="_blank"
@@ -162,6 +162,15 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
             className="text-accent-400 underline underline-offset-2"
           >
             imgur.com
+          </a>{" "}
+          або гіфку на{" "}
+          <a
+            href="https://giphy.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-400 underline underline-offset-2"
+          >
+            giphy.com
           </a>{" "}
           і скопіюйте пряме посилання на зображення.
         </p>

@@ -279,10 +279,15 @@ export function detectMediaType(url) {
   if (!url) return null;
   const u = url.trim();
   if (/\.(gif)(\?.*)?$/i.test(u)) return "gif";
+  if (/\.(pdf)(\?.*)?$/i.test(u)) return "pdf";
   if (/\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(u)) return "video";
   if (/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)) return "youtube";
   if (/youtube\.com\/shorts\//i.test(u)) return "youtube";
   if (/vimeo\.com\//i.test(u)) return "vimeo";
+  if (/tiktok\.com\//i.test(u)) return "tiktok";
+  if (/instagram\.com\/(p|reel|reels)\//i.test(u)) return "instagram";
+  if (/figma\.com\/(file|design|proto)\//i.test(u)) return "figma";
+  if (/google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(u)) return "map";
   return "link";
 }
 
@@ -325,7 +330,10 @@ function PortfolioStep({ draft, set }) {
           onChange={(e) => setItem({ ...item, title: e.target.value })}
         />
       </Field>
-      <Field label="Посилання на відео або гіф" hint="YouTube, Vimeo, пряме посилання на .mp4 або .gif.">
+      <Field
+        label="Посилання на приклад"
+        hint="YouTube, Vimeo, TikTok, Instagram, Figma, Google Maps, пряме посилання на .mp4, .gif або .pdf."
+      >
         <input
           className={inputCls}
           placeholder="https://youtube.com/watch?v=..."
@@ -347,6 +355,24 @@ function youtubeId(url) {
 function vimeoId(url) {
   const m = url.match(/vimeo\.com\/(\d+)/);
   return m ? m[1] : null;
+}
+function tiktokId(url) {
+  const m = url.match(/video\/(\d+)/);
+  return m ? m[1] : null;
+}
+function instagramEmbedUrl(url) {
+  const m = url.match(/instagram\.com\/(p|reel|reels)\/([a-zA-Z0-9_-]+)/);
+  if (!m) return null;
+  return `https://www.instagram.com/${m[1]}/${m[2]}/embed`;
+}
+// Перетворює звичайне посилання Google Maps на embed-версію (додає
+// output=embed). Для скорочених посилань (maps.app.goo.gl, goo.gl/maps)
+// вбудувати напряму не вдається — Google Maps блокує їх у iframe, тож
+// такі лишаємо як звичайне посилання (фолбек нижче).
+function mapsEmbedUrl(url) {
+  if (!/^https?:\/\/(www\.)?google\.[a-z.]+\/maps/i.test(url)) return null;
+  if (/output=embed/i.test(url)) return url;
+  return url + (url.includes("?") ? "&" : "?") + "output=embed";
 }
 
 export function MediaPreview({ item }) {
@@ -390,6 +416,88 @@ export function MediaPreview({ item }) {
   }
   if (type === "gif") {
     return <img src={item.url} alt={item.title || "gif"} className="w-full rounded-lg object-cover" style={{ maxHeight: 220 }} />;
+  }
+  if (type === "pdf") {
+    return (
+      <iframe
+        src={item.url}
+        title={item.title || "pdf"}
+        className="w-full rounded-lg bg-white"
+        style={{ height: 400 }}
+      />
+    );
+  }
+  if (type === "tiktok") {
+    const id = tiktokId(item.url);
+    if (!id) {
+      return (
+        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
+          {item.url}
+        </a>
+      );
+    }
+    return (
+      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "9/16", maxHeight: 480, margin: "0 auto" }}>
+        <iframe
+          src={`https://www.tiktok.com/embed/v2/${id}`}
+          title={item.title || "tiktok"}
+          className="absolute inset-0 w-full h-full"
+          frameBorder="0"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+  if (type === "instagram") {
+    const embedUrl = instagramEmbedUrl(item.url);
+    if (!embedUrl) {
+      return (
+        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
+          {item.url}
+        </a>
+      );
+    }
+    return (
+      <iframe
+        src={embedUrl}
+        title={item.title || "instagram"}
+        className="w-full rounded-lg bg-white"
+        style={{ height: 480, border: 0, maxWidth: 400, margin: "0 auto", display: "block" }}
+        allowTransparency
+        scrolling="no"
+      />
+    );
+  }
+  if (type === "figma") {
+    return (
+      <iframe
+        src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(item.url)}`}
+        title={item.title || "figma"}
+        className="w-full rounded-lg bg-white"
+        style={{ height: 360, border: 0 }}
+        allowFullScreen
+      />
+    );
+  }
+  if (type === "map") {
+    const embedUrl = mapsEmbedUrl(item.url);
+    if (!embedUrl) {
+      return (
+        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
+          {item.url}
+        </a>
+      );
+    }
+    return (
+      <iframe
+        src={embedUrl}
+        title={item.title || "map"}
+        className="w-full rounded-lg"
+        style={{ height: 260, border: 0 }}
+        loading="lazy"
+      />
+    );
   }
   return (
     <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">

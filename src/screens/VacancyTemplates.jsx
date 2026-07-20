@@ -4,11 +4,16 @@ import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.j
 const SECTION_LABELS = {
   theme: { uk: "Кольорова тема", ru: "Цветовая тема", en: "Color theme" },
   align: { uk: "Вирівнювання тексту", ru: "Выравнивание текста", en: "Text alignment" },
-  avatar: { uk: "Лого / фото компанії", ru: "Лого / фото компании", en: "Company logo / photo" },
+  avatar: { uk: "Лого / фото компанії (можна гіф)", ru: "Лого / фото компании (можно гиф)", en: "Company logo / photo (GIF supported)" },
   avatarHint: {
-    uk: "Вставте посилання на лого чи фото — воно стане аватаром вакансії замість ініціалів. Немає, де хостити фото? Завантажте на",
-    ru: "Вставьте ссылку на лого или фото — оно станет аватаром вакансии вместо инициалов. Негде хостить фото? Загрузите на",
-    en: "Paste a link to a logo or photo — it becomes the vacancy's avatar instead of initials. No place to host it? Upload to",
+    uk: "Вставте посилання на лого, фото чи гіфку — вона стане аватаром вакансії замість ініціалів. Немає, де хостити? Завантажте фото на",
+    ru: "Вставьте ссылку на лого, фото или гиф — она станет аватаром вакансии вместо инициалов. Негде хостить? Загрузите фото на",
+    en: "Paste a link to a logo, photo, or GIF — it becomes the vacancy's avatar instead of initials. No place to host it? Upload a photo to",
+  },
+  avatarHintGif: {
+    uk: "або гіфку на",
+    ru: "или гиф на",
+    en: "or a GIF on",
   },
   background: { uk: "Фон (картинка або гіф)", ru: "Фон (картинка или гиф)", en: "Background (image or GIF)" },
   backgroundHint: {
@@ -167,6 +172,15 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
             className="text-accent-400 underline underline-offset-2"
           >
             imgur.com
+          </a>{" "}
+          {SECTION_LABELS.avatarHintGif[lang]}{" "}
+          <a
+            href="https://giphy.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-400 underline underline-offset-2"
+          >
+            giphy.com
           </a>
           .
         </p>
