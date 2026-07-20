@@ -225,7 +225,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     const title = [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
     // url — окремим параметром, Telegram сам покаже його клікабельною
     // карткою-прев'ю під текстом, дублювати посилання в text не треба.
-    const text = `${title}\n\n${t("share.vacancyClickHint")}`;
+    const text = `${t("share.vacancyClickHint")}\n\n${title}`;
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     const tg = getTelegramWebApp();
     if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
@@ -243,7 +243,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
       // будує з url клікабельну картку — лишаємо посилання явно в тексті,
       // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
-      const caption = [title, "", `${t("share.vacancyClickHint")}: ${shareUrl}`].join("\n");
+      const caption = [title, "", t("share.vacancyClickHint"), shareUrl].join("\n");
 
       // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
       // з підписом (підтримується мобільними браузерами й Telegram

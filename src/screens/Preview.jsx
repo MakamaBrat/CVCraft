@@ -170,7 +170,7 @@ export default function Preview({ resume, onBack, onDone }) {
     // url передаємо окремим параметром — Telegram сам зробить з нього
     // клікабельну картку-прев'ю під текстом, тому саме посилання в text
     // дублювати не треба.
-    const text = `${title}\n\n${t("share.resumeClickHint")}`;
+    const text = `${t("share.resumeClickHint")}\n\n${title}`;
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     const tg = getTelegramWebApp();
     if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
@@ -188,7 +188,7 @@ export default function Preview({ resume, onBack, onDone }) {
       // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
       // будує з url клікабельну картку — лишаємо посилання явно в тексті,
       // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
-      const caption = [title, "", `${t("share.resumeClickHint")}: ${shareUrl}`].join("\n");
+      const caption = [title, "", t("share.resumeClickHint"), shareUrl].join("\n");
 
       // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
       // з підписом (підтримується мобільними браузерами й Telegram

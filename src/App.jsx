@@ -518,7 +518,7 @@ export default function App() {
           setDraft={setVacancyDraft}
           step={route.step}
           setStep={(step) => setRoute({ screen: "vacancyWizard", step })}
-          onBackHome={goVacancyList}
+          onBackHome={goHome}
           onFinishInfo={() => {
             commitVacancyDraft(vacancyDraft);
             goVacancyTemplates();

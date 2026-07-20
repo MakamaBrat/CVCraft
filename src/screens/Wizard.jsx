@@ -343,7 +343,7 @@ function PortfolioStep({ draft, set }) {
       </Field>
       <Field
         label="Посилання на приклад"
-        hint="YouTube, Vimeo, TikTok, Instagram, Threads, Telegram, Viber, WhatsApp, OLX, Google Play, App Store, Figma, Google Docs, Google Maps, .mp4, .gif або .pdf."
+        hint="Відео, соцмережі, гіф, файли, застосунки, карти і т.д."
       >
         <input
           className={inputCls}
@@ -367,19 +367,7 @@ function vimeoId(url) {
   const m = url.match(/vimeo\.com\/(\d+)/);
   return m ? m[1] : null;
 }
-function gdocId(url) {
-  const m = url.match(/document\/d\/([a-zA-Z0-9_-]+)/);
-  return m ? m[1] : null;
-}
-// Перетворює звичайне посилання Google Maps на embed-версію (додає
-// output=embed). Для скорочених посилань (maps.app.goo.gl, goo.gl/maps)
-// вбудувати напряму не вдається — Google Maps блокує їх у iframe, тож
-// такі лишаємо як звичайне посилання (фолбек нижче).
-function mapsEmbedUrl(url) {
-  if (!/^https?:\/\/(www\.)?google\.[a-z.]+\/maps/i.test(url)) return null;
-  if (/output=embed/i.test(url)) return url;
-  return url + (url.includes("?") ? "&" : "?") + "output=embed";
-}
+
 
 // TikTok/Instagram/Threads всередині Telegram-мінідодатку (webview) не
 // дають стабільно вбудувати сам пост — навіть офіційний embed.js часто
@@ -445,6 +433,22 @@ const SOCIAL_STYLES = {
     fg: "#23E5DB",
     icon: (
       <path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm4.3 3.2a2.9 2.9 0 100 5.8 2.9 2.9 0 000-5.8zm7.2.2h-1.6v5.3h1.6V9.4zm2.3 0h-1.6v5.3h3.4v-1.4h-1.8V9.4z" />
+    ),
+  },
+  map: {
+    label: "Google Maps",
+    bg: "#34A853",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2C7.6 2 4 5.6 4 10c0 5.6 7 11.5 7.3 11.7.2.2.5.3.7.3s.5-.1.7-.3C13 21.5 20 15.6 20 10c0-4.4-3.6-8-8-8zm0 10.8a2.8 2.8 0 110-5.6 2.8 2.8 0 010 5.6z" />
+    ),
+  },
+  gdoc: {
+    label: "Google Docs",
+    bg: "#4285F4",
+    fg: "#ffffff",
+    icon: (
+      <path d="M14 2H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V8l-5-6zm0 1.5L18.5 8H15a1 1 0 01-1-1V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h5v1.5H8V10z" />
     ),
   },
 };
@@ -601,25 +605,7 @@ export function MediaPreview({ item }) {
       />
     );
   }
-  if (type === "gdoc") {
-    const id = gdocId(item.url);
-    if (!id) {
-      return (
-        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
-          {item.url}
-        </a>
-      );
-    }
-    return (
-      <iframe
-        src={`https://docs.google.com/document/d/${id}/preview`}
-        title={item.title || "Google Doc"}
-        className="w-full rounded-lg bg-white"
-        style={{ height: 420, border: 0 }}
-      />
-    );
-  }
-  if (type === "tiktok" || type === "instagram" || type === "threads" || type === "telegram" || type === "olx" || type === "viber" || type === "whatsapp") {
+  if (type === "tiktok" || type === "instagram" || type === "threads" || type === "telegram" || type === "olx" || type === "viber" || type === "whatsapp" || type === "map" || type === "gdoc") {
     return <SocialButton type={type} url={item.url} title={item.title} />;
   }
   if (type === "googleplay" || type === "appstore") {
@@ -633,25 +619,6 @@ export function MediaPreview({ item }) {
         className="w-full rounded-lg bg-white"
         style={{ height: 360, border: 0 }}
         allowFullScreen
-      />
-    );
-  }
-  if (type === "map") {
-    const embedUrl = mapsEmbedUrl(item.url);
-    if (!embedUrl) {
-      return (
-        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
-          {item.url}
-        </a>
-      );
-    }
-    return (
-      <iframe
-        src={embedUrl}
-        title={item.title || "map"}
-        className="w-full rounded-lg"
-        style={{ height: 260, border: 0 }}
-        loading="lazy"
       />
     );
   }
