@@ -19,6 +19,7 @@ export default function VacancyList({
   onBack,
   onCreate,
   onEdit,
+  onView,
   onDelete,
   onOpenApplicants,
   onPay,
@@ -90,7 +91,9 @@ export default function VacancyList({
                     <p className="text-xs text-white/45 truncate">{v.company}</p>
                     <p className={`text-[11px] font-medium mt-1 ${STATUS_COLOR[v.status] || "text-white/45"}`}>
                       {t(`vacancy.status.${v.status}`)}
-                      {v.status === VACANCY_STATUS.ACTIVE && ` · ${t("vacancy.showsLeft", (v.showsPurchased || 0) - (v.showsUsed || 0))}`}
+                      {v.status === VACANCY_STATUS.ACTIVE && v.expiresAt &&
+                        ` · ${t("vacancy.activeUntilShort", new Date(v.expiresAt).toLocaleDateString())}`}
+                      {v.topUntil && new Date(v.topUntil).getTime() > Date.now() && ` · ${t("vacancy.topBadge")}`}
                     </p>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
@@ -126,6 +129,17 @@ export default function VacancyList({
               >
                 <span className="text-base leading-none">🔗</span> Поділитися
               </button>
+              {onView && (
+                <button
+                  onClick={() => {
+                    onView(activeVacancy.id);
+                    setActiveVacancy(null);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">👁️</span> {t("common.view")}
+                </button>
+              )}
               <button
                 onClick={() => {
                   onEdit(activeVacancy.id);
@@ -144,7 +158,7 @@ export default function VacancyList({
                   className="tap w-full flex items-center gap-3 bg-accent-500/15 border border-accent-500/30 rounded-xl px-4 py-3 text-left text-sm font-medium text-accent-300"
                 >
                   <span className="text-base leading-none">⭐</span>{" "}
-                  {activeVacancy.status === VACANCY_STATUS.APPROVED ? t("vacancy.payAndPublish") : t("vacancy.buyMoreShows")}
+                  {activeVacancy.status === VACANCY_STATUS.APPROVED ? t("vacancy.payAndPublish") : t("vacancy.extendListing")}
                 </button>
               )}
               <button

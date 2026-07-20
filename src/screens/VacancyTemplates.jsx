@@ -1,4 +1,10 @@
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { COLOR_THEMES, ALIGNMENTS } from "../lib/docTheme.js";
+
+const SECTION_LABELS = {
+  theme: { uk: "Кольорова тема", ru: "Цветовая тема", en: "Color theme" },
+  align: { uk: "Вирівнювання тексту", ru: "Выравнивание текста", en: "Text alignment" },
+};
 
 const TEMPLATES = [
   { id: "minimal", accent: "#9aa0a6" },
@@ -46,9 +52,53 @@ function MiniCard({ tpl, vacancy, name, selected, onClick }) {
   );
 }
 
+function ThemeCard({ theme, selected, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`tap rounded-xl overflow-hidden border-2 p-3 text-left ${
+        selected ? "border-accent-500" : "border-base-700"
+      }`}
+      style={{ background: theme.bg }}
+    >
+      <p className="text-[10px] font-semibold mb-2" style={{ color: theme.text }}>
+        Aa
+      </p>
+      <div className="space-y-1">
+        <div className="h-1 rounded-full w-full" style={{ background: theme.text, opacity: 0.6 }} />
+        <div className="h-1 rounded-full w-2/3" style={{ background: theme.text, opacity: 0.35 }} />
+      </div>
+      <p className="mt-2 text-[9px] font-medium" style={{ color: theme.text }}>
+        {label}
+      </p>
+    </button>
+  );
+}
+
+function AlignOption({ align, selected, onClick, label }) {
+  const isCenter = align.id === "center";
+  return (
+    <button
+      onClick={onClick}
+      className={`tap flex-1 rounded-xl border-2 p-3 bg-base-850 ${
+        selected ? "border-accent-500" : "border-base-700"
+      }`}
+    >
+      <div className={`space-y-1 flex flex-col ${isCenter ? "items-center" : "items-start"}`}>
+        <div className="h-1 rounded-full bg-white/50 w-3/4" />
+        <div className="h-1 rounded-full bg-white/30 w-1/2" />
+        <div className="h-1 rounded-full bg-white/30 w-2/3" />
+      </div>
+      <p className="mt-2 text-[10px] font-medium text-white/70 text-center">{label}</p>
+    </button>
+  );
+}
+
 export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
   const { lang, t } = useLanguage();
   const names = NAMES[lang];
+  const colorScheme = draft.colorScheme || "light";
+  const align = draft.align || "left";
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -72,6 +122,32 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
               name={names[tpl.id]}
               selected={draft.template === tpl.id}
               onClick={() => setDraft({ ...draft, template: tpl.id })}
+            />
+          ))}
+        </div>
+
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.theme[lang]}</p>
+        <div className="grid grid-cols-2 gap-3">
+          {COLOR_THEMES.map((theme) => (
+            <ThemeCard
+              key={theme.id}
+              theme={theme}
+              label={theme.name[lang]}
+              selected={colorScheme === theme.id}
+              onClick={() => setDraft({ ...draft, colorScheme: theme.id })}
+            />
+          ))}
+        </div>
+
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.align[lang]}</p>
+        <div className="flex gap-3">
+          {ALIGNMENTS.map((a) => (
+            <AlignOption
+              key={a.id}
+              align={a}
+              label={a.name[lang]}
+              selected={align === a.id}
+              onClick={() => setDraft({ ...draft, align: a.id })}
             />
           ))}
         </div>

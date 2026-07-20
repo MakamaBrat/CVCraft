@@ -13,6 +13,8 @@ async function handlerImpl(req, res) {
       .from("vacancies")
       .select("*")
       .eq("status", "active")
+      .gt("expires_at", new Date().toISOString())
+      .order("top_until", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
     if (error) {
       logDbError("vacancies GET public", error);

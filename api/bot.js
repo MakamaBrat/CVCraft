@@ -63,13 +63,15 @@ async function handlePreCheckoutQuery(query, token) {
     await answerPreCheckoutQuery(token, query.id, false, "Вакансія вже не очікує оплати.");
     return;
   }
-  if (payload.k === "extra_shows" && !["active", "paused"].includes(vacancy.status)) {
-    await answerPreCheckoutQuery(token, query.id, false, "Вакансію не можна поповнити зараз.");
+  if (["extend", "top"].includes(payload.k) && !["active", "paused"].includes(vacancy.status)) {
+    await answerPreCheckoutQuery(token, query.id, false, "Вакансію не можна продовжити зараз.");
     return;
   }
 
   await answerPreCheckoutQuery(token, query.id, true);
 }
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function handleSuccessfulPayment(message) {
   const sp = message.successful_payment;
@@ -79,7 +81,7 @@ async function handleSuccessfulPayment(message) {
   } catch {
     payload = null;
   }
-  if (!payload?.v || !payload?.k || !payload?.s) {
+  if (!payload?.v || !payload?.k || !payload?.w) {
     console.error("[bot] successful_payment: bad payload", sp);
     return;
   }
@@ -87,7 +89,7 @@ async function handleSuccessfulPayment(message) {
   const admin = supabaseAdmin();
   const { data: vacancy, error: fetchError } = await admin
     .from("vacancies")
-    .select("id, status, shows_purchased, shows_used")
+    .select("id, status, expires_at, top_until")
     .eq("id", payload.v)
     .maybeSingle();
 
@@ -100,14 +102,26 @@ async function handleSuccessfulPayment(message) {
     return;
   }
 
-  const nextShowsPurchased = (vacancy.shows_purchased || 0) + payload.s;
-  const update = { shows_purchased: nextShowsPurchased };
+  const now = Date.now();
+  const addMs = payload.w * WEEK_MS;
+  const update = {};
 
   if (payload.k === "listing") {
+    // Перша публікація: термін рахується від моменту оплати, незалежно
+    // від того, що там було раніше (approved-вакансія ще не показувалась).
+    update.expires_at = new Date(now + addMs).toISOString();
     update.status = "active";
     update.is_paid = true;
-  } else if (vacancy.status === "paused" && nextShowsPurchased > (vacancy.shows_used || 0)) {
+  } else if (payload.k === "extend") {
+    // Продовжуємо від more пізньої з (поточний expires_at, зараз) — щоб не
+    // втрачати вже сплачений залишок терміну і не дозволяти "накопичувати"
+    // час, купуючи продовження заздалегідь по старій ціні на прострочену дату.
+    const base = Math.max(now, vacancy.expires_at ? new Date(vacancy.expires_at).getTime() : now);
+    update.expires_at = new Date(base + addMs).toISOString();
     update.status = "active";
+  } else if (payload.k === "top") {
+    const base = Math.max(now, vacancy.top_until ? new Date(vacancy.top_until).getTime() : now);
+    update.top_until = new Date(base + addMs).toISOString();
   }
 
   const { error: updateError } = await admin.from("vacancies").update(update).eq("id", payload.v);
@@ -121,14 +135,14 @@ async function handleSuccessfulPayment(message) {
     telegram_id: String(payload.t),
     kind: payload.k,
     stars_amount: sp.total_amount,
-    shows_added: payload.s,
+    weeks_added: payload.w,
     telegram_payment_charge_id: sp.telegram_payment_charge_id,
   });
   if (insertError) {
     logDbError("bot: vacancy_payments insert", insertError, { vacancyId: payload.v });
   }
 
-  logInfo("bot: payment processed", { vacancyId: payload.v, kind: payload.k, shows: payload.s });
+  logInfo("bot: payment processed", { vacancyId: payload.v, kind: payload.k, weeks: payload.w });
 }
 
 export default async function handler(req, res) {

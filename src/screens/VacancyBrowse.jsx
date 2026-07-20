@@ -77,7 +77,14 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
                 className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{v.position || "—"}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm truncate">{v.position || "—"}</p>
+                    {v.topUntil && new Date(v.topUntil).getTime() > Date.now() && (
+                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-accent-300 bg-accent-500/15 border border-accent-500/30 rounded-full px-1.5 py-0.5">
+                        {t("vacancy.topBadge")}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-white/45 truncate">
                     {v.company}
                     {v.city ? ` · ${v.city}` : ""}

@@ -100,28 +100,28 @@ async function handlerImpl(req, res) {
   }
 
   if (req.method === "POST" && action === "setPricing") {
-    const { listingPrice, pricePerShow } = req.body || {};
+    const { listingPrice, topPrice } = req.body || {};
     const listing = Number(listingPrice);
-    const perShow = Number(pricePerShow);
+    const top = Number(topPrice);
     if (!Number.isInteger(listing) || listing < 0 || listing > 1000000) {
       return sendJson(res, 400, { error: "invalid_listing_price" });
     }
-    if (!Number.isInteger(perShow) || perShow < 0 || perShow > 1000000) {
-      return sendJson(res, 400, { error: "invalid_price_per_show" });
+    if (!Number.isInteger(top) || top < 0 || top > 1000000) {
+      return sendJson(res, 400, { error: "invalid_top_price" });
     }
     const { error } = await admin.from("pricing_settings").upsert({
       id: 1,
       listing_price_stars: listing,
-      price_per_show_stars: perShow,
+      top_price_stars: top,
       updated_by: auth.user.id,
       updated_at: new Date().toISOString(),
     });
     if (error) {
-      logDbError("admin setPricing POST", error, { telegramId: auth.user.id, listing, perShow });
+      logDbError("admin setPricing POST", error, { telegramId: auth.user.id, listing, top });
       return sendJson(res, 500, { error: "db_error" });
     }
-    logInfo("admin setPricing POST: ok", { telegramId: auth.user.id, listing, perShow });
-    return sendJson(res, 200, { ok: true, listingPrice: listing, pricePerShow: perShow });
+    logInfo("admin setPricing POST: ok", { telegramId: auth.user.id, listing, top });
+    return sendJson(res, 200, { ok: true, listingPrice: listing, topPrice: top });
   }
 
   if (req.method === "POST" && action === "moderate") {

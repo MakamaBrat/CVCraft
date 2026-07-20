@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { getColorTheme, getAlign } from "../lib/docTheme.js";
 
 const ACCENTS = { minimal: "#4b5563", modern: "#6c5ce7", bold: "#ff7a59", classic: "#2f6fb0" };
 
@@ -10,6 +11,9 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
   const [resumeId, setResumeId] = useState(resumes[0]?.id || "");
   const [sent, setSent] = useState(false);
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
+  const theme = getColorTheme(vacancy.colorScheme);
+  const align = getAlign(vacancy.align);
+  const isCenter = align === "center";
 
   const submit = async () => {
     await onApply(message, resumeId || null);
@@ -29,22 +33,37 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
         <div
-          className="bg-white text-[#1c1c1c] rounded-xl shadow-xl mx-auto mb-4"
-          style={{ width: "100%", maxWidth: 400, padding: "28px 24px", fontFamily: "Manrope, sans-serif" }}
+          className="rounded-xl shadow-xl mx-auto mb-4"
+          style={{
+            width: "100%",
+            maxWidth: 400,
+            padding: "28px 24px",
+            fontFamily: "Manrope, sans-serif",
+            background: theme.bg,
+            color: theme.text,
+            textAlign: align,
+          }}
         >
           <div className="pb-4 mb-4" style={{ borderBottom: `2px solid ${accent}` }}>
             <h2 className="text-lg font-bold leading-tight mb-1">{vacancy.position}</h2>
             <p className="text-sm font-medium" style={{ color: accent }}>{vacancy.company}</p>
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-black/60 mb-4">
+          <div
+            className={`flex flex-wrap gap-x-4 gap-y-1 text-[11px] mb-4 ${isCenter ? "justify-center" : ""}`}
+            style={{ color: theme.textMed }}
+          >
             {vacancy.salary && <span>{vacancy.salary}</span>}
             {vacancy.city && <span>{vacancy.city}</span>}
             {vacancy.employmentType && <span>{vacancy.employmentType}</span>}
           </div>
           {(vacancy.tags || []).length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div className={`flex flex-wrap gap-1.5 mb-4 ${isCenter ? "justify-center" : ""}`}>
               {vacancy.tags.map((tg) => (
-                <span key={tg} className="text-[10px] font-medium rounded-full px-2.5 py-1" style={{ background: `${accent}1a`, color: accent }}>
+                <span
+                  key={tg}
+                  className="text-[10px] font-medium rounded-full px-2.5 py-1"
+                  style={{ background: `${accent}${theme.chipAlpha}`, color: accent }}
+                >
                   {tg}
                 </span>
               ))}
@@ -55,7 +74,9 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
                 {t("vacancy.description")}
               </h3>
-              <p className="text-[12px] leading-relaxed text-black/80 whitespace-pre-line">{vacancy.description}</p>
+              <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: theme.text, opacity: 0.85 }}>
+                {vacancy.description}
+              </p>
             </section>
           )}
           {vacancy.requirements && (
@@ -63,7 +84,9 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
                 {t("vacancy.requirements")}
               </h3>
-              <p className="text-[12px] leading-relaxed text-black/80 whitespace-pre-line">{vacancy.requirements}</p>
+              <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: theme.text, opacity: 0.85 }}>
+                {vacancy.requirements}
+              </p>
             </section>
           )}
           {(vacancy.media || []).length > 0 && (

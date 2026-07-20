@@ -6,6 +6,7 @@ import { getTelegramWebApp } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { getColorTheme, getAlign } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -15,21 +16,36 @@ const ACCENTS = {
 };
 
 function VacancyDocument({ vacancy }) {
+  const { t } = useLanguage();
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
+  const theme = getColorTheme(vacancy.colorScheme);
+  const align = getAlign(vacancy.align);
+  const isCenter = align === "center";
   return (
     <div
       id="vacancy-doc"
-      className="bg-white text-[#1c1c1c] rounded-xl shadow-xl mx-auto"
-      style={{ width: "100%", maxWidth: 400, padding: "28px 24px", fontFamily: "Manrope, sans-serif" }}
+      className="rounded-xl shadow-xl mx-auto"
+      style={{
+        width: "100%",
+        maxWidth: 400,
+        padding: "28px 24px",
+        fontFamily: "Manrope, sans-serif",
+        background: theme.bg,
+        color: theme.text,
+        textAlign: align,
+      }}
     >
       <div className="pb-4 mb-4" style={{ borderBottom: `2px solid ${accent}` }}>
-        <h2 className="text-lg font-bold leading-tight mb-1">{vacancy.position || "Посада"}</h2>
+        <h2 className="text-lg font-bold leading-tight mb-1">{vacancy.position || t("vacancy.positionPlaceholder")}</h2>
         <p className="text-sm font-medium" style={{ color: accent }}>
-          {vacancy.company || "Компанія"}
+          {vacancy.company || t("vacancy.companyPlaceholder")}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-black/60 mb-4">
+      <div
+        className={`flex flex-wrap gap-x-4 gap-y-1 text-[11px] mb-4 ${isCenter ? "justify-center" : ""}`}
+        style={{ color: theme.textMed }}
+      >
         {vacancy.salary && <span>{vacancy.salary}</span>}
         {vacancy.city && <span>{vacancy.city}</span>}
         {vacancy.employmentType && <span>{vacancy.employmentType}</span>}
@@ -38,34 +54,40 @@ function VacancyDocument({ vacancy }) {
       {vacancy.description && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-            Опис
+            {t("vacancy.description")}
           </h3>
-          <p className="text-[12px] leading-relaxed text-black/80 whitespace-pre-line">{vacancy.description}</p>
+          <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: theme.text, opacity: 0.85 }}>
+            {vacancy.description}
+          </p>
         </section>
       )}
 
       {vacancy.requirements && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-            Вимоги
+            {t("vacancy.requirements")}
           </h3>
-          <p className="text-[12px] leading-relaxed text-black/80 whitespace-pre-line">{vacancy.requirements}</p>
+          <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: theme.text, opacity: 0.85 }}>
+            {vacancy.requirements}
+          </p>
         </section>
       )}
 
       {vacancy.contact && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-            Контакт
+            {t("vacancy.contact")}
           </h3>
-          <p className="text-[12px] text-black/80">{vacancy.contact}</p>
+          <p className="text-[12px]" style={{ color: theme.text, opacity: 0.85 }}>
+            {vacancy.contact}
+          </p>
         </section>
       )}
 
       {(vacancy.media || []).length > 0 && (
         <section className="print:hidden" data-pdf-hide="true">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Медіа
+            {t("vacancy.media")}
           </h3>
           <div className="space-y-3">
             {vacancy.media.map((p) => (
@@ -91,8 +113,10 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   // Ціни більше не беремо із замороженого значення в рядку вакансії —
   // тягнемо актуальні з /api/pricing (окрема таблиця pricing_settings у
   // Supabase), щоб зміна ціни в адмінці одразу відображалась тут.
-  const [listingPrice, setListingPrice] = useState(vacancy.listingPrice || 500);
-  const [perShow, setPerShow] = useState(vacancy.pricePerShow || 1);
+  // listingPrice — ⭐ за 1 тиждень звичайного розміщення,
+  // topPrice — ⭐ за 1 тиждень топ-розміщення (додатково).
+  const [listingPrice, setListingPrice] = useState(500);
+  const [topPrice, setTopPrice] = useState(5);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,51 +124,87 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       .then((res) => {
         if (cancelled || !res) return;
         if (Number.isFinite(res.listingPrice)) setListingPrice(res.listingPrice);
-        if (Number.isFinite(res.pricePerShow)) setPerShow(res.pricePerShow);
+        if (Number.isFinite(res.topPrice)) setTopPrice(res.topPrice);
       })
       .catch(() => {
-        // залишаємось на значеннях за замовчуванням/зі старого рядка вакансії
+        // залишаємось на значеннях за замовчуванням
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const needsPayment = status === VACANCY_STATUS.APPROVED;
-  const canBuyMore = status === VACANCY_STATUS.ACTIVE || status === VACANCY_STATUS.PAUSED;
+  const isExpired = vacancy.expiresAt ? new Date(vacancy.expiresAt).getTime() <= Date.now() : false;
+  const isTop = vacancy.topUntil ? new Date(vacancy.topUntil).getTime() > Date.now() : false;
 
-  const [showsToBuy, setShowsToBuy] = useState(20);
+  const needsPayment = status === VACANCY_STATUS.APPROVED;
+  const canExtend = status === VACANCY_STATUS.ACTIVE || status === VACANCY_STATUS.PAUSED;
+  const canBuyTop = canExtend;
+
+  const [weeksToBuy, setWeeksToBuy] = useState(1);
+  const [topWeeksToBuy, setTopWeeksToBuy] = useState(1);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState(null);
-  const totalStars = (needsPayment ? listingPrice : 0) + Math.max(0, showsToBuy) * perShow;
+  const [payingTop, setPayingTop] = useState(false);
+  const [topPayError, setTopPayError] = useState(null);
+  const totalStars = Math.max(0, weeksToBuy) * listingPrice;
+  const totalTopStars = Math.max(0, topWeeksToBuy) * topPrice;
+
+  const openInvoice = (kind, weeks, onDone) => {
+    return apiFetch("/api/vacancy-invoice", {
+      method: "POST",
+      body: { id: vacancy.id, kind, weeks },
+    }).then((res) => {
+      const tg = getTelegramWebApp();
+      if (!tg?.openInvoice) {
+        onDone("no_telegram");
+        return;
+      }
+      tg.openInvoice(res.invoiceLink, (invoiceStatus) => onDone(invoiceStatus));
+    });
+  };
 
   const handlePay = async () => {
-    if (showsToBuy < 1) return;
+    if (weeksToBuy < 1) return;
     setPayError(null);
     setPaying(true);
     try {
-      const res = await apiFetch("/api/vacancy-invoice", {
-        method: "POST",
-        body: { id: vacancy.id, kind: needsPayment ? "listing" : "extra_shows", shows: showsToBuy },
-      });
-      const tg = getTelegramWebApp();
-      if (!tg?.openInvoice) {
-        setPayError("Оплата доступна лише в застосунку Telegram.");
-        setPaying(false);
-        return;
-      }
-      tg.openInvoice(res.invoiceLink, async (invoiceStatus) => {
+      await openInvoice(needsPayment ? "listing" : "extend", weeksToBuy, async (invoiceStatus) => {
         setPaying(false);
         if (invoiceStatus === "paid") {
           await onPaid?.(vacancy.id);
         } else if (invoiceStatus === "failed") {
-          setPayError("Оплата не пройшла. Спробуйте ще раз.");
+          setPayError(t("vacancy.payFailed"));
+        } else if (invoiceStatus === "no_telegram") {
+          setPayError(t("vacancy.payNoTelegram"));
         }
       });
     } catch (err) {
       console.error("[VacancyPreview] invoice failed", err);
-      setPayError("Не вдалося створити рахунок. Спробуйте ще раз.");
+      setPayError(t("vacancy.payCreateFailed"));
       setPaying(false);
+    }
+  };
+
+  const handlePayTop = async () => {
+    if (topWeeksToBuy < 1) return;
+    setTopPayError(null);
+    setPayingTop(true);
+    try {
+      await openInvoice("top", topWeeksToBuy, async (invoiceStatus) => {
+        setPayingTop(false);
+        if (invoiceStatus === "paid") {
+          await onPaid?.(vacancy.id);
+        } else if (invoiceStatus === "failed") {
+          setTopPayError(t("vacancy.payFailed"));
+        } else if (invoiceStatus === "no_telegram") {
+          setTopPayError(t("vacancy.payNoTelegram"));
+        }
+      });
+    } catch (err) {
+      console.error("[VacancyPreview] top invoice failed", err);
+      setTopPayError(t("vacancy.payCreateFailed"));
+      setPayingTop(false);
     }
   };
 
@@ -164,7 +224,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       const { blob, fileName } = await generateVacancyPdf(vacancy);
       const file = new File([blob], fileName, { type: "application/pdf" });
       const caption = [
-        `${vacancy.position || "Вакансія"}${vacancy.company ? " — " + vacancy.company : ""}`,
+        `${vacancy.position || t("vacancy.vacancyPlaceholder")}${vacancy.company ? " — " + vacancy.company : ""}`,
         "",
         `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
       ].join("\n");
@@ -196,7 +256,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error("[VacancyPreview] share failed", err);
-        setShareError("Не вдалося поділитися вакансією. Спробуйте ще раз.");
+        setShareError(t("vacancy.shareFailed"));
       }
     } finally {
       setSharing(false);
@@ -244,6 +304,23 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
           <span className="inline-block text-[11px] font-semibold rounded-full px-3 py-1 bg-base-850 border border-base-700 text-white/70">
             {t(`vacancy.status.${status}`)}
           </span>
+          {isTop && (
+            <span className="inline-block ml-2 text-[11px] font-semibold rounded-full px-3 py-1 bg-accent-500/15 border border-accent-500/30 text-accent-300">
+              {t("vacancy.topBadge")}
+            </span>
+          )}
+          {(status === VACANCY_STATUS.ACTIVE || status === VACANCY_STATUS.PAUSED) && vacancy.expiresAt && (
+            <p className="mt-2 text-xs text-white/45">
+              {isExpired
+                ? t("vacancy.expiredOn", new Date(vacancy.expiresAt).toLocaleDateString())
+                : t("vacancy.activeUntil", new Date(vacancy.expiresAt).toLocaleDateString())}
+            </p>
+          )}
+          {isTop && vacancy.topUntil && (
+            <p className="mt-1 text-xs text-accent-300/80">
+              {t("vacancy.topUntil", new Date(vacancy.topUntil).toLocaleDateString())}
+            </p>
+          )}
           {status === VACANCY_STATUS.REJECTED && vacancy.rejectReason && (
             <p className="mt-2 text-xs text-red-400/80">
               {t("vacancy.rejectedReason")}: {vacancy.rejectReason}
@@ -254,21 +331,18 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
 
       {shareError && <p className="px-6 pb-2 text-[11px] text-red-400 print:hidden">{shareError}</p>}
 
-      {(needsPayment || canBuyMore) && (
+      {(needsPayment || canExtend) && (
         <div className="px-6 pb-4 print:hidden">
           <div className="bg-base-850 border border-base-700 rounded-xl p-4">
             <p className="text-sm font-semibold text-white/90 mb-1">
-              {needsPayment ? t("vacancy.payAndPublish") : t("vacancy.buyMoreShows")}
+              {needsPayment ? t("vacancy.payAndPublish") : t("vacancy.extendListing")}
             </p>
-            {needsPayment && (
-              <p className="text-xs text-white/45 mb-2">{t("vacancy.listingPrice", listingPrice)}</p>
-            )}
-            <p className="text-xs text-white/45 mb-3">{t("vacancy.perShowPrice", perShow)}</p>
+            <p className="text-xs text-white/45 mb-3">{t("vacancy.listingPricePerWeek", listingPrice)}</p>
 
-            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.chooseShows")}</label>
+            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.chooseWeeks")}</label>
             <div className="flex items-center gap-3 mb-3">
               <button
-                onClick={() => setShowsToBuy((n) => Math.max(1, n - 10))}
+                onClick={() => setWeeksToBuy((n) => Math.max(1, n - 1))}
                 className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
               >
                 −
@@ -276,12 +350,12 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
               <input
                 type="number"
                 min={1}
-                value={showsToBuy}
-                onChange={(e) => setShowsToBuy(Math.max(1, Number(e.target.value) || 1))}
+                value={weeksToBuy}
+                onChange={(e) => setWeeksToBuy(Math.max(1, Number(e.target.value) || 1))}
                 className="w-20 text-center bg-base-900 border border-base-700 rounded-lg py-2 text-sm text-white outline-none focus:border-accent-500"
               />
               <button
-                onClick={() => setShowsToBuy((n) => n + 10)}
+                onClick={() => setWeeksToBuy((n) => n + 1)}
                 className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
               >
                 +
@@ -295,7 +369,49 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
               disabled={paying}
               className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3 disabled:opacity-60"
             >
-              {paying ? "Відкриваємо оплату…" : `${needsPayment ? t("vacancy.payAndPublish") : t("vacancy.buyMoreShows")} · ${t("vacancy.totalPrice", totalStars)}`}
+              {paying ? t("vacancy.openingPayment") : `${needsPayment ? t("vacancy.payAndPublish") : t("vacancy.extendListing")} · ${t("vacancy.totalPrice", totalStars)}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {canBuyTop && (
+        <div className="px-6 pb-4 print:hidden">
+          <div className="bg-base-850 border border-base-700 rounded-xl p-4">
+            <p className="text-sm font-semibold text-white/90 mb-1">{t("vacancy.buyTop")}</p>
+            <p className="text-xs text-white/45 mb-3">{t("vacancy.topPricePerWeek", topPrice)}</p>
+
+            <label className="block text-xs font-medium text-white/60 mb-1.5">{t("vacancy.chooseWeeks")}</label>
+            <div className="flex items-center gap-3 mb-3">
+              <button
+                onClick={() => setTopWeeksToBuy((n) => Math.max(1, n - 1))}
+                className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min={1}
+                value={topWeeksToBuy}
+                onChange={(e) => setTopWeeksToBuy(Math.max(1, Number(e.target.value) || 1))}
+                className="w-20 text-center bg-base-900 border border-base-700 rounded-lg py-2 text-sm text-white outline-none focus:border-accent-500"
+              />
+              <button
+                onClick={() => setTopWeeksToBuy((n) => n + 1)}
+                className="tap w-9 h-9 rounded-lg bg-base-900 border border-base-700 text-white/70 font-semibold"
+              >
+                +
+              </button>
+            </div>
+
+            {topPayError && <p className="text-[11px] text-red-400 mb-2">{topPayError}</p>}
+
+            <button
+              onClick={handlePayTop}
+              disabled={payingTop}
+              className="tap w-full flex items-center justify-center gap-2 bg-accent-500/90 text-base-950 font-semibold text-sm rounded-xl py-3 disabled:opacity-60"
+            >
+              {payingTop ? t("vacancy.openingPayment") : `${t("vacancy.buyTop")} · ${t("vacancy.totalPrice", totalTopStars)}`}
             </button>
           </div>
         </div>
@@ -312,7 +428,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
             <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
             <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
           </svg>
-          Поділитися
+          {t("vacancy.share")}
         </button>
         <button
           onClick={onSave}

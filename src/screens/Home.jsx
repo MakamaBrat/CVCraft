@@ -30,6 +30,7 @@ export default function Home({
   loading,
   onCreate,
   onEdit,
+  onView,
   onDelete,
   canCreateMore = true,
   maxResumes = 2,
@@ -77,7 +78,7 @@ export default function Home({
       {/* content */}
       <div className="relative z-10 flex-1 flex flex-col">
         <div className="px-6 pt-4 pb-1 flex flex-col items-center text-center">
-          <img src={LOGO_URL}className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
+          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
         </div>
 
         <div className="px-6 pt-3 pb-5">
@@ -213,6 +214,17 @@ export default function Home({
               >
                 <span className="text-base leading-none">🔗</span> {t("common.share")}
               </button>
+              {onView && (
+                <button
+                  onClick={() => {
+                    onView(activeResume.id);
+                    setActiveResume(null);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">👁️</span> {t("common.view")}
+                </button>
+              )}
               <button
                 onClick={() => {
                   onEdit(activeResume.id);

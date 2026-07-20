@@ -247,6 +247,14 @@ export default function App() {
     }
   };
 
+  const viewExisting = (id) => {
+    const r = resumes.find((x) => x.id === id);
+    if (r) {
+      setDraft(r);
+      setRoute({ screen: "preview", back: "home" });
+    }
+  };
+
   const goTemplates = () => setRoute({ screen: "templates" });
   const goPreview = () => setRoute({ screen: "preview" });
   const goHome = () => setRoute({ screen: "home" });
@@ -317,6 +325,14 @@ export default function App() {
     }
   };
 
+  const viewVacancy = (id) => {
+    const v = vacancies.find((x) => x.id === id);
+    if (v) {
+      setVacancyDraft(v);
+      setRoute({ screen: "vacancyPreview", back: "vacancies" });
+    }
+  };
+
   const commitVacancyDraft = async (updated) => {
     const next = { ...updated, updatedAt: Date.now() };
     const isNew = !vacancies.some((v) => v.id === next.id);
@@ -333,7 +349,7 @@ export default function App() {
     });
 
     if (backendEnabled) {
-      const { id, updatedAt, status, rejectReason, showsPurchased, showsUsed, isPaid, listingPrice, pricePerShow, template, ...data } = next;
+      const { id, updatedAt, status, rejectReason, expiresAt, topUntil, isPaid, listingPrice, topPrice, template, ...data } = next;
       try {
         await apiFetch("/api/vacancies", { method: "POST", body: { id, data, template } });
       } catch (err) {
@@ -365,9 +381,6 @@ export default function App() {
     if (!v) return;
     setOpenVacancy(v);
     setRoute({ screen: "vacancyDetail" });
-    if (backendEnabled) {
-      await apiFetch("/api/vacancy-view", { method: "POST", body: { id } }).catch(() => {});
-    }
   };
 
   const applyToVacancy = async (message, resumeId) => {
@@ -411,6 +424,7 @@ export default function App() {
           maxResumes={MAX_RESUMES_PER_USER}
           onCreate={startNew}
           onEdit={editExisting}
+          onView={viewExisting}
           onDelete={deleteResume}
           onOpenVacancies={goVacancyList}
           onCreateVacancy={startNewVacancy}
@@ -446,7 +460,7 @@ export default function App() {
       {route.screen === "preview" && draft && (
         <Preview
           resume={draft}
-          onBack={goTemplates}
+          onBack={route.back === "home" ? goHome : goTemplates}
           onDone={() => {
             commitDraft(draft);
             goHome();
@@ -461,6 +475,7 @@ export default function App() {
           onBack={goHome}
           onCreate={startNewVacancy}
           onEdit={editVacancy}
+          onView={viewVacancy}
           onDelete={deleteVacancy}
           onOpenApplicants={goApplicants}
           onPay={payVacancy}
@@ -498,7 +513,7 @@ export default function App() {
       {route.screen === "vacancyPreview" && vacancyDraft && (
         <VacancyPreview
           vacancy={vacancyDraft}
-          onBack={goVacancyTemplates}
+          onBack={route.back === "vacancies" ? goVacancyList : goVacancyTemplates}
           onSave={() => {
             commitVacancyDraft(vacancyDraft);
             goVacancyList();

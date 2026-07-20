@@ -16,7 +16,7 @@ export default function AdminPanel({ onBack, adminId }) {
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [pricing, setPricing] = useState(null);
-  const [pricingForm, setPricingForm] = useState({ listingPrice: "", pricePerShow: "" });
+  const [pricingForm, setPricingForm] = useState({ listingPrice: "", topPrice: "" });
   const [savingPricing, setSavingPricing] = useState(false);
   const [pricingSaved, setPricingSaved] = useState(false);
 
@@ -37,7 +37,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setPricing(pricingRes);
       setPricingForm({
         listingPrice: String(pricingRes?.listingPrice ?? ""),
-        pricePerShow: String(pricingRes?.pricePerShow ?? ""),
+        topPrice: String(pricingRes?.topPrice ?? ""),
       });
     } catch {
       // сервер сам відхилить не-адмінів (403) — тут просто лишаємо порожній стан
@@ -91,8 +91,8 @@ export default function AdminPanel({ onBack, adminId }) {
     setActionError(null);
     setPricingSaved(false);
     const listing = Number(pricingForm.listingPrice);
-    const perShow = Number(pricingForm.pricePerShow);
-    if (!Number.isInteger(listing) || listing < 0 || !Number.isInteger(perShow) || perShow < 0) {
+    const top = Number(pricingForm.topPrice);
+    if (!Number.isInteger(listing) || listing < 0 || !Number.isInteger(top) || top < 0) {
       setActionError("Ціни мають бути цілими невід'ємними числами.");
       return;
     }
@@ -100,9 +100,9 @@ export default function AdminPanel({ onBack, adminId }) {
     try {
       const res = await apiFetch("/api/admin", {
         method: "POST",
-        body: { action: "setPricing", listingPrice: listing, pricePerShow: perShow },
+        body: { action: "setPricing", listingPrice: listing, topPrice: top },
       });
-      setPricing({ listingPrice: res.listingPrice, pricePerShow: res.pricePerShow });
+      setPricing({ listingPrice: res.listingPrice, topPrice: res.topPrice });
       setPricingSaved(true);
     } catch (err) {
       setActionError(`Помилка збереження цін: ${err?.payload?.error || err.message}`);
@@ -223,11 +223,12 @@ export default function AdminPanel({ onBack, adminId }) {
               <div className="flex flex-col gap-4">
                 <p className="text-xs text-white/45">
                   Ціни зберігаються в окремій таблиці pricing_settings у Supabase і застосовуються одразу до всіх
-                  нових оплат (публікація вакансій та докупівля показів).
+                  нових оплат. Публікація рахується за тиждень показу, топ-розміщення — окрема доплата за тиждень
+                  перебування вакансії у топі списку.
                 </p>
                 <div className="bg-base-850 border border-base-700 rounded-xl p-4 flex flex-col gap-3">
                   <label className="text-xs text-white/60">
-                    Публікація вакансії (⭐)
+                    Розміщення, ⭐ за 1 тиждень
                     <input
                       type="number"
                       min="0"
@@ -241,22 +242,23 @@ export default function AdminPanel({ onBack, adminId }) {
                     />
                   </label>
                   <label className="text-xs text-white/60">
-                    Ціна за 1 показ (⭐)
+                    Топ-сектор, ⭐ за 1 тиждень
                     <input
                       type="number"
                       min="0"
                       step="1"
-                      value={pricingForm.pricePerShow}
+                      value={pricingForm.topPrice}
                       onChange={(e) => {
                         setPricingSaved(false);
-                        setPricingForm((f) => ({ ...f, pricePerShow: e.target.value }));
+                        setPricingForm((f) => ({ ...f, topPrice: e.target.value }));
                       }}
                       className="mt-1 w-full bg-base-900 border border-base-700 rounded-lg px-3 py-2 text-sm text-white"
                     />
                   </label>
                   {pricing && (
                     <p className="text-[11px] text-white/35">
-                      Поточні збережені значення: {pricing.listingPrice} ⭐ за публікацію, {pricing.pricePerShow} ⭐ за показ.
+                      Поточні збережені значення: {pricing.listingPrice} ⭐/тиждень розміщення, {pricing.topPrice} ⭐/тиждень
+                      топ-сектору.
                     </p>
                   )}
                   <button

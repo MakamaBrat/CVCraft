@@ -2,9 +2,10 @@ import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
-import { generateResumePdf } from "../lib/pdf.jsx";
+import { generateResumePdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { getColorTheme, getAlign } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -15,16 +16,30 @@ const ACCENTS = {
 
 function ResumeDocument({ resume }) {
   const accent = ACCENTS[resume.template] || ACCENTS.minimal;
+  const theme = getColorTheme(resume.colorScheme);
+  const align = getAlign(resume.align);
+  const isCenter = align === "center";
   return (
     <div
       id="resume-doc"
-      className="bg-white text-[#1c1c1c] rounded-xl shadow-xl mx-auto"
-      style={{ width: "100%", maxWidth: 400, padding: "28px 24px", fontFamily: "Manrope, sans-serif" }}
+      className="rounded-xl shadow-xl mx-auto"
+      style={{
+        width: "100%",
+        maxWidth: 400,
+        padding: "28px 24px",
+        fontFamily: "Manrope, sans-serif",
+        background: theme.bg,
+        color: theme.text,
+        textAlign: align,
+      }}
     >
-      <div className="flex items-center gap-3 pb-4 mb-4" style={{ borderBottom: `2px solid ${accent}` }}>
+      <div
+        className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
+        style={{ borderBottom: `2px solid ${accent}` }}
+      >
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
-          style={{ background: accent }}
+          className="w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
+          style={{ background: accent, color: theme.avatarText }}
         >
           {(resume.fullName || "?")
             .split(/\s+/)
@@ -40,7 +55,10 @@ function ResumeDocument({ resume }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-black/60 mb-4">
+      <div
+        className={`flex flex-wrap gap-x-4 gap-y-1 text-[11px] mb-4 ${isCenter ? "justify-center" : ""}`}
+        style={{ color: theme.textMed }}
+      >
         {resume.email && <span>{resume.email}</span>}
         {resume.phone && <span>{resume.phone}</span>}
         {resume.city && <span>{resume.city}</span>}
@@ -51,7 +69,9 @@ function ResumeDocument({ resume }) {
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             Про мене
           </h3>
-          <p className="text-[12px] leading-relaxed text-black/80">{resume.summary}</p>
+          <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
+            {resume.summary}
+          </p>
         </section>
       )}
 
@@ -63,12 +83,20 @@ function ResumeDocument({ resume }) {
           <div className="space-y-3">
             {resume.experience.map((e) => (
               <div key={e.id}>
-                <div className="flex items-baseline justify-between gap-2">
+                <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
                   <p className="text-[12.5px] font-semibold">{e.position}</p>
-                  <p className="text-[10px] text-black/45 shrink-0">{e.period}</p>
+                  <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
+                    {e.period}
+                  </p>
                 </div>
-                <p className="text-[11px] text-black/55 mb-1">{e.company}</p>
-                {e.description && <p className="text-[11.5px] text-black/75 leading-relaxed">{e.description}</p>}
+                <p className="text-[11px] mb-1" style={{ color: theme.textMed }}>
+                  {e.company}
+                </p>
+                {e.description && (
+                  <p className="text-[11.5px] leading-relaxed" style={{ color: theme.text, opacity: 0.78 }}>
+                    {e.description}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -83,11 +111,17 @@ function ResumeDocument({ resume }) {
           <div className="space-y-2">
             {resume.education.map((e) => (
               <div key={e.id}>
-                <div className="flex items-baseline justify-between gap-2">
+                <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
                   <p className="text-[12.5px] font-semibold">{e.school}</p>
-                  <p className="text-[10px] text-black/45 shrink-0">{e.period}</p>
+                  <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
+                    {e.period}
+                  </p>
                 </div>
-                {e.degree && <p className="text-[11px] text-black/55">{e.degree}</p>}
+                {e.degree && (
+                  <p className="text-[11px]" style={{ color: theme.textMed }}>
+                    {e.degree}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -99,12 +133,12 @@ function ResumeDocument({ resume }) {
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Навички
           </h3>
-          <div className="flex flex-wrap gap-1.5">
+          <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
             {resume.skills.map((s) => (
               <span
                 key={s}
                 className="text-[10.5px] font-medium rounded-full px-2.5 py-1"
-                style={{ background: `${accent}1a`, color: accent }}
+                style={{ background: `${accent}${theme.chipAlpha}`, color: accent }}
               >
                 {s}
               </span>
@@ -139,65 +173,61 @@ export default function Preview({ resume, onBack, onDone }) {
 
   const shareUrl = buildShareLink(resume.id);
 
+  const handleShareLink = () => {
+    const text = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+    const tg = getTelegramWebApp();
+    if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+    else if (tg?.openLink) tg.openLink(telegramShareUrl);
+    else window.open(telegramShareUrl, "_blank");
+  };
+
   const handleShare = async () => {
-  setShareError(null);
-  setSharing(true);
+    setShareError(null);
+    setSharing(true);
+    try {
+      const { blob, fileName } = await generateResumePdf(resume);
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      const caption = [
+        `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`,
+        "",
+        `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
+      ].join("\n");
 
-  try {
-    const { blob, fileName } = await generateResumePdf(resume);
-
-    const file = new File(
-      [blob],
-      fileName,
-      {
-        type: "application/pdf",
+      // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
+      // з підписом (підтримується мобільними браузерами й Telegram
+      // in-app browser на iOS/Android).
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: fileName });
+        return;
       }
-    );
 
-    const caption = [
-      `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`,
-      "",
-      `Відкрийте через застосунок CV DECK, щоб працювали всі вкладені файли: ${shareUrl}`,
-    ].join("\n");
+      // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
+      // PDF і одразу відкриваємо Telegram-шеринг з посиланням і підписом,
+      // щоб отримати той самий результат у два кроки.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
 
-    if (
-      navigator.canShare &&
-      navigator.canShare({
-        files: [file],
-      })
-    ) {
-      await navigator.share({
-        files: [file],
-        title: fileName,
-        text: caption,
-      });
-
-      return;
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(caption)}`;
+      const tg = getTelegramWebApp();
+      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+      else if (tg?.openLink) tg.openLink(telegramShareUrl);
+      else window.open(telegramShareUrl, "_blank");
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("[Preview] share failed", err);
+        setShareError("Не вдалося поділитися резюме. Спробуйте ще раз.");
+      }
+    } finally {
+      setSharing(false);
     }
-
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    URL.revokeObjectURL(url);
-
-    handleShareLink();
-  } catch (e) {
-    console.error(e);
-
-    setShareError(
-      "Не вдалося створити PDF."
-    );
-  } finally {
-    setSharing(false);
-  }
-};
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">

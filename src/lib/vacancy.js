@@ -3,8 +3,8 @@ export const emptyVacancy = () => ({
   updatedAt: Date.now(),
   status: "draft",
   rejectReason: null,
-  showsPurchased: 0,
-  showsUsed: 0,
+  expiresAt: null,
+  topUntil: null,
   isPaid: false,
   position: "",
   company: "",
@@ -28,6 +28,14 @@ export const VACANCY_STATUS = {
   PAUSED: "paused",
 };
 
+export function isVacancyExpired(vacancy) {
+  return Boolean(vacancy.expiresAt) && new Date(vacancy.expiresAt).getTime() <= Date.now();
+}
+
+export function isVacancyTop(vacancy) {
+  return Boolean(vacancy.topUntil) && new Date(vacancy.topUntil).getTime() > Date.now();
+}
+
 export function vacancyFromRow(row) {
   return {
     ...row.data,
@@ -35,11 +43,9 @@ export function vacancyFromRow(row) {
     updatedAt: new Date(row.updated_at).getTime(),
     status: row.status,
     rejectReason: row.reject_reason,
-    showsPurchased: row.shows_purchased,
-    showsUsed: row.shows_used,
+    expiresAt: row.expires_at,
+    topUntil: row.top_until,
     isPaid: row.is_paid,
-    listingPrice: row.listing_price,
-    pricePerShow: row.price_per_show,
     template: row.template,
   };
 }
