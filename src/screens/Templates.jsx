@@ -183,7 +183,8 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           onChange={(e) => setDraft({ ...draft, backgroundUrl: e.target.value.trim() })}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
-          Вставте посилання на зображення чи гіфку — вона стане фоном резюме. Залиште порожнім, щоб лишити колір теми.
+          Вставте посилання на зображення чи гіфку — вона стане фоном резюме (посилання виду giphy.com/gifs/...
+          теж підходить, не обов'язково пряме .gif). Залиште порожнім, щоб лишити колір теми.
           Шукайте гіфки на{" "}
           <a
             href="https://giphy.com"

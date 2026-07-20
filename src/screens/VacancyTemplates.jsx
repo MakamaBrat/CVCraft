@@ -17,9 +17,9 @@ const SECTION_LABELS = {
   },
   background: { uk: "Фон (картинка або гіф)", ru: "Фон (картинка или гиф)", en: "Background (image or GIF)" },
   backgroundHint: {
-    uk: "Вставте посилання на зображення чи гіфку — вона стане фоном вакансії. Залиште порожнім, щоб лишити колір теми. Шукайте гіфки на",
-    ru: "Вставьте ссылку на изображение или гиф — она станет фоном вакансии. Оставьте пустым, чтобы оставить цвет темы. Ищите гифки на",
-    en: "Paste a link to an image or GIF — it becomes the job post's background. Leave empty to keep the theme color. Find GIFs on",
+    uk: "Вставте посилання на зображення чи гіфку (підійде і giphy.com/gifs/..., не обов'язково пряме .gif) — вона стане фоном вакансії. Залиште порожнім, щоб лишити колір теми. Шукайте гіфки на",
+    ru: "Вставьте ссылку на изображение или гиф (подойдёт и giphy.com/gifs/..., не обязательно прямая .gif) — она станет фоном вакансии. Оставьте пустым, чтобы оставить цвет темы. Ищите гифки на",
+    en: "Paste a link to an image or GIF (a giphy.com/gifs/... page link works too, not just a direct .gif) — it becomes the job post's background. Leave empty to keep the theme color. Find GIFs on",
   },
 };
 

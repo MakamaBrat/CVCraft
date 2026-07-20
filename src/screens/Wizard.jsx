@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../lib/api.js";
+import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
 import { confirmDialog } from "../lib/telegram.js";
 
@@ -280,6 +281,7 @@ export function detectMediaType(url) {
   if (!url) return null;
   const u = url.trim();
   if (/\.(gif)(\?.*)?$/i.test(u)) return "gif";
+  if (/giphy\.com\/(gifs|embed)\//i.test(u)) return "gif";
   if (/\.(pdf)(\?.*)?$/i.test(u)) return "pdf";
   if (/\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(u)) return "video";
   if (/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)) return "youtube";
@@ -587,7 +589,7 @@ export function MediaPreview({ item }) {
     );
   }
   if (type === "gif") {
-    return <img src={item.url} alt={item.title || "gif"} className="w-full rounded-lg object-cover" style={{ maxHeight: 220 }} />;
+    return <img src={normalizeMediaUrl(item.url)} alt={item.title || "gif"} className="w-full rounded-lg object-cover" style={{ maxHeight: 220 }} />;
   }
   if (type === "pdf") {
     return (

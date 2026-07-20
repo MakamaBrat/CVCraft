@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { normalizeMediaUrl } from "../lib/media.js";
 
 // Універсальний аватар/лого для резюме та вакансій. Якщо є url (посилання
 // на фото, наприклад завантажене на Imgur) — показуємо картинку; якщо url
@@ -12,7 +13,7 @@ export default function Avatar({ url, name, accent, theme, size = 12 }) {
   }, [url]);
 
   const sizeCls = size === 10 ? "w-10 h-10" : "w-12 h-12";
-  const trimmedUrl = (url || "").trim();
+  const trimmedUrl = normalizeMediaUrl(url);
 
   if (trimmedUrl && !failed) {
     return (

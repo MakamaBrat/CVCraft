@@ -4,6 +4,8 @@
 // Обидва параметри незалежні від "template" (він відповідає лише за
 // акцентний колір/розкладку секцій).
 
+import { normalizeMediaUrl } from "./media.js";
+
 export const COLOR_THEMES = [
   {
     id: "light",
@@ -42,14 +44,16 @@ export function getColorTheme(id) {
 
 // Фон документа (резюме/вакансії): звичайний суцільний колір теми, або, якщо
 // вказано backgroundUrl (картинка чи гіф), — те саме зображення з напівпрозорим
-// градієнтом кольору теми поверх нього, щоб текст лишався читабельним
-// незалежно від того, що на картинці. GIF у background-image анімується
-// нормально в браузері; у PDF (html2canvas) застигне на одному кадрі.
+// градієнтом кольору теми поверх нього, щоб текст лишався читабельним, але
+// саме зображення/гіф було видно (раніше було 85% — картинка була майже не
+// помітна, здавалось, що вона взагалі не працює). GIF у background-image
+// анімується нормально в браузері; у PDF (html2canvas) застигне на кадрі.
 export function getDocBackgroundStyle(theme, backgroundUrl) {
   if (!backgroundUrl) return { background: theme.bg };
+  const url = normalizeMediaUrl(backgroundUrl);
   return {
     backgroundColor: theme.bg,
-    backgroundImage: `linear-gradient(${theme.bg}d9, ${theme.bg}d9), url("${backgroundUrl}")`,
+    backgroundImage: `linear-gradient(${theme.bg}99, ${theme.bg}99), url("${url}")`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
