@@ -2,7 +2,7 @@ import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
-import { generateResumePdf } from "../lib/pdf.js";
+import { generateResumePdf } from "../lib/pdf.jsx";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
