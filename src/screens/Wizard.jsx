@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { apiFetch } from "../lib/api.js";
 import TagPicker from "../components/TagPicker.jsx";
 import { confirmDialog } from "../lib/telegram.js";
 
@@ -284,10 +285,18 @@ export function detectMediaType(url) {
   if (/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)) return "youtube";
   if (/youtube\.com\/shorts\//i.test(u)) return "youtube";
   if (/vimeo\.com\//i.test(u)) return "vimeo";
-  if (/tiktok\.com\//i.test(u)) return "tiktok";
-  if (/instagram\.com\/(p|reel|reels)\//i.test(u)) return "instagram";
+  if (/docs\.google\.com\/document\//i.test(u)) return "gdoc";
   if (/figma\.com\/(file|design|proto)\//i.test(u)) return "figma";
   if (/google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(u)) return "map";
+  if (/tiktok\.com\//i.test(u)) return "tiktok";
+  if (/instagram\.com\//i.test(u)) return "instagram";
+  if (/threads\.net\//i.test(u)) return "threads";
+  if (/(^|\/\/)t\.me\//i.test(u)) return "telegram";
+  if (/play\.google\.com\/store\/apps/i.test(u)) return "googleplay";
+  if (/apps\.apple\.com\//i.test(u)) return "appstore";
+  if (/olx\.[a-z.]+\//i.test(u)) return "olx";
+  if (/(chats\.)?viber\.com\/|invite\.viber\.com\/|^viber:\/\//i.test(u)) return "viber";
+  if (/wa\.me\/|api\.whatsapp\.com\/|whatsapp\.com\/channel\//i.test(u)) return "whatsapp";
   return "link";
 }
 
@@ -332,7 +341,7 @@ function PortfolioStep({ draft, set }) {
       </Field>
       <Field
         label="Посилання на приклад"
-        hint="YouTube, Vimeo, TikTok, Instagram, Figma, Google Maps, пряме посилання на .mp4, .gif або .pdf."
+        hint="YouTube, Vimeo, TikTok, Instagram, Threads, Telegram, Viber, WhatsApp, OLX, Google Play, App Store, Figma, Google Docs, Google Maps, .mp4, .gif або .pdf."
       >
         <input
           className={inputCls}
@@ -356,94 +365,9 @@ function vimeoId(url) {
   const m = url.match(/vimeo\.com\/(\d+)/);
   return m ? m[1] : null;
 }
-// Прямі iframe-посилання виду tiktok.com/embed/v2/... та
-// instagram.com/p/.../embed платформи давно закрили для сторонніх
-// сайтів. Єдиний офіційний і робочий спосіб — той самий <blockquote> +
-// зовнішній embed.js, який використовує кнопка "Поділитися → Вбудувати"
-// на самих TikTok/Instagram. Скрипт сам знаходить блоки на сторінці й
-// підміняє їх на iframe з постом.
-function loadEmbedScript(src, readyFlag) {
-  return new Promise((resolve) => {
-    if (window[readyFlag]) return resolve();
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
-      window[readyFlag] = true;
-      resolve();
-    };
-    document.body.appendChild(script);
-  });
-}
-
-function tiktokId(url) {
-  const m = url.match(/video\/(\d+)/);
+function gdocId(url) {
+  const m = url.match(/document\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : null;
-}
-
-function TikTokEmbed({ url, title }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    // На відміну від Instagram, у TikTok немає публічного API для
-    // повторної обробки нових блоків — скрипт сканує сторінку лише під
-    // час свого виконання. Тому для карток, доданих пізніше (React),
-    // додаємо свіжий тег скрипта щоразу; сам TikTok ігнорує вже
-    // відрендерені блоки, тому дублі нешкідливі.
-    const s = document.createElement("script");
-    s.src = "https://www.tiktok.com/embed.js";
-    s.async = true;
-    document.body.appendChild(s);
-    return () => {
-      s.remove();
-    };
-  }, [url]);
-
-  return (
-    <blockquote
-      ref={ref}
-      className="tiktok-embed"
-      cite={url}
-      data-video-id={tiktokId(url)}
-      style={{ maxWidth: 400, minWidth: 260, margin: "0 auto" }}
-    >
-      <section>
-        <a target="_blank" rel="noreferrer" href={url}>
-          {title || "TikTok"}
-        </a>
-      </section>
-    </blockquote>
-  );
-}
-
-function InstagramEmbed({ url, title }) {
-  useEffect(() => {
-    let cancelled = false;
-    loadEmbedScript("https://www.instagram.com/embed.js", "__instagramEmbedLoaded").then(() => {
-      if (cancelled) return;
-      if (window.instgrm?.Embeds?.process) window.instgrm.Embeds.process();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
-
-  return (
-    <blockquote
-      className="instagram-media"
-      data-instgrm-permalink={url}
-      data-instgrm-version="14"
-      style={{ maxWidth: 400, minWidth: 260, margin: "0 auto" }}
-    >
-      <a target="_blank" rel="noreferrer" href={url}>
-        {title || "Instagram"}
-      </a>
-    </blockquote>
-  );
 }
 // Перетворює звичайне посилання Google Maps на embed-версію (додає
 // output=embed). Для скорочених посилань (maps.app.goo.gl, goo.gl/maps)
@@ -453,6 +377,174 @@ function mapsEmbedUrl(url) {
   if (!/^https?:\/\/(www\.)?google\.[a-z.]+\/maps/i.test(url)) return null;
   if (/output=embed/i.test(url)) return url;
   return url + (url.includes("?") ? "&" : "?") + "output=embed";
+}
+
+// TikTok/Instagram/Threads всередині Telegram-мінідодатку (webview) не
+// дають стабільно вбудувати сам пост — навіть офіційний embed.js часто
+// блокується політикою вебв'ю чи приватністю акаунта. Тому замість
+// "то працює, то ні" iframe робимо те, що працює завжди: гарну кнопку
+// в стилі сервісу, яка одразу відкриває пост у застосунку/браузері.
+const SOCIAL_STYLES = {
+  tiktok: {
+    label: "TikTok",
+    bg: "#000000",
+    fg: "#ffffff",
+    icon: (
+      <path d="M13.5 2h2.6c.15 1.4.85 2.6 2 3.4.85.6 1.85.95 2.9 1v2.65c-1.5.05-2.95-.4-4.2-1.25v6.5c0 3.15-2.55 5.7-5.7 5.7S5.4 17.45 5.4 14.3c0-3.05 2.4-5.55 5.4-5.68v2.7a2.98 2.98 0 00-1.6 5.5c1.5.95 3.5-.1 3.5-1.9V2z" />
+    ),
+  },
+  instagram: {
+    label: "Instagram",
+    bg: "linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)",
+    fg: "#ffffff",
+    icon: (
+      <>
+        <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" />
+      </>
+    ),
+  },
+  threads: {
+    label: "Threads",
+    bg: "#000000",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2C6.9 2 4 5.1 4 9.3v5.4C4 19 6.9 22 12 22s8-3 8-7.3V9.3C20 5.1 17.1 2 12 2zm3 12.6c0 2.1-1.2 3.3-3 3.3s-2.7-.9-2.7-2c0-1.2 1-2 2.9-2.2.9-.1 1.4-.3 1.4-.8 0-.6-.6-1-1.5-1-.8 0-1.4.3-1.7.9l-1.6-.7c.5-1.2 1.7-1.9 3.3-1.9 2 0 3.4 1.1 3.4 3v1.4z" />
+    ),
+  },
+  telegram: {
+    label: "Telegram",
+    bg: "#26A5E4",
+    fg: "#ffffff",
+    icon: (
+      <path d="M21.5 4.5L2.8 11.7c-1 .4-1 1.6.1 1.9l4.6 1.5 1.8 5.6c.3.9 1.4 1.1 2 .4l2.5-2.8 4.6 3.4c.8.6 2 .2 2.2-.8l3-16.6c.2-1-.8-1.8-1.7-1.4zM8.6 14.3l9.2-6.5c.3-.2.6.2.3.4l-7.5 7.2c-.3.3-.5.7-.5 1.1l-.2 2.4-1.3-4.6z" />
+    ),
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    bg: "#25D366",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2a8.1 8.1 0 01-4.2-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.4-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.6.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1-.4-1.9-1.2-.7-.6-1.2-1.4-1.3-1.6-.1-.2 0-.4.1-.5l.4-.4c.1-.1.2-.3.2-.4.1-.2 0-.3 0-.5-.1-.1-.6-1.4-.8-2-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2s1 2.5 1.1 2.7c.1.2 2 3 4.7 4.2.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1-.1-.1-.2-.2-.4-.3z" />
+    ),
+  },
+  viber: {
+    label: "Viber",
+    bg: "#7360F2",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2C6.9 2 3 5.3 3 9.9c0 2.6 1.3 4.9 3.4 6.4-.1.8-.5 2.3-1.4 3.9 1.7-.3 3.3-1 4.4-1.7.9.2 1.7.3 2.6.3 5.1 0 9-3.3 9-7.9S17.1 2 12 2zm4.1 10.6c-.2.4-1 .8-1.4.9-.4.1-.8.2-2.6-.6-2.2-1-3.6-3.3-3.7-3.4-.1-.1-.9-1.1-.9-2.2 0-1 .5-1.5.7-1.7.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .5.4.2.4.6 1.4.7 1.5.1.1.1.3 0 .4-.1.2-.1.3-.3.4-.1.2-.3.3-.4.5-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.5 1.5.3.1.5.1.7-.1.2-.2.7-.8.9-1.1.2-.3.4-.2.6-.1.2.1 1.4.7 1.6.8.2.1.4.2.4.3.1.2.1.6-.1 1z" />
+    ),
+  },
+  olx: {
+    label: "OLX",
+    bg: "#002F34",
+    fg: "#23E5DB",
+    icon: (
+      <path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm4.3 3.2a2.9 2.9 0 100 5.8 2.9 2.9 0 000-5.8zm7.2.2h-1.6v5.3h1.6V9.4zm2.3 0h-1.6v5.3h3.4v-1.4h-1.8V9.4z" />
+    ),
+  },
+};
+
+function SocialButton({ type, url, title }) {
+  const s = SOCIAL_STYLES[type];
+  if (!s) return null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline"
+      style={{ background: s.bg, color: s.fg }}
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        {s.icon}
+      </svg>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold truncate">{title || s.label}</p>
+        <p className="text-xs opacity-80">{`Відкрити в ${s.label}`}</p>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0">
+        <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </a>
+  );
+}
+
+const APP_STORE_META = {
+  googleplay: { label: "Завантажити в Google Play", bg: "#000000", fg: "#ffffff" },
+  appstore: { label: "Завантажити в App Store", bg: "#000000", fg: "#ffffff" },
+};
+
+// Google Play / App Store не віддають щось зручне для одразу-embed, тому
+// показуємо картку застосунку: іконка + назва, підтягнуті з og:-тегів
+// сторінки через наш бекенд (/api/link-preview, щоб обійти CORS). Поки
+// йде запит — показуємо скелетон-прелоадер; якщо не вдалось (немає
+// мережі, застосунок видалений тощо) — падаємо назад на просту кнопку.
+function AppStoreCard({ type, url, title }) {
+  const meta = APP_STORE_META[type];
+  const [state, setState] = useState({ loading: true, title: null, image: null, failed: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true, title: null, image: null, failed: false });
+    apiFetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+      .then((data) => {
+        if (cancelled) return;
+        setState({ loading: false, title: data?.title || null, image: data?.image || null, failed: false });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setState({ loading: false, title: null, image: null, failed: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (state.loading) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700 animate-pulse">
+        <div className="w-11 h-11 rounded-xl bg-base-700 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="h-3 bg-base-700 rounded w-3/4 mb-2" />
+          <div className="h-2.5 bg-base-700 rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline"
+      style={{ background: meta.bg, color: meta.fg }}
+    >
+      {!state.failed && state.image ? (
+        <img src={state.image} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 bg-white" />
+      ) : (
+        <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            {type === "googleplay" ? (
+              <path d="M4.5 3.5c-.3.3-.5.7-.5 1.2v14.6c0 .5.2.9.5 1.2l8.4-8.5L4.5 3.5zM14 12l2.4-2.4L6.1 3.7c-.3-.2-.7-.3-1-.2L14 12zm0 0l-8.9 8.5c.3.1.7 0 1-.2l10.3-5.9L14 12zm3.4-3.4L15 12l2.4 3.4 3-1.7c.8-.5.8-1.7 0-2.1l-3-1.7z" />
+            ) : (
+              <path d="M16.5 1.5c.1 1.1-.3 2.2-1 3-.7.8-1.9 1.5-3 1.4-.1-1.1.4-2.2 1-3 .8-.9 2-1.5 3-1.4zm3.4 15.9c-.5 1.1-.7 1.6-1.3 2.6-.9 1.4-2.2 3.1-3.7 3.1-1.4 0-1.7-.9-3.6-.9-1.9 0-2.3.9-3.6.9-1.5 0-2.7-1.6-3.6-3-2.5-3.8-2.8-8.3-1.2-10.7 1.1-1.7 2.9-2.7 4.5-2.7 1.7 0 2.7 1 4.1 1s2.2-1 4.1-.9c1.4.1 2.9.6 3.9 2-2.4 1.5-2.1 5.1.4 6.9-.4 1-.6 1.4-1 1.7z" />
+            )}
+          </svg>
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-sm font-semibold truncate">{title || state.title || meta.label}</p>
+        <p className="text-xs opacity-80">{meta.label}</p>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0">
+        <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </a>
+  );
 }
 
 export function MediaPreview({ item }) {
@@ -507,25 +599,29 @@ export function MediaPreview({ item }) {
       />
     );
   }
-  if (type === "tiktok") {
-    if (!tiktokId(item.url)) {
+  if (type === "gdoc") {
+    const id = gdocId(item.url);
+    if (!id) {
       return (
         <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
           {item.url}
         </a>
       );
     }
-    return <TikTokEmbed url={item.url} title={item.title} />;
+    return (
+      <iframe
+        src={`https://docs.google.com/document/d/${id}/preview`}
+        title={item.title || "Google Doc"}
+        className="w-full rounded-lg bg-white"
+        style={{ height: 420, border: 0 }}
+      />
+    );
   }
-  if (type === "instagram") {
-    if (!/instagram\.com\/(p|reel|reels)\/[a-zA-Z0-9_-]+/i.test(item.url)) {
-      return (
-        <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
-          {item.url}
-        </a>
-      );
-    }
-    return <InstagramEmbed url={item.url} title={item.title} />;
+  if (type === "tiktok" || type === "instagram" || type === "threads" || type === "telegram" || type === "olx" || type === "viber" || type === "whatsapp") {
+    return <SocialButton type={type} url={item.url} title={item.title} />;
+  }
+  if (type === "googleplay" || type === "appstore") {
+    return <AppStoreCard type={type} url={item.url} title={item.title} />;
   }
   if (type === "figma") {
     return (

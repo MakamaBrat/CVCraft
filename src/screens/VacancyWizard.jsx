@@ -298,7 +298,7 @@ function ContactMediaStep({ draft, set, lang }) {
 
       <Field
         label={{ uk: "Приклад про компанію (необов'язково)", ru: "Пример о компании (необязательно)", en: "Example about the company (optional)" }[lang]}
-        hint="YouTube, Vimeo, TikTok, Instagram, Figma, Google Maps, .mp4, .gif, .pdf"
+        hint="YouTube, Vimeo, TikTok, Instagram, Threads, Telegram, Viber, WhatsApp, OLX, Google Play, App Store, Figma, Google Docs, Google Maps, .mp4, .gif, .pdf"
       >
         <input
           className={inputCls}
