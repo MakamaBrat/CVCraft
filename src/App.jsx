@@ -14,7 +14,7 @@ import VacancyApplicants from "./screens/VacancyApplicants.jsx";
 import AdminPanel from "./screens/AdminPanel.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
 import { apiFetch, backendEnabled } from "./lib/api.js";
-import { getTelegramUser, initTelegramApp } from "./lib/telegram.js";
+import { getTelegramUser, initTelegramApp, alertDialog } from "./lib/telegram.js";
 import { MAX_RESUMES_PER_USER, MAX_VACANCIES_PER_USER } from "./lib/config.js";
 import { emptyVacancy, vacancyFromRow, VACANCY_STATUS } from "./lib/vacancy.js";
 import { useLanguage } from "./lib/i18n/index.jsx";
@@ -263,7 +263,8 @@ export default function App() {
 
   const commitDraft = async (updated) => {
     const next = { ...updated, updatedAt: Date.now() };
-    const isNew = !resumes.some((r) => r.id === next.id);
+    const previous = resumes.find((r) => r.id === next.id) || null;
+    const isNew = !previous;
 
     if (isNew && resumes.length >= MAX_RESUMES_PER_USER) {
       goHome();
@@ -282,7 +283,11 @@ export default function App() {
         await apiFetch("/api/resumes", { method: "POST", body: { id, data } });
       } catch (err) {
         console.error("resume save failed:", err.status, err.payload || err.message);
-        setResumes((prev) => prev.filter((r) => r.id !== id));
+        setResumes((prev) =>
+          previous ? prev.map((r) => (r.id === id ? previous : r)) : prev.filter((r) => r.id !== id)
+        );
+        if (previous) setDraft(previous);
+        await alertDialog(t("home.saveFailed"));
       }
     }
   };
@@ -311,12 +316,15 @@ export default function App() {
     setRoute({ screen: "vacancyWizard", step: 0 });
   };
 
-  const editVacancy = (id) => {
+  const editVacancy = async (id) => {
     const v = vacancies.find((x) => x.id === id);
-    if (v) {
-      setVacancyDraft(v);
-      setRoute({ screen: "vacancyWizard", step: 0 });
+    if (!v) return;
+    if (![VACANCY_STATUS.DRAFT, VACANCY_STATUS.REJECTED].includes(v.status)) {
+      await alertDialog(t("vacancy.editLocked"));
+      return;
     }
+    setVacancyDraft(v);
+    setRoute({ screen: "vacancyWizard", step: 0 });
   };
 
   const payVacancy = (id) => {
@@ -337,7 +345,8 @@ export default function App() {
 
   const commitVacancyDraft = async (updated) => {
     const next = { ...updated, updatedAt: Date.now() };
-    const isNew = !vacancies.some((v) => v.id === next.id);
+    const previous = vacancies.find((v) => v.id === next.id) || null;
+    const isNew = !previous;
 
     if (isNew && vacancies.length >= MAX_VACANCIES_PER_USER) {
       goVacancyList();
@@ -356,7 +365,16 @@ export default function App() {
         await apiFetch("/api/vacancies", { method: "POST", body: { id, data, template } });
       } catch (err) {
         console.error("vacancy save failed:", err.status, err.payload || err.message);
-        setVacancies((prev) => prev.filter((v) => v.id !== id));
+        // Відкат: повертаємо попередню версію вакансії (якщо вона вже існувала)
+        // замість того, щоб видаляти її з локального списку — інакше невдалий
+        // запит (напр. вакансію вже не можна редагувати після модерації)
+        // виглядає для користувача так, ніби вакансія просто зникла.
+        setVacancies((prev) =>
+          previous ? prev.map((v) => (v.id === id ? previous : v)) : prev.filter((v) => v.id !== id)
+        );
+        if (previous) setVacancyDraft(previous);
+        const reason = err?.payload?.error === "not_editable" ? t("vacancy.editLocked") : t("vacancy.saveFailed");
+        await alertDialog(reason);
       }
     }
   };

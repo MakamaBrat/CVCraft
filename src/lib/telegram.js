@@ -36,6 +36,18 @@ export function confirmDialog(message) {
   });
 }
 
+export function alertDialog(message) {
+  return new Promise((resolve) => {
+    const tg = getTelegramWebApp();
+    if (tg?.showAlert) {
+      tg.showAlert(message, () => resolve());
+    } else {
+      window.alert(message);
+      resolve();
+    }
+  });
+}
+
 export function initTelegramApp() {
   const tg = getTelegramWebApp();
   if (!tg) return;
