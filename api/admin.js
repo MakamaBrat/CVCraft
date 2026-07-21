@@ -76,6 +76,32 @@ async function handlerImpl(req, res) {
     return sendJson(res, 200, { vacancies: data });
   }
 
+  if (req.method === "GET" && action === "allVacancies") {
+    const { data, error } = await admin
+      .from("vacancies")
+      .select("*, owner:users!vacancies_telegram_id_fkey(telegram_username, first_name, is_banned)")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (error) {
+      logDbError("admin allVacancies GET", error, { telegramId: auth.user.id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { vacancies: data });
+  }
+
+  if (req.method === "GET" && action === "allResumes") {
+    const { data, error } = await admin
+      .from("resumes")
+      .select("*, owner:users!resumes_telegram_id_fkey(telegram_username, first_name, is_banned)")
+      .order("updated_at", { ascending: false })
+      .limit(1000);
+    if (error) {
+      logDbError("admin allResumes GET", error, { telegramId: auth.user.id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { resumes: data });
+  }
+
   if (req.method === "GET" && action === "applications") {
     const { data, error } = await admin
       .from("vacancy_applications")
@@ -195,6 +221,18 @@ async function handlerImpl(req, res) {
     }
     logInfo("admin setPricing POST: ok", { telegramId: auth.user.id, listing, top });
     return sendJson(res, 200, { ok: true, listingPrice: listing, topPrice: top });
+  }
+
+  if (req.method === "POST" && action === "deleteVacancy") {
+    const { id } = req.body || {};
+    if (!id) return sendJson(res, 400, { error: "missing_id" });
+    const { error } = await admin.from("vacancies").delete().eq("id", id);
+    if (error) {
+      logDbError("admin deleteVacancy POST", error, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("admin deleteVacancy POST: ok", { telegramId: auth.user.id, id });
+    return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === "POST" && action === "moderate") {

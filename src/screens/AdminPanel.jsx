@@ -361,8 +361,18 @@ export default function AdminPanel({ onBack, adminId }) {
       setUsers(usersRes?.users || []);
       setPricing(pricingRes);
       setReports(reportsRes?.reports || []);
-      setAllVacancies((vacanciesRes?.vacancies || []).map((row) => ({ row, v: vacancyFromRow(row) })));
-      setAllResumes((resumesRes?.resumes || []).map((row) => ({ row, r: resumeDocFromRaw(row) })));
+      setAllVacancies(
+        (vacanciesRes?.vacancies || []).map((raw) => {
+          const row = { ...raw, telegram_username: raw.owner?.telegram_username, first_name: raw.owner?.first_name, is_banned: raw.owner?.is_banned };
+          return { row, v: vacancyFromRow(raw) };
+        })
+      );
+      setAllResumes(
+        (resumesRes?.resumes || []).map((raw) => {
+          const row = { ...raw, telegram_username: raw.owner?.telegram_username, first_name: raw.owner?.first_name, is_banned: raw.owner?.is_banned };
+          return { row, r: resumeDocFromRaw(raw) };
+        })
+      );
       setPricingForm({
         listingPrice: String(pricingRes?.listingPrice ?? ""),
         topPrice: String(pricingRes?.topPrice ?? ""),
