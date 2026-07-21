@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { backendEnabled, apiFetch } from "../lib/api.js";
-import { buildShareLink, TELEGRAM_BOT_USERNAME } from "../lib/config.js";
-import { generateResumeHtml } from "../lib/htmlExport.js";
+import { backendEnabled } from "../lib/api.js";
+import { buildShareLink } from "../lib/config.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -159,50 +157,9 @@ function ResumeDocument({ resume }) {
 }
 
 export default function Preview({ resume, onBack, onDone }) {
-  const [sendingViaBot, setSendingViaBot] = useState(false);
-  const [sendResult, setSendResult] = useState(null); // "ok" | "error" | null
   const { t } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
-
-  const handleSendViaBot = async () => {
-    setSendResult(null);
-    setSendingViaBot(true);
-
-    // Захист від "вічної загрузки": якщо генерація HTML або сам запит до
-    // бекенду з якоїсь причини не завершаться — через 25с примусово
-    // скидаємо стан і показуємо помилку, а не крутимо спінер нескінченно.
-    const timeoutMs = 25000;
-    let timedOut = false;
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      setSendingViaBot(false);
-      setSendResult("error");
-    }, timeoutMs);
-
-    try {
-      const { blob, fileName } = await generateResumeHtml(resume);
-      const htmlBase64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-        reader.onerror = () => reject(reader.error || new Error("file_read_failed"));
-        reader.readAsDataURL(blob);
-      });
-      const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
-
-      await apiFetch("/api/resume-send", {
-        method: "POST",
-        body: { htmlBase64, fileName, shareUrl, title },
-      });
-      if (!timedOut) setSendResult("ok");
-    } catch (err) {
-      console.error("[Preview] send via bot failed", err);
-      if (!timedOut) setSendResult("error");
-    } finally {
-      clearTimeout(timeoutId);
-      if (!timedOut) setSendingViaBot(false);
-    }
-  };
 
   const handleShareLink = () => {
     const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
@@ -267,51 +224,6 @@ export default function Preview({ resume, onBack, onDone }) {
         </button>
       </div>
 
-      <div className="px-6 pb-2 print:hidden">
-        <button
-          onClick={handleSendViaBot}
-          disabled={sendingViaBot}
-          className="tap w-full flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-medium text-sm rounded-xl py-3.5 disabled:opacity-50"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M21.5 3.5L2.7 11.1c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14c.3-1.2-.5-1.7-1.3-1.4z"
-              fill="currentColor"
-            />
-          </svg>
-          {sendingViaBot ? t("share.sendingViaBot") : t("share.sendViaBot")}
-        </button>
-      </div>
-
-      <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-        {t("share.sendViaBotHint")}
-      </p>
-
-      {sendResult === "ok" && (
-        <p className="px-6 pb-4 text-[11px] text-emerald-400 print:hidden">{t("share.sendViaBotSuccess")}</p>
-      )}
-      {sendResult === "error" && (
-        <p className="px-6 pb-4 text-[11px] text-red-400 print:hidden">
-          {t("share.sendViaBotFailed")}{" "}
-          <a
-            href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
-            onClick={(e) => {
-              e.preventDefault();
-              openTelegramLinkSafe(`https://t.me/${TELEGRAM_BOT_USERNAME}`);
-            }}
-            className="text-accent-300 underline"
-          >
-            @{TELEGRAM_BOT_USERNAME}
-          </a>
-        </p>
-      )}
     </div>
   );
-}
-
-function openTelegramLinkSafe(url) {
-  const tg = getTelegramWebApp();
-  if (tg?.openTelegramLink) tg.openTelegramLink(url);
-  else if (tg?.openLink) tg.openLink(url);
-  else window.open(url, "_blank");
 }

@@ -30,23 +30,20 @@ async function handlerImpl(req, res) {
       return sendJson(res, 400, { error: "invalid_body" });
     }
 
-    // Спочатку перевіряємо, чи це апдейт вже існуючого резюме користувача —
-    // апдейти не повинні впиратись у ліміт кількості. Раніше ліміт-чек і
-    // upsert йшли як count(neq id), що робило перевірку нечутливою до того,
-    // існує рядок чи ні, і будь-яка помилка цього запиту (RLS/db) поверталась
-    // як звичайний db_error — на фронті це виглядало ідентично "ліміту".
-    const { data: existingRow, error: existingError } = await admin
+    const { data: existing, error: existingError } = await admin
       .from("resumes")
       .select("id")
-      .eq("telegram_id", user.id)
       .eq("id", id)
+      .eq("telegram_id", user.id)
       .maybeSingle();
     if (existingError) {
       logDbError("resumes POST: existing check", existingError, { telegramId: user.id, id });
       return sendJson(res, 500, { error: "db_error" });
     }
 
-    if (!existingRow) {
+    // Ліміт кількості резюме перевіряємо тільки при створенні нового —
+    // редагування вже існуючого резюме не повинно на нього натикатись.
+    if (!existing) {
       const { count, error: countError } = await admin
         .from("resumes")
         .select("id", { count: "exact", head: true })
@@ -57,7 +54,7 @@ async function handlerImpl(req, res) {
       }
       if ((count || 0) >= MAX_RESUMES_PER_USER) {
         console.warn("[resumes] save: limit_reached", { telegramId: user.id, count });
-        return sendJson(res, 409, { error: "resume_limit_reached", max: MAX_RESUMES_PER_USER });
+        return sendJson(res, 409, { error: "resume_limit_reached" });
       }
     }
 

@@ -288,37 +288,19 @@ export default function App() {
         await apiFetch("/api/resumes", { method: "POST", body: { id, data } });
       } catch (err) {
         console.error("resume save failed:", err.status, err.payload || err.message);
-        // Відкатуємо лише список (щоб не показувати резюме, якого немає на
-        // сервері), але НЕ чіпаємо поточний чернетку (draft) — інакше
-        // користувач втрачає щойно введені дані просто через мережевий збій
-        // чи тимчасову помилку бекенду.
         setResumes((prev) =>
           previous ? prev.map((r) => (r.id === id ? previous : r)) : prev.filter((r) => r.id !== id)
         );
-        if (err?.payload?.error === "resume_limit_reached") {
-          await alertDialog(t("home.limitReached", err.payload?.max || MAX_RESUMES_PER_USER));
-        } else {
-          await alertDialog(t("home.saveFailed"));
-        }
+        if (previous) setDraft(previous);
+        await alertDialog(t("home.saveFailed"));
       }
     }
   };
 
   const deleteResume = async (id) => {
-    const previous = resumes.find((r) => r.id === id) || null;
     setResumes((prev) => prev.filter((r) => r.id !== id));
     if (backendEnabled) {
-      try {
-        await apiFetch(`/api/resumes?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      } catch (err) {
-        // Раніше помилка тут повністю ігнорувалась: резюме зникало з
-        // інтерфейсу, а на сервері могло залишитись — "привид", який
-        // непомітно займав місце в ліміті (2 резюме) і блокував
-        // збереження наступного резюме без будь-якого пояснення.
-        console.error("resume delete failed:", err.status, err.payload || err.message);
-        if (previous) setResumes((prev) => [previous, ...prev.filter((r) => r.id !== id)]);
-        await alertDialog(t("home.saveFailed"));
-      }
+      await apiFetch(`/api/resumes?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
     }
   };
 
