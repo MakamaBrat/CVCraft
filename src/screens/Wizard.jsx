@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "../lib/api.js";
 import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
-import { confirmDialog, getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
+import { getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 6;
 const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
@@ -46,24 +46,10 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
     else setStep(step - 1);
   };
 
-  const isDirty = () =>
-    Boolean(
-      draft.fullName?.trim() ||
-        draft.role?.trim() ||
-        draft.email?.trim() ||
-        draft.phone?.trim() ||
-        draft.city?.trim() ||
-        draft.summary?.trim() ||
-        (draft.experience || []).length > 0 ||
-        (draft.education || []).length > 0 ||
-        (draft.skills || []).length > 0 ||
-        (draft.portfolio || []).length > 0
-    );
-
-  const goHome = async () => {
-    if (isDirty() && !(await confirmDialog("Вийти без збереження? Введені дані буде втрачено."))) return;
-    onBackHome();
-  };
+  // Вихід більше не показує попередження про втрату даних: App.jsx сам
+  // автоматично зберігає прогрес як чернетку (status: "draft") ще під час
+  // заповнення, тож дані нікуди не зникають.
+  const goHome = () => onBackHome();
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">

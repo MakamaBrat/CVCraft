@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Home from "./screens/Home.jsx";
 import Wizard from "./screens/Wizard.jsx";
 import Templates from "./screens/Templates.jsx";
@@ -78,6 +78,12 @@ export default function App() {
   const [loadingResumes, setLoadingResumes] = useState(true);
   const [route, setRoute] = useState({ screen: "home" });
   const [draft, setDraft] = useState(null);
+  // Таймер дебаунсу та "знімок" останнього вже збереженого вмісту чернетки
+  // (без id/updatedAt/status) — щоб не робити зайвих POST-запитів, коли
+  // draft змінюється сам собою після commitDraft (там оновлюється лише
+  // updatedAt).
+  const draftSaveTimer = useRef(null);
+  const lastSavedDraftRef = useRef(null);
 
   const [vacancies, setVacancies] = useState([]);
   const [loadingVacancies, setLoadingVacancies] = useState(true);
@@ -243,6 +249,7 @@ export default function App() {
   const startNew = () => {
     if (!canCreateMore) return;
     const r = emptyResume();
+    lastSavedDraftRef.current = null;
     setDraft(r);
     setRoute({ screen: "wizard", step: 0 });
   };
@@ -250,6 +257,8 @@ export default function App() {
   const editExisting = (id) => {
     const r = resumes.find((x) => x.id === id);
     if (r) {
+      const { id: rid, updatedAt, status, ...content } = r;
+      lastSavedDraftRef.current = JSON.stringify(content);
       setDraft(r);
       setRoute({ screen: "wizard", step: 0 });
     }
@@ -266,6 +275,23 @@ export default function App() {
   const goTemplates = () => setRoute({ screen: "templates" });
   const goPreview = () => setRoute({ screen: "preview" });
   const goHome = () => setRoute({ screen: "home" });
+
+  // Чи введено в чернетку резюме хоч щось — використовується і для
+  // автозбереження, і щоб не створювати порожні чернетки при випадковому
+  // вході у візард без жодного натискання клавіш.
+  const isResumeDirty = (r) =>
+    Boolean(
+      r?.fullName?.trim() ||
+        r?.role?.trim() ||
+        r?.email?.trim() ||
+        r?.phone?.trim() ||
+        r?.city?.trim() ||
+        r?.summary?.trim() ||
+        (r?.experience || []).length > 0 ||
+        (r?.education || []).length > 0 ||
+        (r?.skills || []).length > 0 ||
+        (r?.portfolio || []).length > 0
+    );
 
   const commitDraft = async (updated) => {
     const next = { ...updated, updatedAt: Date.now() };
@@ -298,15 +324,48 @@ export default function App() {
     }
   };
 
-  // Вихід із візарда резюме (кнопка "додому" або back на першому кроці).
-  // Якщо в чернетці є хоч щось введене — зберігаємо її як недописану
-  // (status: "draft"), щоб не втратити прогрес; якщо резюме вже раніше
-  // було завершене (status: "complete"), статус не чіпаємо — це просто
-  // вихід із редагування, а не переривання нового заповнення.
-  const exitWizard = async (isDirty) => {
-    if (draft && isDirty) {
-      await commitDraft({ ...draft, status: draft.status === "complete" ? "complete" : "draft" });
+  // Негайно зберігає поточну чернетку (якщо в ній щось нове відносно
+  // останнього збереження), скасувавши будь-який запланований дебаунс.
+  const flushDraftSave = async () => {
+    if (!draft || !isResumeDirty(draft)) return;
+    if (draftSaveTimer.current) {
+      clearTimeout(draftSaveTimer.current);
+      draftSaveTimer.current = null;
     }
+    const { id, updatedAt, status, ...content } = draft;
+    const snapshot = JSON.stringify(content);
+    if (snapshot === lastSavedDraftRef.current) return;
+    lastSavedDraftRef.current = snapshot;
+    await commitDraft({ ...draft, status: draft.status === "complete" ? "complete" : "draft" });
+  };
+
+  // Автозбереження чернетки резюме просто в процесі заповнення: як тільки
+  // з'явився хоч якийсь вміст (навіть на першому кроці візарда) — за ~800мс
+  // тиші після останнього натискання клавіші чернетка йде на бекенд зі
+  // статусом "draft". Порівняння зі знімком lastSavedDraftRef захищає від
+  // зайвих POST-запитів, коли draft оновлюється сам собою після commitDraft
+  // (там міняється лише updatedAt).
+  useEffect(() => {
+    if (route.screen !== "wizard" || !draft) return;
+    if (!isResumeDirty(draft)) return;
+
+    const { id, updatedAt, status, ...content } = draft;
+    const snapshot = JSON.stringify(content);
+    if (snapshot === lastSavedDraftRef.current) return;
+
+    draftSaveTimer.current = setTimeout(() => {
+      lastSavedDraftRef.current = snapshot;
+      commitDraft({ ...draft, status: draft.status === "complete" ? "complete" : "draft" });
+    }, 800);
+
+    return () => clearTimeout(draftSaveTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, route.screen]);
+
+  // Вихід із візарда резюме (кнопка "додому" або back на першому кроці) —
+  // просто "домиває" будь-яке ще не збережене автозбереженням значення.
+  const exitWizard = async () => {
+    await flushDraftSave();
     goHome();
   };
 
