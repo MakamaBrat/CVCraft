@@ -16,11 +16,24 @@ function sanitizeFileName(name) {
 
 // Абсолютизуємо src/href, які в розмітці могли бути відносними
 // (наприклад "/assets/..."), — інакше після збереження й відкриття файлу
-// з диска (file://) вони вестимуть у нікуди.
+// з диска (file://) вони вестимуть у нікуди. Атрибут crossorigin теж
+// прибираємо: він був потрібен лише html2canvas для безпечного читання
+// пікселів у canvas, а в реальному <img>/<video> він, навпаки, шкодить —
+// браузер вимагає від сервера коректних CORS-заголовків і, якщо їх
+// немає (а в більшості картинок/відео з чужих доменів їх немає), просто
+// НЕ завантажує ресурс — саме тому аватарка, обкладинка гіфки, фон і
+// відео могли виглядати зламаними в експортованому файлі.
 function absolutizeUrls(root) {
-  root.querySelectorAll("img[src]").forEach((el) => el.setAttribute("src", el.src));
+  root.querySelectorAll("img[src]").forEach((el) => {
+    el.setAttribute("src", el.src);
+    el.removeAttribute("crossorigin");
+  });
   root.querySelectorAll("iframe[src]").forEach((el) => el.setAttribute("src", el.src));
-  root.querySelectorAll("video[src]").forEach((el) => el.setAttribute("src", el.src));
+  root.querySelectorAll("video[src], video source[src]").forEach((el) => {
+    el.setAttribute("src", el.src);
+    el.removeAttribute("crossorigin");
+  });
+  root.querySelectorAll("video").forEach((el) => el.removeAttribute("crossorigin"));
   root.querySelectorAll("a[href]").forEach((el) => el.setAttribute("href", el.href));
 }
 
@@ -35,28 +48,31 @@ function swapLiveForStatic(root) {
   });
 }
 
-// Стилі сторінки (Tailwind-білд тощо) зі свого ж домену вшиваємо
-// текстом напряму в файл, щоб він виглядав однаково без бекенду. Стилі
-// із чужого домену (шрифт Google Fonts підключений через <link>)
-// прочитати через cssRules не можна (CORS) — для них лишаємо звичайний
-// <link>, браузер підтягне його сам, якщо є інтернет.
+// Для стилів зі своїм href (зібраний Tailwind-бандл, шрифт Google Fonts)
+// лишаємо звичайний <link> — так усі url(...) всередині CSS (шрифти,
+// фонові картинки-іконки тощо) резолвляться відносно СПРАВЖНЬОГО файлу
+// стилів, а не відносно нашого HTML-файлу, де відносний шлях був би
+// битим. cssText-копію використовуємо лише для <style>-тегів без href
+// (напр. інжектовані Vite у dev-режимі).
 function collectStyles() {
   let inlineCss = "";
   const externalHrefs = new Set();
 
   for (const sheet of Array.from(document.styleSheets)) {
+    if (sheet.href) {
+      externalHrefs.add(sheet.href);
+      continue;
+    }
     try {
       if (sheet.cssRules) {
         inlineCss += Array.from(sheet.cssRules)
           .map((rule) => rule.cssText)
           .join("\n");
         inlineCss += "\n";
-        continue;
       }
     } catch {
-      // cross-origin stylesheet — cssRules недоступні, беремо href нижче
+      // cross-origin stylesheet без href (рідкісний випадок) — пропускаємо
     }
-    if (sheet.href) externalHrefs.add(sheet.href);
   }
 
   return { inlineCss, externalHrefs: Array.from(externalHrefs) };
