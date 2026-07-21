@@ -1,8 +1,8 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logInfo } from "./_lib/respond.js";
 
-// POST /api/resume-send — приймає вже згенерований на клієнті PDF (base64) і
-// пересилає його користувачу в особисті повідомлення через бота
+// POST /api/resume-send — приймає вже згенерований на клієнті HTML-файл
+// (base64) і пересилає його користувачу в особисті повідомлення через бота
 // (sendDocument), замість того щоб примушувати завантажувати файл у браузері.
 // Це навмисно НЕ публічний ендпоінт: chat_id береться з перевіреного
 // initData (authenticate), а не з тіла запиту — інакше будь-хто міг би
@@ -10,7 +10,7 @@ import { sendJson, methodNotAllowed, authenticate, logInfo } from "./_lib/respon
 //
 // Підпис до документа містить приховане у форматі Telegram HTML
 // гіперпосилання на повний перегляд резюме (з усіма файлами — відео/гіфки,
-// які в сам PDF не потрапляють).
+// які в сам HTML-файл не потрапляють, якщо він відкривається без інтернету).
 
 function escapeHtml(str) {
   return String(str || "")
@@ -29,14 +29,14 @@ export default async function handler(req, res) {
   const user = await authenticate(req, res, botToken, admin);
   if (!user) return;
 
-  const { pdfBase64, fileName, shareUrl, caption: rawCaption, title } = req.body || {};
-  if (!pdfBase64 || !fileName || !shareUrl) {
+  const { htmlBase64, fileName, shareUrl, caption: rawCaption, title } = req.body || {};
+  if (!htmlBase64 || !fileName || !shareUrl) {
     return sendJson(res, 400, { error: "missing_fields" });
   }
   // ~5MB зверху — з запасом (Telegram Bot API дозволяє до 50MB для
-  // sendDocument, але наші PDF ніколи не мають бути такими важкими; це
-  // просто запобіжник від помилково величезного payload).
-  if (pdfBase64.length > 7_000_000) {
+  // sendDocument, але наші HTML-файли ніколи не мають бути такими важкими;
+  // це просто запобіжник від помилково величезного payload).
+  if (htmlBase64.length > 7_000_000) {
     return sendJson(res, 400, { error: "file_too_large" });
   }
 
@@ -44,13 +44,13 @@ export default async function handler(req, res) {
   const hiddenLink = `<a href="${escapeHtml(shareUrl)}">${escapeHtml(linkText)}</a>`;
   const caption = [escapeHtml(rawCaption || title || ""), "", hiddenLink].filter(Boolean).join("\n").slice(0, 1024);
 
-  const buffer = Buffer.from(pdfBase64, "base64");
+  const buffer = Buffer.from(htmlBase64, "base64");
 
   const form = new FormData();
   form.append("chat_id", String(user.id));
   form.append("caption", caption);
   form.append("parse_mode", "HTML");
-  form.append("document", new Blob([buffer], { type: "application/pdf" }), fileName);
+  form.append("document", new Blob([buffer], { type: "text/html" }), fileName);
 
   let tgRes;
   try {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
-import { generateVacancyPdf } from "../lib/pdf.js";
+import { generateVacancyHtml } from "../lib/htmlExport.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
@@ -237,24 +237,24 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     setShareError(null);
     setSharing(true);
     try {
-      const { blob, fileName } = await generateVacancyPdf(vacancy);
-      const file = new File([blob], fileName, { type: "application/pdf" });
+      const { blob, fileName } = await generateVacancyHtml(vacancy);
+      const file = new File([blob], fileName, { type: "text/html" });
       const title = `${vacancy.position || t("vacancy.vacancyPlaceholder")}${vacancy.company ? " — " + vacancy.company : ""}`;
-      // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+      // Тут файл (HTML) іде окремо від "url", тож Web Share API не завжди
       // будує з url клікабельну картку — лишаємо посилання явно в тексті,
       // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
       const caption = [title, "", t("share.vacancyClickHint"), shareUrl].join("\n");
 
-      // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
-      // з підписом (підтримується мобільними браузерами й Telegram
-      // in-app browser на iOS/Android).
+      // Web Share API з файлом — одна дія одразу шерить і HTML-файл, і
+      // посилання з підписом (підтримується мобільними браузерами й
+      // Telegram in-app browser на iOS/Android).
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], text: caption, title: fileName });
         return;
       }
 
       // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
-      // PDF і одразу відкриваємо Telegram-шеринг. url іде окремим
+      // HTML-файл і одразу відкриваємо Telegram-шеринг. url іде окремим
       // параметром, тому в text лишаємо тільки локалізовану підказку.
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");

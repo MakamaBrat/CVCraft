@@ -3,7 +3,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { backendEnabled, apiFetch } from "../lib/api.js";
 import { buildShareLink, TELEGRAM_BOT_USERNAME } from "../lib/config.js";
-import { generateResumePdf } from "../lib/pdf.js";
+import { generateResumeHtml } from "../lib/htmlExport.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -169,11 +169,9 @@ export default function Preview({ resume, onBack, onDone }) {
     setSendResult(null);
     setSendingViaBot(true);
 
-    // Захист від "вічної загрузки": якщо генерація PDF (html2canvas може
-    // зависнути, чекаючи картинку, що не вантажиться через CORS) або сам
-    // запит до бекенду з якоїсь причини не завершаться — через 25с
-    // примусово скидаємо стан і показуємо помилку, а не крутимо спінер
-    // нескінченно.
+    // Захист від "вічної загрузки": якщо генерація HTML або сам запит до
+    // бекенду з якоїсь причини не завершаться — через 25с примусово
+    // скидаємо стан і показуємо помилку, а не крутимо спінер нескінченно.
     const timeoutMs = 25000;
     let timedOut = false;
     const timeoutId = setTimeout(() => {
@@ -183,8 +181,8 @@ export default function Preview({ resume, onBack, onDone }) {
     }, timeoutMs);
 
     try {
-      const { blob, fileName } = await generateResumePdf(resume);
-      const pdfBase64 = await new Promise((resolve, reject) => {
+      const { blob, fileName } = await generateResumeHtml(resume);
+      const htmlBase64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
         reader.onerror = () => reject(reader.error || new Error("file_read_failed"));
@@ -194,7 +192,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       await apiFetch("/api/resume-send", {
         method: "POST",
-        body: { pdfBase64, fileName, shareUrl, title },
+        body: { htmlBase64, fileName, shareUrl, title },
       });
       if (!timedOut) setSendResult("ok");
     } catch (err) {
@@ -238,7 +236,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       {(resume.portfolio || []).length > 0 && (
         <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-          Відео та гіфки з портфоліо відтворюються на сторінці, але не включаються у PDF.
+          Відео з портфоліо у файлі відкриваються так само, як на сторінці (потрібен інтернет).
         </p>
       )}
 
