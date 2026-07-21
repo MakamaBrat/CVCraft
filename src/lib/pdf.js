@@ -43,58 +43,6 @@ async function captureCanvas(node, html2canvas, backgroundColor) {
   }
 }
 
-// Елементи, позначені data-pdf-link="https://...", стають клікабельними
-// зонами у самому PDF (jsPDF link-анотація поверх картинки), а не просто
-// написаним текстом посилання. Розміри/позиція беруться з реального
-// layout-у на екрані (getBoundingClientRect), тому важливо викликати це
-// ПІСЛЯ того, як html2canvas показав/сховав data-pdf-hide/data-pdf-only
-// елементи (той самий стан, що й на знімку).
-function collectLinkRects(node) {
-  const nodeRect = node.getBoundingClientRect();
-  return Array.from(node.querySelectorAll("[data-pdf-link]"))
-    .map((el) => {
-      const style = window.getComputedStyle(el);
-      if (style.display === "none" || style.visibility === "hidden") return null;
-      const r = el.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) return null;
-      return {
-        url: el.getAttribute("data-pdf-link"),
-        x: r.left - nodeRect.left,
-        y: r.top - nodeRect.top,
-        width: r.width,
-        height: r.height,
-      };
-    })
-    .filter((l) => l && l.url);
-}
-
-function addLinkAnnotations(pdf, linkRects, cssToPtScale, pageHeight, pageCount) {
-  for (const link of linkRects) {
-    const xPt = link.x * cssToPtScale;
-    const yTopPt = link.y * cssToPtScale;
-    const wPt = link.width * cssToPtScale;
-    const hPt = link.height * cssToPtScale;
-
-    // Посилання, що потрапляють точно на межу сторінки, розбиваємо між
-    // сторінками — інакше клікабельна зона на першій сторінці "з'їдала" б
-    // область, що фізично надрукована вже на наступній.
-    let remainingTop = yTopPt;
-    let remainingHeight = hPt;
-    while (remainingHeight > 0) {
-      const pageIndex = Math.min(Math.floor(remainingTop / pageHeight), pageCount - 1);
-      const pageTop = pageIndex * pageHeight;
-      const yOnPage = remainingTop - pageTop;
-      const hOnPage = Math.min(remainingHeight, pageHeight - yOnPage);
-      if (hOnPage > 0) {
-        pdf.setPage(pageIndex + 1);
-        pdf.link(xPt, yOnPage, wPt, hOnPage, { url: link.url });
-      }
-      remainingTop += hOnPage;
-      remainingHeight -= hOnPage;
-    }
-  }
-}
-
 export async function generatePdfFromElement(elementId, fileNameBase, backgroundColor = "#ffffff") {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
 
@@ -135,10 +83,6 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
     }
 
     const canvas = await captureCanvas(node, html2canvas, backgroundColor);
-    // DOM ще в тому самому стані, що й на знімку (pdf-hide/pdf-only вже
-    // застосовані) — саме зараз координати клікабельних зон коректні.
-    const linkRects = collectLinkRects(node);
-    const nodeCssWidth = node.getBoundingClientRect().width || node.offsetWidth;
 
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
@@ -158,10 +102,6 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
       pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
     }
-
-    const pageCount = pdf.internal.getNumberOfPages();
-    const cssToPtScale = imgWidth / nodeCssWidth; // css-пікселі елемента -> pt у PDF
-    addLinkAnnotations(pdf, linkRects, cssToPtScale, pageHeight, pageCount);
 
     const blob = pdf.output("blob");
     const fileName = `${sanitizeFileName(fileNameBase) || "document"}.pdf`;

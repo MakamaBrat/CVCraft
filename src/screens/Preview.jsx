@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
+import { generateResumePdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -157,6 +159,8 @@ function ResumeDocument({ resume }) {
 }
 
 export default function Preview({ resume, onBack, onDone }) {
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const { t } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
@@ -174,6 +178,72 @@ export default function Preview({ resume, onBack, onDone }) {
     else window.open(telegramShareUrl, "_blank");
   };
 
+  const handleShare = async () => {
+    setShareError(null);
+    setSharing(true);
+    let blob, fileName;
+    try {
+      ({ blob, fileName } = await generateResumePdf(resume));
+    } catch (err) {
+      console.error("[Preview] pdf generation failed", err);
+      setShareError(`Не вдалося сформувати PDF: ${err?.message || "невідома помилка"}. Спробуйте ще раз.`);
+      setSharing(false);
+      return;
+    }
+
+    const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+    // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+    // будує з url клікабельну картку — лишаємо посилання явно в тексті,
+    // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
+    const caption = [title, "", t("share.resumeClickHint"), shareUrl].join("\n");
+
+    // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання з
+    // підписом. PDF уже готовий (blob), тож якщо сам крок "поділитися"
+    // впаде (буває в деяких мобільних вебв'ю навіть коли canShare сказав
+    // "можна") — не показуємо жорстку помилку, а падаємо назад на
+    // завантаження файлу + відкриття Telegram-шерингу окремо.
+    try {
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: fileName });
+        setSharing(false);
+        return;
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        setSharing(false);
+        return; // користувач сам закрив системне вікно шерингу
+      }
+      console.error("[Preview] navigator.share failed, falling back to download", err);
+    }
+
+    try {
+      // Фолбек: качаємо PDF і одразу відкриваємо Telegram-шеринг. Тут url
+      // іде окремим параметром, тому в text лишаємо тільки локалізовану
+      // підказку — Telegram сам покаже посилання як клікабельну картку.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      const shareText = `${t("share.resumeClickHint")}\n\n${title}`;
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+      const tg = getTelegramWebApp();
+      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+      else if (tg?.openLink) tg.openLink(telegramShareUrl);
+      else window.open(telegramShareUrl, "_blank");
+    } catch (err) {
+      console.error("[Preview] download fallback failed", err);
+      setShareError(`Не вдалося поділитися резюме: ${err?.message || "невідома помилка"}. Спробуйте ще раз.`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <div className="print:hidden">
@@ -184,6 +254,25 @@ export default function Preview({ resume, onBack, onDone }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold flex-1">Попередній перегляд</h1>
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            title="PDF + посилання"
+            className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
+          >
+            {sharing ? (
+              <span className="text-[10px]">…</span>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M4 2h8v3H4zM3 6h10a1 1 0 011 1v4a1 1 0 01-1 1h-1v2H4v-2H3a1 1 0 01-1-1V7a1 1 0 011-1z"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 
@@ -193,7 +282,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       {(resume.portfolio || []).length > 0 && (
         <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-          Відео з портфоліо у файлі відкриваються за посиланням по кліку на обкладинку (потрібен інтернет).
+          Відео та гіфки з портфоліо відтворюються на сторінці, але не включаються у PDF.
         </p>
       )}
 
@@ -203,7 +292,9 @@ export default function Preview({ resume, onBack, onDone }) {
         </p>
       )}
 
-      <div className="px-6 pb-3 print:hidden flex gap-3">
+      {shareError && <p className="px-6 pb-2 text-[11px] text-red-400 print:hidden">{shareError}</p>}
+
+      <div className="px-6 pb-6 print:hidden flex gap-3">
         <button
           onClick={handleShareLink}
           className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
@@ -223,7 +314,6 @@ export default function Preview({ resume, onBack, onDone }) {
           {t("common.save")}
         </button>
       </div>
-
     </div>
   );
 }

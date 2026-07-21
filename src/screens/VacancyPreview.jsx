@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
+import { generateVacancyPdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
@@ -111,6 +112,8 @@ export function VacancyDocument({ vacancy }) {
 
 export default function VacancyPreview({ vacancy, onBack, onSendToModeration, onSave, onPaid }) {
   const { t } = useLanguage();
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const shareUrl = buildVacancyShareLink(vacancy.id);
   const status = vacancy.status || VACANCY_STATUS.DRAFT;
 
@@ -230,6 +233,70 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     else window.open(telegramShareUrl, "_blank");
   };
 
+  const handleShare = async () => {
+    setShareError(null);
+    setSharing(true);
+    let blob, fileName;
+    try {
+      ({ blob, fileName } = await generateVacancyPdf(vacancy));
+    } catch (err) {
+      console.error("[VacancyPreview] pdf generation failed", err);
+      setShareError(`${t("vacancy.shareFailed")} (${err?.message || "?"})`);
+      setSharing(false);
+      return;
+    }
+
+    const title = `${vacancy.position || t("vacancy.vacancyPlaceholder")}${vacancy.company ? " — " + vacancy.company : ""}`;
+    // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+    // будує з url клікабельну картку — лишаємо посилання явно в тексті,
+    // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
+    const caption = [title, "", t("share.vacancyClickHint"), shareUrl].join("\n");
+
+    // Web Share API з файлом. PDF уже готовий (blob), тож якщо сам крок
+    // "поділитися" впаде (буває в деяких мобільних вебв'ю навіть коли
+    // canShare сказав "можна") — не показуємо жорстку помилку, а падаємо
+    // назад на завантаження файлу + відкриття Telegram-шерингу окремо.
+    try {
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: fileName });
+        setSharing(false);
+        return;
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        setSharing(false);
+        return; // користувач сам закрив системне вікно шерингу
+      }
+      console.error("[VacancyPreview] navigator.share failed, falling back to download", err);
+    }
+
+    try {
+      // Фолбек: качаємо PDF і одразу відкриваємо Telegram-шеринг. url іде
+      // окремим параметром, тому в text лишаємо тільки локалізовану підказку.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      const shareText = `${t("share.vacancyClickHint")}\n\n${title}`;
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+      const tg = getTelegramWebApp();
+      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+      else if (tg?.openLink) tg.openLink(telegramShareUrl);
+      else window.open(telegramShareUrl, "_blank");
+    } catch (err) {
+      console.error("[VacancyPreview] download fallback failed", err);
+      setShareError(`${t("vacancy.shareFailed")} (${err?.message || "?"})`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <div className="print:hidden">
@@ -240,6 +307,25 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
             </svg>
           </button>
           <h1 className="text-lg font-bold flex-1">{t("vacancy.title")}</h1>
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            title="PDF + посилання"
+            className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
+          >
+            {sharing ? (
+              <span className="text-[10px]">…</span>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M4 2h8v3H4zM3 6h10a1 1 0 011 1v4a1 1 0 01-1 1h-1v2H4v-2H3a1 1 0 01-1-1V7a1 1 0 011-1z"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 
@@ -276,6 +362,8 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
           )}
         </div>
       )}
+
+      {shareError && <p className="px-6 pb-2 text-[11px] text-red-400 print:hidden">{shareError}</p>}
 
       {(needsPayment || canExtend) && (
         <div className="px-6 pb-4 print:hidden">

@@ -30,32 +30,18 @@ async function handlerImpl(req, res) {
       return sendJson(res, 400, { error: "invalid_body" });
     }
 
-    const { data: existing, error: existingError } = await admin
+    const { count, error: countError } = await admin
       .from("resumes")
-      .select("id")
-      .eq("id", id)
+      .select("id", { count: "exact", head: true })
       .eq("telegram_id", user.id)
-      .maybeSingle();
-    if (existingError) {
-      logDbError("resumes POST: existing check", existingError, { telegramId: user.id, id });
+      .neq("id", id);
+    if (countError) {
+      logDbError("resumes POST: count", countError, { telegramId: user.id, id });
       return sendJson(res, 500, { error: "db_error" });
     }
-
-    // Ліміт кількості резюме перевіряємо тільки при створенні нового —
-    // редагування вже існуючого резюме не повинно на нього натикатись.
-    if (!existing) {
-      const { count, error: countError } = await admin
-        .from("resumes")
-        .select("id", { count: "exact", head: true })
-        .eq("telegram_id", user.id);
-      if (countError) {
-        logDbError("resumes POST: count", countError, { telegramId: user.id, id });
-        return sendJson(res, 500, { error: "db_error" });
-      }
-      if ((count || 0) >= MAX_RESUMES_PER_USER) {
-        console.warn("[resumes] save: limit_reached", { telegramId: user.id, count });
-        return sendJson(res, 409, { error: "resume_limit_reached" });
-      }
+    if ((count || 0) >= MAX_RESUMES_PER_USER) {
+      console.warn("[resumes] save: limit_reached", { telegramId: user.id, count });
+      return sendJson(res, 409, { error: "resume_limit_reached" });
     }
 
     const { error } = await admin.from("resumes").upsert({
