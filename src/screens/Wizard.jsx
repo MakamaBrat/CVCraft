@@ -458,7 +458,7 @@ function SocialButton({ type, url, title }) {
   const s = SOCIAL_STYLES[type];
   if (!s) return null;
   return (
-    
+    <a
       href={url}
       target="_blank"
       rel="noreferrer"
@@ -523,7 +523,7 @@ function AppStoreCard({ type, url, title }) {
   }
 
   return (
-    
+    <a
       href={url}
       target="_blank"
       rel="noreferrer"
