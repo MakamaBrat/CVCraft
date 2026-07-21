@@ -35,28 +35,13 @@ function ResumeDocument({ resume }) {
       }}
     >
       <div
-        data-pdf-avoid-break="true"
         className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
         style={{ borderBottom: `2px solid ${accent}` }}
       >
         <Avatar url={resume.avatarUrl} name={resume.fullName} accent={accent} theme={theme} />
         <div className="min-w-0">
           <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || "Ваше ім'я"}</h2>
-          <p
-            className="text-sm font-medium truncate mt-1"
-            style={{
-              color: accent,
-              ...(resume.backgroundUrl
-                ? {
-                    background: theme.id === "dark" ? "rgba(8,8,10,0.6)" : "rgba(255,255,255,0.75)",
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    padding: "1px 8px",
-                    borderRadius: "6px",
-                  }
-                : null),
-            }}
-          >
+          <p className="text-sm font-medium truncate" style={{ color: accent }}>
             {resume.role || "Посада"}
           </p>
         </div>
@@ -72,7 +57,7 @@ function ResumeDocument({ resume }) {
       </div>
 
       {resume.summary && (
-        <section className="mb-4" data-pdf-avoid-break="true">
+        <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
             Про мене
           </h3>
@@ -89,7 +74,7 @@ function ResumeDocument({ resume }) {
           </h3>
           <div className="space-y-3">
             {resume.experience.map((e) => (
-              <div key={e.id} data-pdf-avoid-break="true">
+              <div key={e.id}>
                 <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
                   <p className="text-[12.5px] font-semibold">{e.position}</p>
                   <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
@@ -117,7 +102,7 @@ function ResumeDocument({ resume }) {
           </h3>
           <div className="space-y-2">
             {resume.education.map((e) => (
-              <div key={e.id} data-pdf-avoid-break="true">
+              <div key={e.id}>
                 <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
                   <p className="text-[12.5px] font-semibold">{e.school}</p>
                   <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
@@ -161,7 +146,7 @@ function ResumeDocument({ resume }) {
           </h3>
           <div className="space-y-3">
             {resume.portfolio.map((p) => (
-              <div key={p.id} data-pdf-avoid-break="true">
+              <div key={p.id}>
                 {p.title && <p className="text-[11.5px] font-semibold mb-1">{p.title}</p>}
                 <MediaPreview item={p} />
               </div>

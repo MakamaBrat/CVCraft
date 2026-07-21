@@ -37,28 +37,13 @@ export function VacancyDocument({ vacancy }) {
       }}
     >
       <div
-        data-pdf-avoid-break="true"
         className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
         style={{ borderBottom: `2px solid ${accent}` }}
       >
         <Avatar url={vacancy.avatarUrl} name={vacancy.company || vacancy.position} accent={accent} theme={theme} />
         <div className="min-w-0">
           <h2 className="text-lg font-bold leading-tight mb-1 truncate">{vacancy.position || t("vacancy.positionPlaceholder")}</h2>
-          <p
-            className="text-sm font-medium truncate"
-            style={{
-              color: accent,
-              ...(vacancy.backgroundUrl
-                ? {
-                    background: theme.id === "dark" ? "rgba(8,8,10,0.6)" : "rgba(255,255,255,0.75)",
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    padding: "1px 8px",
-                    borderRadius: "6px",
-                  }
-                : null),
-            }}
-          >
+          <p className="text-sm font-medium truncate" style={{ color: accent }}>
             {vacancy.company || t("vacancy.companyPlaceholder")}
           </p>
         </div>
@@ -74,7 +59,7 @@ export function VacancyDocument({ vacancy }) {
       </div>
 
       {vacancy.description && (
-        <section className="mb-4" data-pdf-avoid-break="true">
+        <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("vacancy.description")}
           </h3>
@@ -85,7 +70,7 @@ export function VacancyDocument({ vacancy }) {
       )}
 
       {vacancy.requirements && (
-        <section className="mb-4" data-pdf-avoid-break="true">
+        <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("vacancy.requirements")}
           </h3>
@@ -96,7 +81,7 @@ export function VacancyDocument({ vacancy }) {
       )}
 
       {vacancy.contact && (
-        <section className="mb-4" data-pdf-avoid-break="true">
+        <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("vacancy.contact")}
           </h3>
@@ -113,7 +98,7 @@ export function VacancyDocument({ vacancy }) {
           </h3>
           <div className="space-y-3">
             {vacancy.media.map((p) => (
-              <div key={p.id} data-pdf-avoid-break="true">
+              <div key={p.id}>
                 {p.title && <p className="text-[11.5px] font-semibold mb-1">{p.title}</p>}
                 <MediaPreview item={p} />
               </div>
