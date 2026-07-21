@@ -204,6 +204,35 @@ export default function App() {
     setLoadingPublicVacancies(false);
   };
 
+  // Автозбереження чернетки резюме просто в процесі заповнення: як тільки
+  // з'явився хоч якийсь вміст (навіть на першому кроці візарда) — за ~800мс
+  // тиші після останнього натискання клавіші чернетка йде на бекенд зі
+  // статусом "draft". Порівняння зі знімком lastSavedDraftRef захищає від
+  // зайвих POST-запитів, коли draft оновлюється сам собою після commitDraft
+  // (там міняється лише updatedAt).
+  //
+  // ВАЖЛИВО: цей ефект має бути оголошений ДО ранніх return нижче
+  // (sharedId / !checkedTelegram / !identity) — інакше кількість хуків, що
+  // викликаються за рендер, буде відрізнятись залежно від цих умов, що
+  // порушує Rules of Hooks і призводить до краху React ("Rendered fewer
+  // hooks than expected") — саме це й спричиняло чорний екран.
+  useEffect(() => {
+    if (route.screen !== "wizard" || !draft) return;
+    if (!isResumeDirty(draft)) return;
+
+    const { id, updatedAt, status, ...content } = draft;
+    const snapshot = JSON.stringify(content);
+    if (snapshot === lastSavedDraftRef.current) return;
+
+    draftSaveTimer.current = setTimeout(() => {
+      lastSavedDraftRef.current = snapshot;
+      commitDraft({ ...draft, status: draft.status === "complete" ? "complete" : "draft" });
+    }, 800);
+
+    return () => clearTimeout(draftSaveTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, route.screen]);
+
   if (sharedId) {
     const isVacancyShare = sharedId.startsWith("v_");
     const closeShared = () => {
@@ -338,29 +367,6 @@ export default function App() {
     lastSavedDraftRef.current = snapshot;
     await commitDraft({ ...draft, status: draft.status === "complete" ? "complete" : "draft" });
   };
-
-  // Автозбереження чернетки резюме просто в процесі заповнення: як тільки
-  // з'явився хоч якийсь вміст (навіть на першому кроці візарда) — за ~800мс
-  // тиші після останнього натискання клавіші чернетка йде на бекенд зі
-  // статусом "draft". Порівняння зі знімком lastSavedDraftRef захищає від
-  // зайвих POST-запитів, коли draft оновлюється сам собою після commitDraft
-  // (там міняється лише updatedAt).
-  useEffect(() => {
-    if (route.screen !== "wizard" || !draft) return;
-    if (!isResumeDirty(draft)) return;
-
-    const { id, updatedAt, status, ...content } = draft;
-    const snapshot = JSON.stringify(content);
-    if (snapshot === lastSavedDraftRef.current) return;
-
-    draftSaveTimer.current = setTimeout(() => {
-      lastSavedDraftRef.current = snapshot;
-      commitDraft({ ...draft, status: draft.status === "complete" ? "complete" : "draft" });
-    }, 800);
-
-    return () => clearTimeout(draftSaveTimer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, route.screen]);
 
   // Вихід із візарда резюме (кнопка "додому" або back на першому кроці) —
   // просто "домиває" будь-яке ще не збережене автозбереженням значення.
