@@ -42,7 +42,21 @@ function ResumeDocument({ resume }) {
         <Avatar url={resume.avatarUrl} name={resume.fullName} accent={accent} theme={theme} />
         <div className="min-w-0">
           <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || "Ваше ім'я"}</h2>
-          <p className="text-sm font-medium truncate" style={{ color: accent }}>
+          <p
+            className="text-sm font-medium truncate mt-1"
+            style={{
+              color: accent,
+              ...(resume.backgroundUrl
+                ? {
+                    background: theme.id === "dark" ? "rgba(8,8,10,0.6)" : "rgba(255,255,255,0.75)",
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    padding: "1px 8px",
+                    borderRadius: "6px",
+                  }
+                : null),
+            }}
+          >
             {resume.role || "Посада"}
           </p>
         </div>

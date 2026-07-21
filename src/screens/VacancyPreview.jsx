@@ -44,7 +44,21 @@ export function VacancyDocument({ vacancy }) {
         <Avatar url={vacancy.avatarUrl} name={vacancy.company || vacancy.position} accent={accent} theme={theme} />
         <div className="min-w-0">
           <h2 className="text-lg font-bold leading-tight mb-1 truncate">{vacancy.position || t("vacancy.positionPlaceholder")}</h2>
-          <p className="text-sm font-medium truncate" style={{ color: accent }}>
+          <p
+            className="text-sm font-medium truncate"
+            style={{
+              color: accent,
+              ...(vacancy.backgroundUrl
+                ? {
+                    background: theme.id === "dark" ? "rgba(8,8,10,0.6)" : "rgba(255,255,255,0.75)",
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    padding: "1px 8px",
+                    borderRadius: "6px",
+                  }
+                : null),
+            }}
+          >
             {vacancy.company || t("vacancy.companyPlaceholder")}
           </p>
         </div>
