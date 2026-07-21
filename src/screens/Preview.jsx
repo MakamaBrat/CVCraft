@@ -140,7 +140,7 @@ function ResumeDocument({ resume }) {
       )}
 
       {(resume.portfolio || []).length > 0 && (
-        <section className="print:hidden" data-pdf-hide="true">
+        <section>
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Портфоліо
           </h3>

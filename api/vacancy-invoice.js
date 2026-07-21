@@ -5,11 +5,11 @@ import { applyVacancyPayment } from "./_lib/applyVacancyPayment.js";
 
 // POST /api/vacancy-invoice
 // body: { id: vacancyId, kind: "listing" | "extend" | "top", weeks: number }
-//   weeks тут насправді — кількість періодів по 5 днів (назва поля збережена
-//   для сумісності з payload/DB, оплата рахується щоп'ять днів).
-//   listing — перша публікація на N періодів по 5 днів (тільки зі статусу approved)
-//   extend  — продовження звичайного розміщення ще на N періодів по 5 днів
-//   top     — купівля/продовження топ-розміщення ще на N періодів по 5 днів
+//   weeks — кількість тижневих періодів оплати (назва поля weeks збережена
+//   для сумісності з payload/DB, оплата рахується щотижня).
+//   listing — перша публікація на N тижнів (тільки зі статусу approved)
+//   extend  — продовження звичайного розміщення ще на N тижнів
+//   top     — купівля/продовження топ-розміщення ще на N тижнів
 //
 // Створює Telegram Stars invoice-link через Bot API (createInvoiceLink,
 // currency "XTR") і повертає його клієнту. Клієнт відкриває посилання
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
   };
   const title = titles[kind];
   const position = vacancy.data?.position || "Вакансія";
-  const weeksLabel = `${periodsCount * 5} дн.`;
+  const weeksLabel = periodsCount === 1 ? "1 тиждень" : `${periodsCount} тижні(в)`;
   const descriptions = {
     listing: `Публікація "${position}" на ${weeksLabel}`,
     extend: `Продовження показу "${position}" на ${weeksLabel}`,

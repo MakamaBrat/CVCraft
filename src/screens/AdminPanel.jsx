@@ -231,12 +231,12 @@ export default function AdminPanel({ onBack, adminId }) {
               <div className="flex flex-col gap-4">
                 <p className="text-xs text-white/45">
                   Ціни зберігаються в окремій таблиці pricing_settings у Supabase і застосовуються одразу до всіх
-                  нових оплат. Публікація рахується за кожні 5 днів показу, топ-розміщення — окрема доплата за кожні 5 днів
-                  перебування вакансії у топі списку.
+                  нових оплат. Публікація рахується за кожен тиждень показу, топ-розміщення — окрема доплата за кожен
+                  тиждень перебування вакансії у топі списку.
                 </p>
                 <div className="bg-base-850 border border-base-700 rounded-xl p-4 flex flex-col gap-3">
                   <label className="text-xs text-white/60">
-                    Розміщення, ⭐ за 5 днів
+                    Розміщення, ⭐ за тиждень
                     <input
                       type="number"
                       min="0"
@@ -250,7 +250,7 @@ export default function AdminPanel({ onBack, adminId }) {
                     />
                   </label>
                   <label className="text-xs text-white/60">
-                    Топ-сектор, ⭐ за 5 днів
+                    Топ-сектор, ⭐ за тиждень
                     <input
                       type="number"
                       min="0"
@@ -265,7 +265,7 @@ export default function AdminPanel({ onBack, adminId }) {
                   </label>
                   {pricing && (
                     <p className="text-[11px] text-white/35">
-                      Поточні збережені значення: {pricing.listingPrice} ⭐/5 днів розміщення, {pricing.topPrice} ⭐/5 днів
+                      Поточні збережені значення: {pricing.listingPrice} ⭐/тиждень розміщення, {pricing.topPrice} ⭐/тиждень
                       топ-сектору.
                     </p>
                   )}

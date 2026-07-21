@@ -92,7 +92,7 @@ export function VacancyDocument({ vacancy }) {
       )}
 
       {(vacancy.media || []).length > 0 && (
-        <section className="print:hidden" data-pdf-hide="true">
+        <section>
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             {t("vacancy.media")}
           </h3>
@@ -120,8 +120,8 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   // Ціни більше не беремо із замороженого значення в рядку вакансії —
   // тягнемо актуальні з /api/pricing (окрема таблиця pricing_settings у
   // Supabase), щоб зміна ціни в адмінці одразу відображалась тут.
-  // listingPrice — ⭐ за 1 період (5 днів) звичайного розміщення,
-  // topPrice — ⭐ за 1 період (5 днів) топ-розміщення (додатково).
+  // listingPrice — ⭐ за 1 період (1 тиждень) звичайного розміщення,
+  // topPrice — ⭐ за 1 період (1 тиждень) топ-розміщення (додатково).
   const [listingPrice, setListingPrice] = useState(500);
   const [topPrice, setTopPrice] = useState(5);
 

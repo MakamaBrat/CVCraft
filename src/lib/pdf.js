@@ -17,13 +17,21 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
   const node = document.getElementById(elementId);
   if (!node) throw new Error(`pdf_source_not_found:${elementId}`);
 
-  // Відео/гіфки не повинні потрапляти у PDF — так само, як раніше з
-  // window.print() + класом print:hidden. html2canvas не бачить @media
-  // print, тому ховаємо явно на час рендеру канваса.
+  // Відео/соцмережі/PDF/Figma всередині документа мають два DOM-варіанти:
+  // "живий" (iframe/фетчена картинка з чужого CORS) — ховаємо на час
+  // знімку, бо html2canvas не вміє знімати сторонні iframe (то порожнє
+  // місце, то взагалі SecurityError, що ламає весь PDF); і статичний
+  // "для PDF" (обкладинка/іконка + посилання) — показуємо натомість.
   const hideEls = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
   const prevDisplay = hideEls.map((el) => el.style.display);
   hideEls.forEach((el) => {
     el.style.display = "none";
+  });
+
+  const showEls = Array.from(node.querySelectorAll('[data-pdf-only="true"]'));
+  const prevShowDisplay = showEls.map((el) => el.style.display);
+  showEls.forEach((el) => {
+    el.style.display = "";
   });
 
   try {
@@ -73,6 +81,9 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
   } finally {
     hideEls.forEach((el, i) => {
       el.style.display = prevDisplay[i];
+    });
+    showEls.forEach((el, i) => {
+      el.style.display = prevShowDisplay[i];
     });
   }
 }

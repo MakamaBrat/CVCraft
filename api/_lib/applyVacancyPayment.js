@@ -1,6 +1,6 @@
 import { logDbError, logInfo } from "./respond.js";
 
-const PERIOD_DAYS = 5;
+const PERIOD_DAYS = 7;
 const PERIOD_MS = PERIOD_DAYS * 24 * 60 * 60 * 1000;
 
 // Спільна логіка застосування "оплати" (продовження expires_at/top_until,
@@ -10,7 +10,7 @@ const PERIOD_MS = PERIOD_DAYS * 24 * 60 * 60 * 1000;
 //
 // vacancy: { id, status, expires_at, top_until }
 // kind: "listing" | "extend" | "top"
-// periods: кількість періодів по 5 днів
+// periods: кількість періодів по 1 тижню
 // starsAmount: скільки ⭐ фактично списано (0 для безкоштовної видачі)
 // chargeId: telegram_payment_charge_id або null для безкоштовних видач
 export async function applyVacancyPayment(admin, { vacancy, kind, periods, telegramId, starsAmount, chargeId }) {

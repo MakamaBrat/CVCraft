@@ -529,19 +529,27 @@ function AppStoreCard({ type, url, title }) {
       className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline"
       style={{ background: meta.bg, color: meta.fg }}
     >
-      {!state.failed && state.image ? (
-        <img src={state.image} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 bg-white" />
-      ) : (
-        <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            {type === "googleplay" ? (
-              <path d="M4.5 3.5c-.3.3-.5.7-.5 1.2v14.6c0 .5.2.9.5 1.2l8.4-8.5L4.5 3.5zM14 12l2.4-2.4L6.1 3.7c-.3-.2-.7-.3-1-.2L14 12zm0 0l-8.9 8.5c.3.1.7 0 1-.2l10.3-5.9L14 12zm3.4-3.4L15 12l2.4 3.4 3-1.7c.8-.5.8-1.7 0-2.1l-3-1.7z" />
-            ) : (
-              <path d="M16.5 1.5c.1 1.1-.3 2.2-1 3-.7.8-1.9 1.5-3 1.4-.1-1.1.4-2.2 1-3 .8-.9 2-1.5 3-1.4zm3.4 15.9c-.5 1.1-.7 1.6-1.3 2.6-.9 1.4-2.2 3.1-3.7 3.1-1.4 0-1.7-.9-3.6-.9-1.9 0-2.3.9-3.6.9-1.5 0-2.7-1.6-3.6-3-2.5-3.8-2.8-8.3-1.2-10.7 1.1-1.7 2.9-2.7 4.5-2.7 1.7 0 2.7 1 4.1 1s2.2-1 4.1-.9c1.4.1 2.9.6 3.9 2-2.4 1.5-2.1 5.1.4 6.9-.4 1-.6 1.4-1 1.7z" />
-            )}
-          </svg>
-        </div>
+      {!state.failed && state.image && (
+        <img
+          src={state.image}
+          alt=""
+          data-pdf-hide="true"
+          className="w-11 h-11 rounded-xl object-cover shrink-0 bg-white"
+        />
       )}
+      <div
+        className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0"
+        style={!state.failed && state.image ? { display: "none" } : undefined}
+        data-pdf-only={!state.failed && state.image ? "true" : undefined}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          {type === "googleplay" ? (
+            <path d="M4.5 3.5c-.3.3-.5.7-.5 1.2v14.6c0 .5.2.9.5 1.2l8.4-8.5L4.5 3.5zM14 12l2.4-2.4L6.1 3.7c-.3-.2-.7-.3-1-.2L14 12zm0 0l-8.9 8.5c.3.1.7 0 1-.2l10.3-5.9L14 12zm3.4-3.4L15 12l2.4 3.4 3-1.7c.8-.5.8-1.7 0-2.1l-3-1.7z" />
+          ) : (
+            <path d="M16.5 1.5c.1 1.1-.3 2.2-1 3-.7.8-1.9 1.5-3 1.4-.1-1.1.4-2.2 1-3 .8-.9 2-1.5 3-1.4zm3.4 15.9c-.5 1.1-.7 1.6-1.3 2.6-.9 1.4-2.2 3.1-3.7 3.1-1.4 0-1.7-.9-3.6-.9-1.9 0-2.3.9-3.6.9-1.5 0-2.7-1.6-3.6-3-2.5-3.8-2.8-8.3-1.2-10.7 1.1-1.7 2.9-2.7 4.5-2.7 1.7 0 2.7 1 4.1 1s2.2-1 4.1-.9c1.4.1 2.9.6 3.9 2-2.4 1.5-2.1 5.1.4 6.9-.4 1-.6 1.4-1 1.7z" />
+          )}
+        </svg>
+      </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate">{title || state.title || meta.label}</p>
         <p className="text-xs opacity-80">{meta.label}</p>
@@ -553,43 +561,111 @@ function AppStoreCard({ type, url, title }) {
   );
 }
 
+function youtubeThumb(id) {
+  return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+}
+function vimeoThumb(id) {
+  // Публічний безкоштовний проксі-сервіс для обкладинок Vimeo за ID
+  // відео без потреби ходити в oEmbed API з бекенду.
+  return `https://vumbnail.com/${id}.jpg`;
+}
+
+// Живі iframe (YouTube/Vimeo/Figma/PDF-перегляд) чудово працюють у
+// звичайному перегляді, але html2canvas (наш генератор PDF) не вміє їх
+// знімати — сторонній iframe або лишає порожнє місце, або взагалі кидає
+// помилку (SecurityError) і ламає весь PDF. Тому для таких елементів
+// рендеримо ОДРАЗУ два варіанти в DOM: "живий" (iframe) і статичний
+// "для PDF" (картинка-прев'ю + посилання). pdf.js на час знімку міняє їх
+// видимість місцями через ці атрибути.
+function PdfSwap({ live, fallback }) {
+  return (
+    <>
+      <div data-pdf-hide="true">{live}</div>
+      <div data-pdf-only="true" style={{ display: "none" }}>
+        {fallback}
+      </div>
+    </>
+  );
+}
+
+function LinkCaption({ url }) {
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="text-[11px] text-accent-300 underline break-all mt-1 block">
+      {url}
+    </a>
+  );
+}
+
+// Статична картка-заглушка для відео (YouTube/Vimeo) у PDF: обкладинка
+// відео + кнопка Play поверх + посилання під картинкою.
+function VideoPdfCard({ thumbUrl, url }) {
+  return (
+    <div>
+      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+        {thumbUrl && <img src={thumbUrl} alt="" className="w-full h-full object-cover" />}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full bg-black/60 flex items-center justify-center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+      <LinkCaption url={url} />
+    </div>
+  );
+}
+
 export function MediaPreview({ item }) {
   const type = item.type || detectMediaType(item.url);
   if (type === "youtube") {
     const id = youtubeId(item.url);
     if (!id) return null;
     return (
-      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
-        <iframe
-          src={`https://www.youtube.com/embed/${id}`}
-          title={item.title || "video"}
-          className="absolute inset-0 w-full h-full"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
+      <PdfSwap
+        live={
+          <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${id}`}
+              title={item.title || "video"}
+              className="absolute inset-0 w-full h-full"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        }
+        fallback={<VideoPdfCard thumbUrl={youtubeThumb(id)} url={item.url} />}
+      />
     );
   }
   if (type === "vimeo") {
     const id = vimeoId(item.url);
     if (!id) return null;
     return (
-      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
-        <iframe
-          src={`https://player.vimeo.com/video/${id}`}
-          title={item.title || "video"}
-          className="absolute inset-0 w-full h-full"
-          frameBorder="0"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
+      <PdfSwap
+        live={
+          <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+            <iframe
+              src={`https://player.vimeo.com/video/${id}`}
+              title={item.title || "video"}
+              className="absolute inset-0 w-full h-full"
+              frameBorder="0"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        }
+        fallback={<VideoPdfCard thumbUrl={vimeoThumb(id)} url={item.url} />}
+      />
     );
   }
   if (type === "video") {
     return (
-      <video src={item.url} controls className="w-full rounded-lg bg-black" style={{ maxHeight: 220 }} />
+      <PdfSwap
+        live={<video src={item.url} controls crossOrigin="anonymous" className="w-full rounded-lg bg-black" style={{ maxHeight: 220 }} />}
+        fallback={<VideoPdfCard thumbUrl={null} url={item.url} />}
+      />
     );
   }
   if (type === "gif") {
@@ -597,11 +673,28 @@ export function MediaPreview({ item }) {
   }
   if (type === "pdf") {
     return (
-      <iframe
-        src={item.url}
-        title={item.title || "pdf"}
-        className="w-full rounded-lg bg-white"
-        style={{ height: 400 }}
+      <PdfSwap
+        live={
+          <iframe
+            src={item.url}
+            title={item.title || "pdf"}
+            className="w-full rounded-lg bg-white"
+            style={{ height: 400 }}
+          />
+        }
+        fallback={
+          <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700">
+            <div className="w-11 h-11 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#ef4444">
+                <path d="M6 2h9l5 5v15a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm8 1.5V8h4.5L14 3.5z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{item.title || "PDF"}</p>
+              <LinkCaption url={item.url} />
+            </div>
+          </div>
+        }
       />
     );
   }
@@ -613,12 +706,27 @@ export function MediaPreview({ item }) {
   }
   if (type === "figma") {
     return (
-      <iframe
-        src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(item.url)}`}
-        title={item.title || "figma"}
-        className="w-full rounded-lg bg-white"
-        style={{ height: 360, border: 0 }}
-        allowFullScreen
+      <PdfSwap
+        live={
+          <iframe
+            src={`https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(item.url)}`}
+            title={item.title || "figma"}
+            className="w-full rounded-lg bg-white"
+            style={{ height: 360, border: 0 }}
+            allowFullScreen
+          />
+        }
+        fallback={
+          <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "#1e1e1e", color: "#ffffff" }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
+              <path d="M8 24a4 4 0 004-4v-4H8a4 4 0 000 8zM4 12a4 4 0 014-4h4v8H8a4 4 0 01-4-4zm0-8a4 4 0 014-4h4v8H8a4 4 0 01-4-4zm9-4h4a4 4 0 010 8h-4V0zm4 12a4 4 0 11-4 4v-4h4z" />
+            </svg>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{item.title || "Figma"}</p>
+              <LinkCaption url={item.url} />
+            </div>
+          </div>
+        }
       />
     );
   }
