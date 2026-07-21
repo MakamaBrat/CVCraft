@@ -250,6 +250,13 @@ async function renderElementToHtml(element, fileNameBase, docTitle) {
   // напис "Завантажити в Google Play/App Store" під іконкою) — в статичному
   // файлі виглядають зайвими, Wizard.jsx позначає їх data-pdf-export-hide.
   clone.querySelectorAll("[data-pdf-export-hide]").forEach((el) => el.remove());
+  // Деякі елементи в живому застосунку дублюють підпис (напр. назва
+  // застосунку над кнопкою "Завантажити в Google Play") — у статичному
+  // файлі показуємо замість цього короткий однаковий підпис.
+  clone.querySelectorAll("[data-pdf-export-text]").forEach((el) => {
+    el.textContent = el.getAttribute("data-pdf-export-text");
+    el.removeAttribute("data-pdf-export-text");
+  });
   clone.removeAttribute("id");
 
   // Робимо картинки (аватар, фон, GIF-и портфоліо, прев'ю сайтів) незалежними
