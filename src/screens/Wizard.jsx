@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "../lib/api.js";
 import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
-import { confirmDialog } from "../lib/telegram.js";
+import { confirmDialog, getTelegramWebApp } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 6;
 const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
@@ -280,6 +280,7 @@ function EducationStep({ draft, set }) {
 export function detectMediaType(url) {
   if (!url) return null;
   const u = url.trim();
+  if (/\.(png|jpe?g|webp|svg)(\?.*)?$/i.test(u)) return "image";
   if (/\.(gif)(\?.*)?$/i.test(u)) return "gif";
   if (/giphy\.com\/(gifs|embed)\//i.test(u)) return "gif";
   if (/\.(pdf)(\?.*)?$/i.test(u)) return "pdf";
@@ -457,7 +458,7 @@ function SocialButton({ type, url, title }) {
   const s = SOCIAL_STYLES[type];
   if (!s) return null;
   return (
-    <a
+    
       href={url}
       target="_blank"
       rel="noreferrer"
@@ -522,7 +523,7 @@ function AppStoreCard({ type, url, title }) {
   }
 
   return (
-    <a
+    
       href={url}
       target="_blank"
       rel="noreferrer"
@@ -617,6 +618,77 @@ function VideoPdfCard({ thumbUrl, url }) {
   );
 }
 
+function WebsiteCard({ url, title }) {
+  const [state, setState] = useState({ loading: true, title: null, image: null, failed: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true, title: null, image: null, failed: false });
+    apiFetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+      .then((data) => {
+        if (cancelled) return;
+        setState({ loading: false, title: data?.title || null, image: data?.image || null, failed: false });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setState({ loading: false, title: null, image: null, failed: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  const openSite = () => {
+    const tg = getTelegramWebApp();
+    if (tg?.openLink) tg.openLink(url);
+    else window.open(url, "_blank");
+  };
+
+  let hostname = url;
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    // залишаємо url як є, якщо не спарсився
+  }
+
+  if (state.loading) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700 animate-pulse">
+        <div className="w-11 h-11 rounded-xl bg-base-700 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="h-3 bg-base-700 rounded w-3/4 mb-2" />
+          <div className="h-2.5 bg-base-700 rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={openSite}
+      className="tap w-full flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700 text-left"
+    >
+      {!state.failed && state.image ? (
+        <img src={state.image} alt="" crossOrigin="anonymous" className="w-11 h-11 rounded-xl object-cover shrink-0" />
+      ) : (
+        <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z" />
+          </svg>
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold truncate text-white/90">{title || state.title || hostname}</p>
+        <p className="text-xs text-white/40 truncate">{hostname}</p>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0 text-white/40">
+        <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
 export function MediaPreview({ item }) {
   const type = item.type || detectMediaType(item.url);
   if (type === "youtube") {
@@ -672,6 +744,9 @@ export function MediaPreview({ item }) {
   if (type === "gif") {
     return <img src={normalizeMediaUrl(item.url)} alt={item.title || "gif"} className="w-full rounded-lg object-cover" style={{ maxHeight: 220 }} />;
   }
+  if (type === "image") {
+    return <img src={normalizeMediaUrl(item.url)} alt={item.title || "image"} className="w-full rounded-lg object-cover" style={{ maxHeight: 320 }} />;
+  }
   if (type === "pdf") {
     return (
       <PdfSwap
@@ -699,8 +774,26 @@ export function MediaPreview({ item }) {
       />
     );
   }
-  if (type === "tiktok" || type === "instagram" || type === "threads" || type === "telegram" || type === "olx" || type === "viber" || type === "whatsapp" || type === "map" || type === "gdoc") {
+  if (type === "tiktok" || type === "instagram" || type === "threads" || type === "telegram" || type === "olx" || type === "viber" || type === "whatsapp" || type === "map") {
     return <SocialButton type={type} url={item.url} title={item.title} />;
+  }
+  if (type === "gdoc") {
+    const docIdMatch = item.url.match(/document\/d\/([a-zA-Z0-9_-]+)/);
+    const docId = docIdMatch ? docIdMatch[1] : null;
+    if (!docId) return <SocialButton type="gdoc" url={item.url} title={item.title} />;
+    return (
+      <PdfSwap
+        live={
+          <iframe
+            src={`https://docs.google.com/document/d/${docId}/preview`}
+            title={item.title || "Google Doc"}
+            className="w-full rounded-lg bg-white"
+            style={{ height: 400, border: 0 }}
+          />
+        }
+        fallback={<SocialButton type="gdoc" url={item.url} title={item.title} />}
+      />
+    );
   }
   if (type === "googleplay" || type === "appstore") {
     return <AppStoreCard type={type} url={item.url} title={item.title} />;
@@ -731,11 +824,7 @@ export function MediaPreview({ item }) {
       />
     );
   }
-  return (
-    <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
-      {item.url}
-    </a>
-  );
+  return <WebsiteCard url={item.url} title={item.title} />;
 }
 
 function SkillsStep({ draft, set }) {
