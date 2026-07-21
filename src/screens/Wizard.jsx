@@ -698,7 +698,7 @@ function WebsiteFrame({ url, title }) {
         src={url}
         title={title || hostname}
         className="w-full bg-white"
-        style={{ height: 360, border: 0 }}
+        style={{ height: 220, border: 0 }}
         sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
         loading="lazy"
       />
