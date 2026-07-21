@@ -59,4 +59,11 @@ export function initTelegramApp() {
   } catch {
     // older clients may not support these calls
   }
+  try {
+    if (tg.disableVerticalSwipes) {
+      tg.disableVerticalSwipes();
+    }
+  } catch {
+    // older clients may not support this call
+  }
 }
