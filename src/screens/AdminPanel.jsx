@@ -3,9 +3,20 @@ import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { vacancyFromRow, VACANCY_STATUS } from "../lib/vacancy.js";
 import { VacancyDocument } from "./VacancyPreview.jsx";
+import { MediaPreview } from "./Wizard.jsx";
+import Avatar from "../components/Avatar.jsx";
+import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { confirmDialog } from "../lib/telegram.js";
 
-const TABS = ["stats", "moderation", "vacancies", "reports", "applications", "users", "pricing"];
+const TABS = [
+  { id: "stats", label: "Статистика" },
+  { id: "moderation", label: "Модерація" },
+  { id: "vacancies", label: "Всі вакансії" },
+  { id: "reports", label: "Скарги" },
+  { id: "applications", label: "Відгуки" },
+  { id: "users", label: "Користувачі" },
+  { id: "pricing", label: "Ціни" },
+];
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -16,6 +27,8 @@ const STATUS_COLOR = {
   [VACANCY_STATUS.PAUSED]: "text-white/45",
 };
 
+const ACCENTS = { minimal: "#4b5563", modern: "#6c5ce7", bold: "#ff7a59", classic: "#2f6fb0" };
+
 function fmtDate(ts) {
   if (!ts) return "—";
   try {
@@ -25,7 +38,16 @@ function fmtDate(ts) {
   }
 }
 
-// ---------- Reusable bits ----------
+function vacancyDocFromRaw(raw) {
+  if (!raw) return null;
+  try {
+    return vacancyFromRow(raw);
+  } catch {
+    return { id: raw.id, status: raw.status, ...(raw.data || {}) };
+  }
+}
+
+// ---------- Small building blocks ----------
 
 function StatCard({ label, value, accent }) {
   return (
@@ -46,7 +68,19 @@ function Row({ label, value }) {
   );
 }
 
-// Bottom-sheet wrapper used everywhere in this file for consistency.
+function LinkChip({ onClick, icon = "👤", children }) {
+  if (!onClick) return null;
+  return (
+    <button
+      onClick={onClick}
+      className="tap inline-flex items-center gap-1 text-[11px] font-medium text-accent-300 bg-accent-500/10 border border-accent-500/25 rounded-full px-2.5 py-1"
+    >
+      <span>{icon}</span> {children}
+    </button>
+  );
+}
+
+// Bottom-sheet wrapper used everywhere for consistency.
 function Sheet({ onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -61,21 +95,227 @@ function Sheet({ onClose, children, wide }) {
   );
 }
 
+function BarRow({ label, value, max, color }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div className="mb-2.5 last:mb-0">
+      <div className="flex items-center justify-between text-[11px] text-white/55 mb-1">
+        <span className="truncate">{label}</span>
+        <span className="text-white/85 font-semibold shrink-0 ml-2">{value}</span>
+      </div>
+      <div className="h-2 rounded-full bg-base-800 overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function BarChart({ title, data, color = "#6c5ce7" }) {
+  const max = Math.max(1, ...data.map((d) => d.value || 0));
+  return (
+    <div className="bg-base-850 border border-base-700 rounded-xl p-4">
+      <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">{title}</p>
+      {data.map((d) => (
+        <BarRow key={d.label} label={d.label} value={d.value || 0} max={max} color={d.color || color} />
+      ))}
+    </div>
+  );
+}
+
+// Sparkline/trend chart for time-series data (expects [{label, value}]).
+function TrendChart({ title, points, color = "#22c55e" }) {
+  if (!points || points.length < 2) return null;
+  const w = 300;
+  const h = 76;
+  const pad = 8;
+  const values = points.map((p) => p.value || 0);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const stepX = (w - pad * 2) / (points.length - 1);
+  const coords = points.map((p, i) => {
+    const x = pad + i * stepX;
+    const y = h - pad - ((p.value - min) / range) * (h - pad * 2);
+    return [x, y];
+  });
+  const linePath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c[0]},${c[1]}`).join(" ");
+  const areaPath = `${linePath} L${coords[coords.length - 1][0]},${h - pad} L${coords[0][0]},${h - pad} Z`;
+  return (
+    <div className="bg-base-850 border border-base-700 rounded-xl p-4">
+      <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">{title}</p>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
+        <path d={areaPath} fill={color} opacity="0.14" />
+        <path d={linePath} fill="none" stroke={color} strokeWidth="2" />
+        {coords.map((c, i) => (
+          <circle key={i} cx={c[0]} cy={c[1]} r="2.4" fill={color} />
+        ))}
+      </svg>
+      <div className="flex justify-between mt-1 text-[10px] text-white/35">
+        <span>{points[0].label}</span>
+        <span>{points[points.length - 1].label}</span>
+      </div>
+    </div>
+  );
+}
+
+// Full resume document renderer (mirrors the markup used in VacancyApplicants' applicant detail).
+function ResumeDoc({ resume }) {
+  if (!resume) return <p className="text-sm text-white/40 text-center py-10">Резюме недоступне</p>;
+  const accent = ACCENTS[resume.template] || ACCENTS.minimal;
+  const theme = getColorTheme(resume.colorScheme);
+  const align = getAlign(resume.align);
+  const isCenter = align === "center";
+  return (
+    <div
+      className="rounded-xl shadow-xl mx-auto"
+      style={{
+        width: "100%",
+        maxWidth: 400,
+        padding: "28px 24px",
+        fontFamily: "Manrope, sans-serif",
+        ...getDocBackgroundStyle(theme, resume.backgroundUrl),
+        color: theme.text,
+        textAlign: align,
+      }}
+    >
+      <div
+        className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
+        style={{ borderBottom: `2px solid ${accent}` }}
+      >
+        <Avatar url={resume.avatarUrl} name={resume.fullName} accent={accent} theme={theme} />
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || "—"}</h2>
+          <p className="text-sm font-medium truncate" style={{ color: accent }}>
+            {resume.role}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className={`flex flex-wrap gap-x-4 gap-y-1 text-[11px] mb-4 ${isCenter ? "justify-center" : ""}`}
+        style={{ color: theme.textMed }}
+      >
+        {resume.email && <span>{resume.email}</span>}
+        {resume.phone && <span>{resume.phone}</span>}
+        {resume.city && <span>{resume.city}</span>}
+      </div>
+
+      {resume.summary && (
+        <section className="mb-4">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
+            Про мене
+          </h3>
+          <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
+            {resume.summary}
+          </p>
+        </section>
+      )}
+
+      {(resume.experience || []).length > 0 && (
+        <section className="mb-4">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+            Досвід роботи
+          </h3>
+          <div className="space-y-3">
+            {resume.experience.map((e) => (
+              <div key={e.id}>
+                <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
+                  <p className="text-[12.5px] font-semibold">{e.position}</p>
+                  <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
+                    {e.period}
+                  </p>
+                </div>
+                <p className="text-[11px] mb-1" style={{ color: theme.textMed }}>
+                  {e.company}
+                </p>
+                {e.description && (
+                  <p className="text-[11.5px] leading-relaxed" style={{ color: theme.text, opacity: 0.78 }}>
+                    {e.description}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(resume.education || []).length > 0 && (
+        <section className="mb-4">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+            Освіта
+          </h3>
+          <div className="space-y-2">
+            {resume.education.map((e) => (
+              <div key={e.id}>
+                <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
+                  <p className="text-[12.5px] font-semibold">{e.school}</p>
+                  <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
+                    {e.period}
+                  </p>
+                </div>
+                {e.degree && (
+                  <p className="text-[11px]" style={{ color: theme.textMed }}>
+                    {e.degree}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(resume.skills || []).length > 0 && (
+        <section className="mb-4">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+            Навички
+          </h3>
+          <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
+            {resume.skills.map((s) => (
+              <span
+                key={s}
+                className="text-[10.5px] font-medium rounded-full px-2.5 py-1"
+                style={{ background: `${accent}${theme.chipAlpha}`, color: accent }}
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(resume.portfolio || []).length > 0 && (
+        <section>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+            Портфоліо
+          </h3>
+          <div className="space-y-3">
+            {resume.portfolio.map((p) => (
+              <div key={p.id}>
+                {p.title && <p className="text-[11.5px] font-semibold mb-1">{p.title}</p>}
+                <MediaPreview item={p} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPanel({ onBack, adminId }) {
   const { t } = useLanguage();
   const [tab, setTab] = useState("stats");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
-  const [pending, setPending] = useState([]);
+  const [pending, setPending] = useState([]); // [{ v, row }]
   const [applications, setApplications] = useState([]);
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
-  const [allVacancies, setAllVacancies] = useState([]);
+  const [allVacancies, setAllVacancies] = useState([]); // [{ v, row }]
   const [resolvingReportId, setResolvingReportId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [previewVacancy, setPreviewVacancy] = useState(null);
-  const [previewMode, setPreviewMode] = useState(null); // "moderation" | "view"
+  const [preview, setPreview] = useState(null); // { type: 'vacancy'|'resume', data, row, mode }
   const [pricing, setPricing] = useState(null);
   const [pricingForm, setPricingForm] = useState({ listingPrice: "", topPrice: "" });
   const [savingPricing, setSavingPricing] = useState(false);
@@ -96,12 +336,12 @@ export default function AdminPanel({ onBack, adminId }) {
           apiFetch("/api/admin?action=users"),
           apiFetch("/api/admin?action=pricing"),
           apiFetch("/api/admin?action=reports&status=open"),
-          // NEW: backend action expected to return { vacancies: [...] } — every vacancy
-          // row (any status), enough fields to search/filter/delete/preview them here.
+          // NEW backend action: returns { vacancies: [rawRow, ...] } — every vacancy row
+          // of any status, each row keeping telegram_id/telegram_username/views_count.
           apiFetch("/api/admin?action=allVacancies").catch(() => ({ vacancies: [] })),
         ]);
       setStats(statsRes);
-      setPending((moderationRes?.vacancies || []).map(vacancyFromRow));
+      setPending((moderationRes?.vacancies || []).map((row) => ({ row, v: vacancyFromRow(row) })));
       setApplications(applicationsRes?.applications || []);
       setUsers(usersRes?.users || []);
       setPricing(pricingRes);
@@ -127,7 +367,7 @@ export default function AdminPanel({ onBack, adminId }) {
     setActionError(null);
     try {
       await apiFetch("/api/admin", { method: "POST", body: { action: "moderate", id, decision: "approve" } });
-      setPending((prev) => prev.filter((v) => v.id !== id));
+      setPending((prev) => prev.filter((x) => x.v.id !== id));
       setAllVacancies((prev) =>
         prev.map((x) => (x.v.id === id ? { ...x, v: { ...x.v, status: VACANCY_STATUS.APPROVED } } : x))
       );
@@ -143,7 +383,7 @@ export default function AdminPanel({ onBack, adminId }) {
         method: "POST",
         body: { action: "moderate", id, decision: "reject", rejectReason: rejectReason || null },
       });
-      setPending((prev) => prev.filter((v) => v.id !== id));
+      setPending((prev) => prev.filter((x) => x.v.id !== id));
       setAllVacancies((prev) =>
         prev.map((x) => (x.v.id === id ? { ...x, v: { ...x.v, status: VACANCY_STATUS.REJECTED } } : x))
       );
@@ -159,11 +399,11 @@ export default function AdminPanel({ onBack, adminId }) {
     setActionError(null);
     setDeletingId(id);
     try {
-      // NEW: backend action expected — hard/soft-deletes the vacancy row.
+      // NEW backend action: hard/soft-deletes the vacancy row.
       await apiFetch("/api/admin", { method: "POST", body: { action: "deleteVacancy", id } });
       setAllVacancies((prev) => prev.filter((x) => x.v.id !== id));
-      setPending((prev) => prev.filter((v) => v.id !== id));
-      setPreviewVacancy(null);
+      setPending((prev) => prev.filter((x) => x.v.id !== id));
+      setPreview(null);
     } catch (err) {
       setActionError(`Помилка видалення: ${err?.payload?.error || err.message}`);
     }
@@ -224,6 +464,19 @@ export default function AdminPanel({ onBack, adminId }) {
     setSavingPricing(false);
   };
 
+  // ---------- Navigation helpers ----------
+
+  const openVacancyPreview = (v, row, mode) => setPreview({ type: "vacancy", data: v, row, mode });
+  const openResumePreview = (resume, mode = "plain") => setPreview({ type: "resume", data: resume, mode });
+
+  // Opens the user sheet, preferring the full record from `users` (loaded once)
+  // and falling back to whatever partial info the report/vacancy row carried.
+  const openUserById = (telegramId, partial) => {
+    if (!telegramId) return;
+    const full = users.find((u) => String(u.telegram_id) === String(telegramId));
+    setActiveUser(full || { telegram_id: telegramId, ...partial });
+  };
+
   // ---------- Derived data ----------
 
   const vacancyStatusCounts = useMemo(() => {
@@ -259,7 +512,6 @@ export default function AdminPanel({ onBack, adminId }) {
     });
   }, [allVacancies, vacancySearch, vacancyStatusFilter]);
 
-  // vacancies/applications belonging to whichever user is open in the detail sheet
   const activeUserVacancies = useMemo(() => {
     if (!activeUser) return [];
     return allVacancies.filter(({ row }) => String(row?.telegram_id) === String(activeUser.telegram_id));
@@ -270,7 +522,23 @@ export default function AdminPanel({ onBack, adminId }) {
     return applications.filter((a) => String(a.telegram_id) === String(activeUser.telegram_id));
   }, [activeUser, applications]);
 
-  const filteredUsers = useMemo(() => users, [users]);
+  const vacancyStatusChartData = useMemo(
+    () =>
+      Object.values(VACANCY_STATUS).map((s) => ({
+        label: t(`vacancy.status.${s}`),
+        value: vacancyStatusCounts[s] || 0,
+        color: STATUS_COLOR[s]?.includes("emerald")
+          ? "#34d399"
+          : STATUS_COLOR[s]?.includes("amber")
+          ? "#fbbf24"
+          : STATUS_COLOR[s]?.includes("red")
+          ? "#f87171"
+          : STATUS_COLOR[s]?.includes("sky")
+          ? "#38bdf8"
+          : "#6b7280",
+      })),
+    [vacancyStatusCounts, t]
+  );
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -283,18 +551,17 @@ export default function AdminPanel({ onBack, adminId }) {
         <h1 className="text-lg font-bold">{t("admin.title")}</h1>
       </div>
 
-      <div className="px-6 pb-3 flex gap-2 overflow-x-auto">
+      {/* No-scroll tab menu: wraps onto multiple lines instead of horizontal scrolling */}
+      <div className="px-6 pb-3 flex flex-wrap gap-2">
         {TABS.map((tb) => (
           <button
-            key={tb}
-            onClick={() => setTab(tb)}
-            className={`tap shrink-0 text-xs font-medium rounded-full px-3.5 py-1.5 border ${
-              tab === tb ? "bg-accent-500 border-accent-500 text-base-950" : "border-base-700 text-white/60"
+            key={tb.id}
+            onClick={() => setTab(tb.id)}
+            className={`tap text-xs font-medium rounded-full px-3.5 py-1.5 border ${
+              tab === tb.id ? "bg-accent-500 border-accent-500 text-base-950" : "border-base-700 text-white/60"
             }`}
           >
-            {tb === "vacancies"
-              ? "Всі вакансії"
-              : t(`admin.${tb === "moderation" ? "moderationQueue" : tb}`)}
+            {tb.label}
           </button>
         ))}
       </div>
@@ -314,7 +581,7 @@ export default function AdminPanel({ onBack, adminId }) {
         ) : (
           <>
             {tab === "stats" && stats && (
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
                   <StatCard label={t("admin.usersToday")} value={stats.usersToday} />
                   <StatCard label={t("admin.activeToday")} value={stats.activeToday} accent="text-emerald-400" />
@@ -322,35 +589,38 @@ export default function AdminPanel({ onBack, adminId }) {
                   <StatCard label="Забанено" value={users.filter((u) => u.is_banned).length} accent="text-red-400" />
                 </div>
 
-                <div>
-                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">Активність</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatCard label={stats.activeThisWeek !== undefined ? "Активні за 7д" : t("admin.activeToday")} value={stats.activeThisWeek ?? stats.activeToday} />
-                    <StatCard label="Нових за 7д" value={stats.newUsersThisWeek ?? "—"} />
-                    <StatCard label="Відгуків всього" value={applications.length} />
-                    <StatCard label="Відгуків за 7д" value={stats.applicationsThisWeek ?? "—"} />
-                  </div>
-                </div>
+                {stats.activitySeries?.length > 1 ? (
+                  <TrendChart title="Активні користувачі за період" points={stats.activitySeries} color="#22c55e" />
+                ) : (
+                  <BarChart
+                    title="Активність (без часового ряду з бекенду)"
+                    color="#22c55e"
+                    data={[
+                      { label: "Сьогодні активні", value: stats.activeToday || 0 },
+                      { label: "Нові сьогодні", value: stats.usersToday || 0 },
+                      { label: "Всього юзерів", value: stats.totalUsers || 0 },
+                    ]}
+                  />
+                )}
 
-                <div>
-                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">Вакансії</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatCard label={t("admin.totalVacancies")} value={stats.totalVacancies ?? allVacancies.length} />
-                    <StatCard label={t("admin.pendingModeration")} value={stats.pendingCount} accent="text-amber-400" />
-                    <StatCard label="Активні" value={vacancyStatusCounts[VACANCY_STATUS.ACTIVE] || 0} accent="text-emerald-400" />
-                    <StatCard label="На паузі" value={vacancyStatusCounts[VACANCY_STATUS.PAUSED] || 0} />
-                    <StatCard label="Відхилені" value={vacancyStatusCounts[VACANCY_STATUS.REJECTED] || 0} accent="text-red-400" />
-                    <StatCard label="Чернетки" value={vacancyStatusCounts[VACANCY_STATUS.DRAFT] || 0} />
-                  </div>
-                </div>
+                {stats.newUsersSeries?.length > 1 && (
+                  <TrendChart title="Нові користувачі за період" points={stats.newUsersSeries} color="#38bdf8" />
+                )}
 
-                <div>
-                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">Скарги</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatCard label={t("admin.pendingReports")} value={stats.pendingReportsCount} accent="text-amber-400" />
-                    <StatCard label="Оброблено всього" value={stats.resolvedReportsCount ?? "—"} />
-                  </div>
-                </div>
+                {stats.applicationsSeries?.length > 1 && (
+                  <TrendChart title="Відгуки на вакансії за період" points={stats.applicationsSeries} color="#f59e0b" />
+                )}
+
+                <BarChart title="Вакансії за статусом" data={vacancyStatusChartData} />
+
+                <BarChart
+                  title="Скарги"
+                  color="#f87171"
+                  data={[
+                    { label: "В очікуванні", value: stats.pendingReportsCount || 0 },
+                    { label: "Оброблено всього", value: stats.resolvedReportsCount || 0 },
+                  ]}
+                />
 
                 {allVacancies.length > 0 && (
                   <div>
@@ -362,10 +632,7 @@ export default function AdminPanel({ onBack, adminId }) {
                         .map(({ v, row }) => (
                           <button
                             key={v.id}
-                            onClick={() => {
-                              setPreviewVacancy(v);
-                              setPreviewMode("view");
-                            }}
+                            onClick={() => openVacancyPreview(v, row, "view")}
                             className="tap flex items-center justify-between gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-2.5 text-left"
                           >
                             <div className="min-w-0">
@@ -380,22 +647,31 @@ export default function AdminPanel({ onBack, adminId }) {
                     </div>
                   </div>
                 )}
+
+                {!stats.activitySeries && (
+                  <p className="text-[11px] text-white/30">
+                    Для повноцінних графіків активності додай на бекенді у action=stats поля
+                    activitySeries / newUsersSeries / applicationsSeries — масиви {"{"}label, value{"}"} по днях.
+                  </p>
+                )}
               </div>
             )}
 
             {tab === "moderation" && (
               <div className="flex flex-col gap-3">
                 {pending.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noPending")}</p>}
-                {pending.map((v) => (
+                {pending.map(({ v, row }) => (
                   <div key={v.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
-                    <p className="font-semibold text-sm">{v.position}</p>
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="font-semibold text-sm">{v.position}</p>
+                      <LinkChip onClick={() => openUserById(row?.telegram_id, { telegram_username: row?.telegram_username })}>
+                        {row?.telegram_username ? `@${row.telegram_username}` : row?.telegram_id}
+                      </LinkChip>
+                    </div>
                     <p className="text-xs text-white/50 mb-2">{v.company} · {v.city}</p>
                     <p className="text-xs text-white/70 whitespace-pre-line mb-3 line-clamp-4">{v.description}</p>
                     <button
-                      onClick={() => {
-                        setPreviewVacancy(v);
-                        setPreviewMode("moderation");
-                      }}
+                      onClick={() => openVacancyPreview(v, row, "moderation")}
                       className="tap w-full mb-3 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
                     >
                       {t("admin.viewFull")}
@@ -440,12 +716,12 @@ export default function AdminPanel({ onBack, adminId }) {
                   placeholder="Пошук по всіх вакансіях: посада, компанія, місто, опис, теги, telegram_id..."
                   className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
                 />
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex flex-wrap gap-2">
                   {["all", ...Object.values(VACANCY_STATUS)].map((s) => (
                     <button
                       key={s}
                       onClick={() => setVacancyStatusFilter(s)}
-                      className={`tap shrink-0 text-[11px] font-medium rounded-full px-3 py-1.5 border ${
+                      className={`tap text-[11px] font-medium rounded-full px-3 py-1.5 border ${
                         vacancyStatusFilter === s
                           ? "bg-accent-500 border-accent-500 text-base-950"
                           : "border-base-700 text-white/60"
@@ -456,9 +732,7 @@ export default function AdminPanel({ onBack, adminId }) {
                   ))}
                 </div>
 
-                <p className="text-xs text-white/40">
-                  Знайдено: {filteredVacancies.length}
-                </p>
+                <p className="text-xs text-white/40">Знайдено: {filteredVacancies.length}</p>
 
                 {filteredVacancies.length === 0 && (
                   <p className="text-sm text-white/45 py-6 text-center">Нічого не знайдено</p>
@@ -472,19 +746,18 @@ export default function AdminPanel({ onBack, adminId }) {
                         {t(`vacancy.status.${v.status}`)}
                       </span>
                     </div>
-                    <p className="text-xs text-white/50 mb-1">
+                    <p className="text-xs text-white/50 mb-2">
                       {v.company} {v.city ? `· ${v.city}` : ""}
                     </p>
-                    <p className="text-xs text-white/35 mb-3">
-                      {row?.telegram_username ? `@${row.telegram_username}` : `id ${row?.telegram_id ?? "—"}`} ·{" "}
-                      {row?.views_count || 0} переглядів
-                    </p>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <LinkChip onClick={() => openUserById(row?.telegram_id, { telegram_username: row?.telegram_username })}>
+                        {row?.telegram_username ? `@${row.telegram_username}` : `id ${row?.telegram_id ?? "—"}`}
+                      </LinkChip>
+                      <span className="text-[11px] text-white/35 shrink-0">{row?.views_count || 0} переглядів</span>
+                    </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          setPreviewVacancy(v);
-                          setPreviewMode("view");
-                        }}
+                        onClick={() => openVacancyPreview(v, row, "delete")}
                         className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
                       >
                         {t("admin.viewFull")}
@@ -508,21 +781,32 @@ export default function AdminPanel({ onBack, adminId }) {
                 {reports.map((rep) => {
                   const vacancyTitle = rep.vacancies?.data?.position || rep.vacancy_applications?.vacancy_id || "—";
                   const isBusy = resolvingReportId === rep.id;
+                  const resumeSnapshot = rep.vacancy_applications?.resume_snapshot || null;
                   return (
                     <div key={rep.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
                       <p className="font-semibold text-sm mb-1">
                         {rep.type === "vacancy" ? t("admin.reportOnVacancy") : t("admin.reportOnApplicant")}
                       </p>
-                      <p className="text-xs text-white/50 mb-2">
+                      <p className="text-xs text-white/50 mb-3">
                         {t(`report.reasons.${rep.reason}`)} · {vacancyTitle}
                       </p>
-                      <p className="text-xs text-white/45 mb-1">
-                        {t("admin.reportedBy")}: {rep.reporter?.telegram_username ? `@${rep.reporter.telegram_username}` : rep.reporter?.telegram_id}
-                      </p>
-                      <p className="text-xs text-white/45 mb-2">
-                        {t("admin.reportedTarget")}: {rep.target?.telegram_username ? `@${rep.target.telegram_username}` : rep.target?.telegram_id}
-                        {rep.target?.is_banned && <span className="ml-2 text-[10px] text-red-400 font-semibold">{t("admin.banned")}</span>}
-                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="text-[11px] text-white/40">{t("admin.reportedBy")}:</span>
+                        <LinkChip onClick={() => openUserById(rep.reporter?.telegram_id, rep.reporter)}>
+                          {rep.reporter?.telegram_username ? `@${rep.reporter.telegram_username}` : rep.reporter?.telegram_id}
+                        </LinkChip>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <span className="text-[11px] text-white/40">{t("admin.reportedTarget")}:</span>
+                        <LinkChip onClick={() => openUserById(rep.target?.telegram_id, rep.target)}>
+                          {rep.target?.telegram_username ? `@${rep.target.telegram_username}` : rep.target?.telegram_id}
+                        </LinkChip>
+                        {rep.target?.is_banned && (
+                          <span className="text-[10px] text-red-400 font-semibold">{t("admin.banned")}</span>
+                        )}
+                      </div>
+
                       {rep.comment && (
                         <p className="text-xs text-white/70 whitespace-pre-line mb-3">
                           {t("admin.reportComment")}: {rep.comment}
@@ -533,6 +817,26 @@ export default function AdminPanel({ onBack, adminId }) {
                           {rep.vacancy_applications.message}
                         </p>
                       )}
+
+                      <div className="flex gap-2 mb-3">
+                        {rep.vacancies && (
+                          <button
+                            onClick={() => openVacancyPreview(vacancyDocFromRaw(rep.vacancies), rep.vacancies, "delete")}
+                            className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
+                          >
+                            Переглянути вакансію
+                          </button>
+                        )}
+                        {resumeSnapshot && (
+                          <button
+                            onClick={() => openResumePreview(resumeSnapshot)}
+                            className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
+                          >
+                            Переглянути резюме
+                          </button>
+                        )}
+                      </div>
+
                       <div className="flex gap-2">
                         <button
                           onClick={() => resolveReport(rep.id, "resolved")}
@@ -570,7 +874,9 @@ export default function AdminPanel({ onBack, adminId }) {
                 {applications.map((a) => (
                   <div key={a.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
                     <p className="font-semibold text-sm">{a.vacancies?.data?.position || "—"}</p>
-                    <p className="text-xs text-white/50 mb-2">telegram_id: {a.telegram_id}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <LinkChip onClick={() => openUserById(a.telegram_id)}>id {a.telegram_id}</LinkChip>
+                    </div>
                     {a.message && <p className="text-xs text-white/70">{a.message}</p>}
                   </div>
                 ))}
@@ -632,7 +938,7 @@ export default function AdminPanel({ onBack, adminId }) {
 
             {tab === "users" && (
               <div className="flex flex-col gap-2">
-                {filteredUsers.map((u) => {
+                {users.map((u) => {
                   const uVacancyCount = allVacancies.filter(({ row }) => String(row?.telegram_id) === String(u.telegram_id)).length;
                   return (
                     <button
@@ -661,18 +967,33 @@ export default function AdminPanel({ onBack, adminId }) {
         )}
       </div>
 
-      {/* Vacancy preview sheet — used from moderation, stats, and vacancies tab */}
-      {previewVacancy && (
-        <Sheet onClose={() => setPreviewVacancy(null)}>
+      {/* Vacancy / resume preview sheet — used from moderation, stats, vacancies tab and reports */}
+      {preview && (
+        <Sheet onClose={() => setPreview(null)}>
           <div className="flex-1 overflow-y-auto pb-2">
-            <VacancyDocument vacancy={previewVacancy} />
+            {preview.type === "vacancy" ? <VacancyDocument vacancy={preview.data} /> : <ResumeDoc resume={preview.data} />}
           </div>
-          {previewMode === "moderation" ? (
+
+          {preview.row?.telegram_id && (
+            <div className="pt-2 shrink-0">
+              <LinkChip
+                onClick={() => {
+                  const row = preview.row;
+                  setPreview(null);
+                  openUserById(row.telegram_id, { telegram_username: row.telegram_username });
+                }}
+              >
+                Перейти до користувача {preview.row.telegram_username ? `@${preview.row.telegram_username}` : preview.row.telegram_id}
+              </LinkChip>
+            </div>
+          )}
+
+          {preview.type === "vacancy" && preview.mode === "moderation" && (
             <div className="flex gap-2 pt-3 shrink-0">
               <button
                 onClick={() => {
-                  approve(previewVacancy.id);
-                  setPreviewVacancy(null);
+                  approve(preview.data.id);
+                  setPreview(null);
                 }}
                 className="tap flex-1 bg-emerald-500/90 text-white text-xs font-semibold rounded-lg py-2.5"
               >
@@ -680,27 +1001,30 @@ export default function AdminPanel({ onBack, adminId }) {
               </button>
               <button
                 onClick={() => {
-                  setRejectingId(previewVacancy.id);
-                  setPreviewVacancy(null);
+                  setRejectingId(preview.data.id);
+                  setPreview(null);
                 }}
                 className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2.5"
               >
                 {t("common.reject")}
               </button>
             </div>
-          ) : (
+          )}
+
+          {preview.type === "vacancy" && preview.mode === "delete" && (
             <div className="flex gap-2 pt-3 shrink-0">
               <button
-                onClick={() => deleteVacancy(previewVacancy.id)}
-                disabled={deletingId === previewVacancy.id}
+                onClick={() => deleteVacancy(preview.data.id)}
+                disabled={deletingId === preview.data.id}
                 className="tap flex-1 bg-red-500/90 text-white text-xs font-semibold rounded-lg py-2.5 disabled:opacity-50"
               >
-                {deletingId === previewVacancy.id ? "…" : "Видалити вакансію"}
+                {deletingId === preview.data.id ? "…" : "Видалити вакансію"}
               </button>
             </div>
           )}
+
           <button
-            onClick={() => setPreviewVacancy(null)}
+            onClick={() => setPreview(null)}
             className="tap w-full mt-2 text-center text-sm font-medium text-white/50 py-2 shrink-0"
           >
             {t("common.close")}
@@ -744,16 +1068,11 @@ export default function AdminPanel({ onBack, adminId }) {
               Вакансії ({activeUserVacancies.length})
             </p>
             <div className="flex flex-col gap-2 mb-4">
-              {activeUserVacancies.length === 0 && (
-                <p className="text-xs text-white/35 mb-2">Немає вакансій</p>
-              )}
+              {activeUserVacancies.length === 0 && <p className="text-xs text-white/35 mb-2">Немає вакансій</p>}
               {activeUserVacancies.map(({ v, row }) => (
                 <button
                   key={v.id}
-                  onClick={() => {
-                    setPreviewVacancy(v);
-                    setPreviewMode("view");
-                  }}
+                  onClick={() => openVacancyPreview(v, row, "delete")}
                   className="tap flex items-center justify-between gap-2 bg-base-850 border border-base-700 rounded-lg px-3 py-2.5 text-left"
                 >
                   <div className="min-w-0">
@@ -769,9 +1088,7 @@ export default function AdminPanel({ onBack, adminId }) {
               Відгуки на вакансії ({activeUserApplications.length})
             </p>
             <div className="flex flex-col gap-2">
-              {activeUserApplications.length === 0 && (
-                <p className="text-xs text-white/35">Немає відгуків</p>
-              )}
+              {activeUserApplications.length === 0 && <p className="text-xs text-white/35">Немає відгуків</p>}
               {activeUserApplications.map((a) => (
                 <div key={a.id} className="bg-base-850 border border-base-700 rounded-lg px-3 py-2.5">
                   <p className="text-xs font-medium truncate">{a.vacancies?.data?.position || "—"}</p>
