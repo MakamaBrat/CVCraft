@@ -556,7 +556,7 @@ function AppStoreCard({ type, url, title }) {
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate">{title || state.title || meta.label}</p>
-        <p className="text-xs opacity-80">{meta.label}</p>
+        <p className="text-xs opacity-80" data-pdf-export-hide="true">{meta.label}</p>
       </div>
       <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0">
         <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
