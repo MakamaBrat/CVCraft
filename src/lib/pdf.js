@@ -82,6 +82,41 @@ function collectLinkRects(root) {
     .filter(Boolean);
 }
 
+// Перебирає всі елементи документа й для кожної унікальної комбінації
+// шрифт/накреслення/стиль явно просить браузер завантажити її
+// (document.fonts.load), а тоді чекає document.fonts.ready. Це потрібно,
+// бо саме "жирні" накреслення (заголовки, назви) частіше не встигають
+// довантажитись до моменту знімку — а якщо конкретне накреслення не
+// завантажене, браузер малює його синтетично (подвоєним/зсунутим
+// контуром), що і виглядає як "роздвоєний" текст на PDF.
+async function warmUpFonts(root) {
+  if (!("fonts" in document)) return;
+
+  const seen = new Set();
+  const nodes = [root, ...root.querySelectorAll("*")];
+
+  const loads = [];
+  nodes.forEach((el) => {
+    const cs = window.getComputedStyle(el);
+    const key = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    loads.push(
+      document.fonts.load(key).catch(() => {
+        // окремий шрифт міг не знайтись/не завантажитись — це не критично,
+        // просто пропускаємо конкретну комбінацію
+      })
+    );
+  });
+
+  await Promise.all(loads);
+  try {
+    await document.fonts.ready;
+  } catch {
+    // ігноруємо — на деяких платформах document.fonts.ready ненадійний
+  }
+}
+
 // Знімає елемент цілком (як html2canvas-скріншот) і компонує з нього
 // багатосторінковий PDF, накладаючи поверх картинки невидимі клікабельні
 // посилання на місці карток портфоліо. Це дає PDF, який виглядає точнісінько
@@ -95,6 +130,10 @@ async function renderElementToPdf(element, fileNameBase) {
 
   try {
     await waitForImages(element);
+    // Явно "прогріваємо" потрібні нарізки шрифту (regular/semibold/bold),
+    // якими користується документ — це підстраховка на випадок, якщо якесь
+    // накреслення ще не запитувалось у браузера.
+    await warmUpFonts(element);
     // після swap даємо браузеру один кадр на перерахунок layout
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
@@ -106,6 +145,21 @@ async function renderElementToPdf(element, fileNameBase) {
       useCORS: true,
       backgroundColor: "#ffffff",
       windowWidth: element.scrollWidth,
+      // html2canvas знімає не сам DOM, а клон у прихованому iframe — шрифти
+      // там підвантажуються повторно й асинхронно. Якщо зняти канвас до
+      // завершення цього довантаження, браузер малює "синтетичний bold"
+      // (подвоєні/зсунуті контури літер) замість реального жирного
+      // накреслення — саме це виглядало як "роздвоєний" текст на скріні.
+      // onclone може повертати Promise — html2canvas його дочекається.
+      onclone: async (clonedDoc) => {
+        try {
+          if (clonedDoc.fonts && clonedDoc.fonts.ready) {
+            await clonedDoc.fonts.ready;
+          }
+        } catch {
+          // якщо API шрифтів недоступне — просто знімаємо як є
+        }
+      },
     });
   } finally {
     restore();
