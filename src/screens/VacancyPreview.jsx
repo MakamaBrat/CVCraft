@@ -238,14 +238,14 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     setSharing(true);
     try {
       const { blob, fileName } = await generateVacancyHtml(vacancy);
-      const file = new File([blob], fileName, { type: "application/pdf" });
+      const file = new File([blob], fileName, { type: "text/html" });
       const title = `${vacancy.position || t("vacancy.vacancyPlaceholder")}${vacancy.company ? " — " + vacancy.company : ""}`;
-      // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+      // Тут файл (HTML) іде окремо від "url", тож Web Share API не завжди
       // будує з url клікабельну картку — лишаємо посилання явно в тексті,
       // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
       const caption = [title, "", t("share.vacancyClickHint"), shareUrl].join("\n");
 
-      // Web Share API з файлом — одна дія одразу шерить і PDF-файл, і
+      // Web Share API з файлом — одна дія одразу шерить і HTML-файл, і
       // посилання з підписом (підтримується мобільними браузерами й
       // Telegram in-app browser на iOS/Android).
       if (navigator.canShare && navigator.canShare({ files: [file] })) {

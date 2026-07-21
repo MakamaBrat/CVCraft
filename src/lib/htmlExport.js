@@ -1,18 +1,17 @@
-// Генерує самодостатній PDF-файл: html2canvas робить точний скріншот
+// Генерує самодостатній HTML-файл: html2canvas робить точний скріншот
 // резюме/вакансії (це розв'язує аватарку/фон/кадр гіфки/кольори, бо це
-// просто пікселі, а не залежність від CSS чи мережі) і картинка стає
-// єдиною сторінкою PDF через jsPDF.
+// просто пікселі, а не залежність від CSS чи мережі), картинка вшивається
+// в base64 — файл повністю самодостатній і відкривається навіть у
+// пісочниці на кшталт iOS/Android Quick Look, без інтернету.
 //
 // Поверх цього скріншоту (а не замість нього) додаються прозорі
 // клікабельні зони — кнопки соцмереж, App Store, Figma, і так само
-// відео (YouTube/Vimeo/пряме відео): у справжньому PDF це посилання-
-// анотації (jsPDF .link()), тому клік по кнопці чи по обкладинці відео
-// відкриває справжнє посилання у застосунку перегляду PDF (Acrobat,
-// вбудований переглядач у Telegram/iOS/Android, браузер тощо), а не
-// програє відео прямо у файлі — так однаковіше й надійніше (не залежить
-// від того, чи дозволяє переглядач вбудовані відео). Координати
-// рахуються у пікселях сторінки, тому лишаються точно під картинкою
-// незалежно від масштабу перегляду.
+// відео (YouTube/Vimeo/пряме відео)/гіфки: клік по ньому відкриває
+// посилання у новій вкладці/застосунку, а не програє відео прямо у
+// файлі — так однаковіше й надійніше (не залежить від того, чи дозволяє
+// iframe конкретний переглядач файлу). Координати overlay-ів рахуються у
+// відсотках від розміру скріншоту, тому лишаються на місці, навіть якщо
+// файл відкрити на іншій ширині екрана.
 
 function sanitizeFileName(name) {
   return (name || "document")
@@ -52,9 +51,9 @@ async function captureCanvas(node, html2canvas, backgroundColor) {
   }
 }
 
-// Прямокутники (у px відносно розміру node) для клікабельних кнопок —
+// Прямокутники (у % від розміру node) для клікабельних кнопок —
 // елементи з data-pdf-link, видимі у стані "для скріншоту".
-function collectRectPixels(elements, nodeRect) {
+function collectRectPercents(elements, nodeRect) {
   return elements
     .map((el) => {
       const style = window.getComputedStyle(el);
@@ -62,21 +61,22 @@ function collectRectPixels(elements, nodeRect) {
       const r = el.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) return null;
       return {
-        href: el.getAttribute("data-pdf-link"),
-        left: r.left - nodeRect.left,
-        top: r.top - nodeRect.top,
-        width: r.width,
-        height: r.height,
+        el,
+        leftPct: ((r.left - nodeRect.left) / nodeRect.width) * 100,
+        topPct: ((r.top - nodeRect.top) / nodeRect.height) * 100,
+        widthPct: (r.width / nodeRect.width) * 100,
+        heightPct: (r.height / nodeRect.height) * 100,
       };
     })
     .filter(Boolean);
 }
 
+function escapeAttr(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
 export async function generateHtmlFromElement(elementId, fileNameBase, backgroundColor = "#ffffff") {
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import("html2canvas"),
-    import("jspdf"),
-  ]);
+  const { default: html2canvas } = await import("html2canvas");
 
   const node = document.getElementById(elementId);
   if (!node) throw new Error(`html_source_not_found:${elementId}`);
@@ -95,7 +95,7 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
   // "наїжджали" одна на одну. Знімаємо саме ellipsis і вирівнюємо
   // line-height, АЛЕ лишаємо white-space:nowrap (як було) — щоб рядок не
   // переносився на другий і не міняв висоту картки: це зсунуло б усе, що
-  // нижче, і координати клікабельних зон/відео більше не збігалися б зі
+  // нижче, і координати overlay-кнопок/відео більше не збігалися б зі
   // скріншотом. Довгий текст просто акуратно "виходить" за межі пігулки
   // одним рядком замість зламаного рендеру ellipsis.
   const truncatedEls = Array.from(node.querySelectorAll(".truncate"));
@@ -107,8 +107,8 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
 
   // Ховаємо "живі" iframe/відео (data-pdf-hide) і показуємо статичні
   // "для знімку" картки (data-pdf-only, обкладинка + кнопка Play) — саме
-  // їх і знімає html2canvas, а клікабельною зоною поверх стане
-  // посилання-анотація в PDF (як для решти кнопок), не сам iframe.
+  // їх і знімає html2canvas, а клікабельною зоною поверх стане звичайне
+  // посилання (як для решти кнопок), не сам iframe.
   const hideEls = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
   const prevHideDisplay = hideEls.map((el) => el.style.display);
   hideEls.forEach((el) => {
@@ -120,15 +120,13 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     el.style.display = "";
   });
 
-  let dataUrl, linkRects, canvasWidth, canvasHeight;
+  let dataUrl, linkRects;
   try {
     const canvas = await captureCanvas(node, html2canvas, backgroundColor);
     const nodeRect = node.getBoundingClientRect();
     const linkEls = Array.from(node.querySelectorAll("[data-pdf-link]"));
-    linkRects = collectRectPixels(linkEls, nodeRect);
+    linkRects = collectRectPercents(linkEls, nodeRect);
     dataUrl = canvas.toDataURL("image/png");
-    canvasWidth = nodeRect.width;
-    canvasHeight = nodeRect.height;
   } finally {
     hideEls.forEach((el, i) => {
       el.style.display = prevHideDisplay[i];
@@ -141,25 +139,41 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     });
   }
 
+  // Клікабельні прозорі зони поверх кнопок (соцмережі, App Store, Figma,
+  // відео, гіфки) — клік відкриває справжнє посилання в новій вкладці.
+  const linkOverlaysHtml = linkRects
+    .map(
+      ({ el, leftPct, topPct, widthPct, heightPct }) => `
+      <a href="${escapeAttr(el.getAttribute("data-pdf-link"))}" target="_blank" rel="noreferrer"
+         style="position:absolute;left:${leftPct}%;top:${topPct}%;width:${widthPct}%;height:${heightPct}%;display:block;"></a>`
+    )
+    .join("");
+
   const title = sanitizeFileName(fileNameBase) || "document";
 
-  // Сторінка PDF у тих самих пропорціях, що й скріншот, у "points"
-  // (одиниця jsPDF за замовчуванням) — 1px скріншоту = 1pt сторінки,
-  // тому анотації-посилання лягають точно під картинку без перерахунку.
-  const pdf = new jsPDF({
-    orientation: canvasHeight >= canvasWidth ? "portrait" : "landscape",
-    unit: "pt",
-    format: [canvasWidth, canvasHeight],
-  });
-  pdf.addImage(dataUrl, "PNG", 0, 0, canvasWidth, canvasHeight, undefined, "FAST");
+  const html = `<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: ${backgroundColor}; }
+      body { display: flex; justify-content: center; }
+      #export-root { position: relative; max-width: 720px; width: 100%; }
+      #export-root > img { display: block; width: 100%; height: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="export-root">
+      <img src="${dataUrl}" alt="${title}" />
+      ${linkOverlaysHtml}
+    </div>
+  </body>
+</html>`;
 
-  linkRects.forEach(({ href, left, top, width, height }) => {
-    if (!href) return;
-    pdf.link(left, top, width, height, { url: href });
-  });
-
-  const blob = pdf.output("blob");
-  const fileName = `${title}.pdf`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const fileName = `${title}.html`;
   return { blob, fileName };
 }
 
