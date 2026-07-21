@@ -285,6 +285,8 @@ export function detectMediaType(url) {
   if (/giphy\.com\/(gifs|embed)\//i.test(u)) return "gif";
   if (/\.(pdf)(\?.*)?$/i.test(u)) return "pdf";
   if (/\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(u)) return "video";
+  if (/\.(mp3|wav|m4a|aac|flac|opus|wma|oga)(\?.*)?$/i.test(u)) return "audio";
+  if (/soundcloud\.com\//i.test(u)) return "soundcloud";
   if (/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)) return "youtube";
   if (/youtube\.com\/shorts\//i.test(u)) return "youtube";
   if (/vimeo\.com\//i.test(u)) return "vimeo";
@@ -618,6 +620,27 @@ function VideoPdfCard({ thumbUrl, url }) {
   );
 }
 
+// Статична картка-заглушка для аудіо (файл або SoundCloud) у PDF:
+// іконка ноти + назва + посилання, бо сам <audio>/iframe-плеєр
+// html2canvas коректно не знімає.
+function AudioPdfCard({ title, url }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700">
+      <div className="w-11 h-11 rounded-xl bg-accent-500/15 flex items-center justify-center shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-accent-400">
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold truncate">{title || "Аудіо"}</p>
+        <LinkCaption url={url} />
+      </div>
+    </div>
+  );
+}
+
 // Багато сайтів забороняють вбудовування через X-Frame-Options / CSP
 // frame-ancestors — у такому разі iframe просто лишається порожнім, без
 // жодної JS-помилки, яку можна відловити. Тому над iframe завжди
@@ -809,6 +832,41 @@ export function MediaPreview({ item }) {
       <PdfSwap
         live={<video src={item.url} controls crossOrigin="anonymous" className="w-full rounded-lg bg-black" style={{ maxHeight: 220 }} />}
         fallback={<VideoPdfCard thumbUrl={null} url={item.url} />}
+      />
+    );
+  }
+  if (type === "audio") {
+    return (
+      <PdfSwap
+        live={
+          <div className="w-full rounded-xl bg-base-800 border border-base-700 px-4 py-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-accent-500/15 flex items-center justify-center shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-accent-400">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </div>
+            <audio src={item.url} controls className="flex-1 min-w-0 h-9" style={{ maxWidth: "100%" }} />
+          </div>
+        }
+        fallback={<AudioPdfCard title={item.title} url={item.url} />}
+      />
+    );
+  }
+  if (type === "soundcloud") {
+    return (
+      <PdfSwap
+        live={
+          <iframe
+            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(item.url)}&color=%23ff7a00&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false`}
+            title={item.title || "soundcloud"}
+            className="w-full rounded-lg"
+            style={{ height: 166, border: 0 }}
+            allow="autoplay"
+          />
+        }
+        fallback={<AudioPdfCard title={item.title} url={item.url} />}
       />
     );
   }
