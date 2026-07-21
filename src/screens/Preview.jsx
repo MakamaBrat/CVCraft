@@ -3,7 +3,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
-import { generateResumePdf } from "../lib/pdf.js";
+import { generateResumeHtml } from "../lib/htmlExport.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -183,27 +183,27 @@ export default function Preview({ resume, onBack, onDone }) {
     setSharing(true);
     let blob, fileName;
     try {
-      ({ blob, fileName } = await generateResumePdf(resume));
+      ({ blob, fileName } = await generateResumeHtml(resume));
     } catch (err) {
-      console.error("[Preview] pdf generation failed", err);
-      setShareError(`Не вдалося сформувати PDF: ${err?.message || "невідома помилка"}. Спробуйте ще раз.`);
+      console.error("[Preview] html generation failed", err);
+      setShareError(`Не вдалося сформувати файл: ${err?.message || "невідома помилка"}. Спробуйте ще раз.`);
       setSharing(false);
       return;
     }
 
     const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
-    // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
+    // Тут файл (HTML) іде окремо від "url", тож Web Share API не завжди
     // будує з url клікабельну картку — лишаємо посилання явно в тексті,
     // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
     const caption = [title, "", t("share.resumeClickHint"), shareUrl].join("\n");
 
-    // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання з
-    // підписом. PDF уже готовий (blob), тож якщо сам крок "поділитися"
-    // впаде (буває в деяких мобільних вебв'ю навіть коли canShare сказав
-    // "можна") — не показуємо жорстку помилку, а падаємо назад на
-    // завантаження файлу + відкриття Telegram-шерингу окремо.
+    // Web Share API з файлом — одна дія одразу шерить і HTML-файл, і
+    // посилання з підписом. Файл уже готовий (blob), тож якщо сам крок
+    // "поділитися" впаде (буває в деяких мобільних вебв'ю навіть коли
+    // canShare сказав "можна") — не показуємо жорстку помилку, а падаємо
+    // назад на завантаження файлу + відкриття Telegram-шерингу окремо.
     try {
-      const file = new File([blob], fileName, { type: "application/pdf" });
+      const file = new File([blob], fileName, { type: "text/html" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], text: caption, title: fileName });
         setSharing(false);
@@ -218,9 +218,10 @@ export default function Preview({ resume, onBack, onDone }) {
     }
 
     try {
-      // Фолбек: качаємо PDF і одразу відкриваємо Telegram-шеринг. Тут url
-      // іде окремим параметром, тому в text лишаємо тільки локалізовану
-      // підказку — Telegram сам покаже посилання як клікабельну картку.
+      // Фолбек: качаємо HTML-файл і одразу відкриваємо Telegram-шеринг.
+      // Тут url іде окремим параметром, тому в text лишаємо тільки
+      // локалізовану підказку — Telegram сам покаже посилання як
+      // клікабельну картку.
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -257,7 +258,7 @@ export default function Preview({ resume, onBack, onDone }) {
           <button
             onClick={handleShare}
             disabled={sharing}
-            title="PDF + посилання"
+            title="HTML-файл + посилання"
             className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
           >
             {sharing ? (
@@ -282,7 +283,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       {(resume.portfolio || []).length > 0 && (
         <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-          У PDF елементи портфоліо потрапляють як картки-прев'ю — натискання на них у файлі відкриває оригінальне посилання.
+          У файлі елементи портфоліо потрапляють як клікабельні картки — натискання на них відкриває оригінальне посилання.
         </p>
       )}
 

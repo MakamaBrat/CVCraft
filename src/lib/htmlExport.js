@@ -1,19 +1,3 @@
-// Генерує самодостатній HTML-файл: береться той самий підхід, що раніше
-// був для PDF (html2canvas робить точний скріншот резюме/вакансії — це
-// разом розв'язує аватарку/фон/кадр гіфки/кольори, бо це просто пікселі,
-// а не залежність від CSS чи мережі), картинка вшивається в base64 —
-// файл повністю самодостатній і відкривається навіть у пісочниці на
-// кшталт iOS/Android Quick Look, без інтернету.
-//
-// Поверх цього скріншоту (а не замість нього) додаються прозорі
-// клікабельні зони — кнопки соцмереж, App Store, Figma, і так само
-// відео (YouTube/Vimeo/пряме відео): клік по ньому відкриває посилання
-// у новій вкладці/застосунку, а не програє відео прямо у файлі — так
-// однаковіше й надійніше (не залежить від того, чи дозволяє iframe
-// конкретний переглядач файлу). Координати overlay-ів рахуються у
-// відсотках від розміру скріншоту, тому лишаються на місці, навіть
-// якщо файл відкрити на іншій ширині екрана.
-
 function sanitizeFileName(name) {
   return (name || "document")
     .trim()
@@ -22,168 +6,170 @@ function sanitizeFileName(name) {
     .slice(0, 80);
 }
 
-// Картинки з чужих доменів без CORS-заголовків інколи "заражають" (taint)
-// canvas навіть з useCORS:true. У такому разі canvas.toDataURL() кидає
-// SecurityError і ламає весь скріншот. Щоб файл генерувався завжди,
-// пробуємо ще раз, попередньо приховавши всі такі "ризиковані" картинки
-// (позначені атрибутом crossOrigin у розмітці).
-async function captureCanvas(node, html2canvas, backgroundColor) {
-  const opts = { scale: 2, backgroundColor, useCORS: true };
-  try {
-    const canvas = await html2canvas(node, opts);
-    canvas.toDataURL("image/png");
-    return canvas;
-  } catch (err) {
-    const riskyEls = Array.from(node.querySelectorAll("img[crossorigin]"));
-    if (!riskyEls.length) throw err;
-    const prevDisplay = riskyEls.map((el) => el.style.display);
-    riskyEls.forEach((el) => {
-      el.style.display = "none";
-    });
-    try {
-      const canvas = await html2canvas(node, opts);
-      canvas.toDataURL("image/png");
-      return canvas;
-    } finally {
-      riskyEls.forEach((el, i) => {
-        el.style.display = prevDisplay[i];
-      });
-    }
-  }
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
 }
 
-// Прямокутники (у % від розміру node) для клікабельних кнопок —
-// елементи з data-pdf-link, видимі у стані "для скріншоту".
-function collectRectPercents(elements, nodeRect) {
-  return elements
-    .map((el) => {
-      const style = window.getComputedStyle(el);
-      if (style.display === "none" || style.visibility === "hidden") return null;
-      const r = el.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) return null;
-      return {
-        el,
-        leftPct: ((r.left - nodeRect.left) / nodeRect.width) * 100,
-        topPct: ((r.top - nodeRect.top) / nodeRect.height) * 100,
-        widthPct: (r.width / nodeRect.width) * 100,
-        heightPct: (r.height / nodeRect.height) * 100,
-      };
-    })
-    .filter(Boolean);
+// Той самий трюк, що й раніше в pdf.js: чекаємо, поки всі <img> всередині
+// елемента довантажаться, щоб в експорті не лишилось порожніх
+// прямокутників (аватар, фон, favicon-и посилань тощо).
+function waitForImages(root) {
+  const imgs = Array.from(root.querySelectorAll("img"));
+  return Promise.all(
+    imgs.map(
+      (img) =>
+        img.complete && img.naturalWidth > 0
+          ? Promise.resolve()
+          : new Promise((resolve) => {
+              img.addEventListener("load", resolve, { once: true });
+              img.addEventListener("error", resolve, { once: true });
+              setTimeout(resolve, 4000);
+            })
+    )
+  );
 }
 
-function escapeAttr(str) {
-  return String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-}
+// Wizard.jsx позначає "живі" віджети (iframe/video/audio) атрибутом
+// data-pdf-hide, а їхні статичні картки-заглушки — data-pdf-only
+// (за замовчуванням приховані). На час експорту міняємо їх видимість
+// місцями, щоб зняти комп'ютовані стилі саме зі стану "заглушка видима",
+// після експорту повертаємо як було.
+function swapForCapture(root) {
+  const hideEls = Array.from(root.querySelectorAll("[data-pdf-hide]"));
+  const onlyEls = Array.from(root.querySelectorAll("[data-pdf-only]"));
+  const prevHide = hideEls.map((el) => el.style.display);
+  const prevOnly = onlyEls.map((el) => el.style.display);
 
-export async function generateHtmlFromElement(elementId, fileNameBase, backgroundColor = "#ffffff") {
-  const { default: html2canvas } = await import("html2canvas");
-
-  const node = document.getElementById(elementId);
-  if (!node) throw new Error(`html_source_not_found:${elementId}`);
-
-  if (document.fonts?.ready) {
-    try {
-      await document.fonts.ready;
-    } catch {
-      // не критично
-    }
-  }
-
-  // html2canvas погано вміє коректно рендерити `text-overflow: ellipsis`
-  // разом з кастомним веб-шрифтом (Manrope) — рядки з класом .truncate
-  // (ПІБ/посада, назви кнопок) на скріншоті виходили обрізаними чи
-  // "наїжджали" одна на одну. Знімаємо саме ellipsis і вирівнюємо
-  // line-height, АЛЕ лишаємо white-space:nowrap (як було) — щоб рядок не
-  // переносився на другий і не міняв висоту картки: це зсунуло б усе, що
-  // нижче, і координати overlay-кнопок/відео більше не збігалися б зі
-  // скріншотом. Довгий текст просто акуратно "виходить" за межі пігулки
-  // одним рядком замість зламаного рендеру ellipsis.
-  const truncatedEls = Array.from(node.querySelectorAll(".truncate"));
-  const prevTruncateCss = truncatedEls.map((el) => el.style.cssText);
-  truncatedEls.forEach((el) => {
-    el.style.textOverflow = "clip";
-    el.style.lineHeight = "normal";
-  });
-
-  // Ховаємо "живі" iframe/відео (data-pdf-hide) і показуємо статичні
-  // "для знімку" картки (data-pdf-only, обкладинка + кнопка Play) — саме
-  // їх і знімає html2canvas, а клікабельною зоною поверх стане звичайне
-  // посилання (як для решти кнопок), не сам iframe.
-  const hideEls = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
-  const prevHideDisplay = hideEls.map((el) => el.style.display);
   hideEls.forEach((el) => {
     el.style.display = "none";
   });
-  const showEls = Array.from(node.querySelectorAll('[data-pdf-only="true"]'));
-  const prevShowDisplay = showEls.map((el) => el.style.display);
-  showEls.forEach((el) => {
-    el.style.display = "";
+  onlyEls.forEach((el) => {
+    el.style.display = "block";
   });
 
-  let dataUrl, linkRects;
-  try {
-    const canvas = await captureCanvas(node, html2canvas, backgroundColor);
-    const nodeRect = node.getBoundingClientRect();
-    const linkEls = Array.from(node.querySelectorAll("[data-pdf-link]"));
-    linkRects = collectRectPercents(linkEls, nodeRect);
-    dataUrl = canvas.toDataURL("image/png");
-  } finally {
+  return function restore() {
     hideEls.forEach((el, i) => {
-      el.style.display = prevHideDisplay[i];
+      el.style.display = prevHide[i];
     });
-    showEls.forEach((el, i) => {
-      el.style.display = prevShowDisplay[i];
+    onlyEls.forEach((el, i) => {
+      el.style.display = prevOnly[i];
     });
-    truncatedEls.forEach((el, i) => {
-      el.style.cssText = prevTruncateCss[i];
-    });
+  };
+}
+
+// Копіює КОЖНУ комп'ютовану CSS-властивість з живого вузла на клон,
+// проходячи обидва дерева паралельно. Завдяки цьому експортований HTML
+// виглядає піксель-в-піксель як зараз на екрані — жодної залежності від
+// Tailwind чи інших стилів білда в самому файлі не лишається.
+function inlineComputedStyles(src, clone) {
+  const cs = window.getComputedStyle(src);
+  let styleText = "";
+  for (let i = 0; i < cs.length; i++) {
+    const prop = cs[i];
+    styleText += `${prop}:${cs.getPropertyValue(prop)};`;
+  }
+  clone.setAttribute("style", styleText);
+  clone.removeAttribute("class");
+
+  const srcChildren = src.children;
+  const cloneChildren = clone.children;
+  for (let i = 0; i < srcChildren.length; i++) {
+    if (cloneChildren[i]) inlineComputedStyles(srcChildren[i], cloneChildren[i]);
+  }
+}
+
+// MediaPreview у Wizard.jsx обгортає кожну картку портфоліо в
+// data-pdf-link="<url>". Замість накладання невидимого посилання (як
+// робив pdf.js для картинки-знімка) тут перетворюємо саму обгортку на
+// справжній клікабельний <a href>. Якщо картка вже сама по собі є <a>
+// (кнопки соцмереж / App Store, Google Play) — лишаємо як є, щоб не
+// вкладати посилання одне в одне.
+function makePortfolioClickable(clone) {
+  const linkNodes = Array.from(clone.querySelectorAll("[data-pdf-link]"));
+  linkNodes.forEach((node) => {
+    const url = node.getAttribute("data-pdf-link");
+    if (!url || node.querySelector("a")) return;
+
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer");
+    a.setAttribute(
+      "style",
+      (node.getAttribute("style") || "") + "display:block;text-decoration:none;color:inherit;cursor:pointer;"
+    );
+    while (node.firstChild) a.appendChild(node.firstChild);
+    node.replaceWith(a);
+  });
+}
+
+async function renderElementToHtml(element, fileNameBase, docTitle) {
+  const restore = swapForCapture(element);
+  let clone;
+  try {
+    await waitForImages(element);
+    // після swap даємо браузеру кадр на перерахунок layout
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    clone = element.cloneNode(true);
+    inlineComputedStyles(element, clone);
+    makePortfolioClickable(clone);
+  } finally {
+    restore();
   }
 
-  // Клікабельні прозорі зони поверх кнопок (соцмережі, App Store, Figma,
-  // відео) — клік відкриває справжнє посилання в новій вкладці.
-  const linkOverlaysHtml = linkRects
-    .map(
-      ({ el, leftPct, topPct, widthPct, heightPct }) => `
-      <a href="${escapeAttr(el.getAttribute("data-pdf-link"))}" target="_blank" rel="noreferrer"
-         style="position:absolute;left:${leftPct}%;top:${topPct}%;width:${widthPct}%;height:${heightPct}%;display:block;"></a>`
-    )
-    .join("");
+  // Прибираємо технічні атрибути, що більше не потрібні в самостійному файлі:
+  // "живі" iframe/video/audio видаляємо повністю (замінені на посилання-картки вище),
+  // заглушки лишаємо видимими назавжди.
+  clone.querySelectorAll("[data-pdf-hide]").forEach((el) => el.remove());
+  clone.querySelectorAll("[data-pdf-only]").forEach((el) => {
+    el.removeAttribute("data-pdf-only");
+    el.style.display = "block";
+  });
+  clone.removeAttribute("id");
 
-  const title = sanitizeFileName(fileNameBase) || "document";
+  const bodyBg = window.getComputedStyle(document.body).backgroundColor || "#0a0a0a";
 
-  const html = `<!doctype html>
+  const html = `<!DOCTYPE html>
 <html lang="uk">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title}</title>
-    <style>
-      html, body { margin: 0; padding: 0; background: ${backgroundColor}; }
-      body { display: flex; justify-content: center; }
-      #export-root { position: relative; max-width: 720px; width: 100%; }
-      #export-root > img { display: block; width: 100%; height: auto; }
-    </style>
-  </head>
-  <body>
-    <div id="export-root">
-      <img src="${dataUrl}" alt="${title}" />
-      ${linkOverlaysHtml}
-    </div>
-  </body>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(docTitle)}</title>
+<style>
+  html, body { margin: 0; padding: 0; background: ${bodyBg}; }
+  body { display: flex; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+  a { cursor: pointer; }
+  a:hover { opacity: 0.92; }
+</style>
+</head>
+<body>
+${clone.outerHTML}
+</body>
 </html>`;
 
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const fileName = `${title}.html`;
-  return { blob, fileName };
+  return {
+    blob: new Blob([html], { type: "text/html;charset=utf-8" }),
+    fileName: `${sanitizeFileName(fileNameBase)}.html`,
+  };
 }
 
 export async function generateResumeHtml(resume) {
-  const bg = resume?.colorScheme === "dark" ? "#161616" : "#ffffff";
-  return generateHtmlFromElement("resume-doc", resume?.fullName, bg);
+  const element = document.getElementById("resume-doc");
+  if (!element) {
+    throw new Error("Не знайдено елемент резюме для експорту (#resume-doc)");
+  }
+  const title = `${resume?.fullName || "Резюме"}${resume?.role ? " — " + resume.role : ""}`;
+  return renderElementToHtml(element, resume?.fullName || "Resume", title);
 }
 
-export async function generateVacancyHtml(vacancy) {
-  const bg = vacancy?.colorScheme === "dark" ? "#161616" : "#ffffff";
-  return generateHtmlFromElement("vacancy-doc", `${vacancy?.position || ""} ${vacancy?.company || ""}`, bg);
+// поки лишаємо стару заглушку — вакансії ще не мігровані
+export async function generateVacancyPdf() {
+  throw new Error("Vacancy export is not migrated yet.");
 }
