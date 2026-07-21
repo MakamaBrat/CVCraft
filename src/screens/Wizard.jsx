@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "../lib/api.js";
 import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
-import { confirmDialog, getTelegramWebApp } from "../lib/telegram.js";
+import { confirmDialog, getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 6;
 const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
@@ -22,6 +22,15 @@ const inputCls =
 
 export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onFinishInfo }) {
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
+
+  // Підставляємо юзернейм з Telegram у поле "Юзернейм у Telegram", якщо воно
+  // ще не заповнене (наприклад, чернетка вже містить збережене значення).
+  useEffect(() => {
+    if (draft.phone?.trim()) return;
+    const tgUser = getTelegramUser();
+    if (tgUser?.username) set({ phone: "@" + tgUser.username });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const canNext = () => {
     if (step === 0) return draft.fullName.trim() && draft.role.trim();

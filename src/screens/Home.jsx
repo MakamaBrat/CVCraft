@@ -17,6 +17,8 @@ function timeAgo(ts, t) {
   return t("timeAgo.days", days);
 }
 
+const DRAFT_BADGE = { uk: "Чернетка", ru: "Черновик", en: "Draft" };
+
 const initials = (name) =>
   name
     .trim()
@@ -40,7 +42,7 @@ export default function Home({
   onOpenAdmin,
   isAdmin,
 }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [activeResume, setActiveResume] = useState(null);
 
   const shareResume = (r) => {
@@ -170,9 +172,16 @@ export default function Home({
                     {initials(r.fullName || t("home.newResume"))}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate text-amber-50">
-                      {r.role || t("home.noRole")}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-sm truncate text-amber-50">
+                        {r.role || t("home.noRole")}
+                      </p>
+                      {r.status === "draft" && (
+                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-amber-300 bg-amber-500/15 border border-amber-400/30 rounded-full px-1.5 py-0.5">
+                          {DRAFT_BADGE[lang] || DRAFT_BADGE.en}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-white/45">{timeAgo(r.updatedAt, t)}</p>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-amber-300/50 shrink-0">
