@@ -168,12 +168,26 @@ export default function Preview({ resume, onBack, onDone }) {
   const handleSendViaBot = async () => {
     setSendResult(null);
     setSendingViaBot(true);
+
+    // Захист від "вічної загрузки": якщо генерація PDF (html2canvas може
+    // зависнути, чекаючи картинку, що не вантажиться через CORS) або сам
+    // запит до бекенду з якоїсь причини не завершаться — через 25с
+    // примусово скидаємо стан і показуємо помилку, а не крутимо спінер
+    // нескінченно.
+    const timeoutMs = 25000;
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      setSendingViaBot(false);
+      setSendResult("error");
+    }, timeoutMs);
+
     try {
       const { blob, fileName } = await generateResumePdf(resume);
       const pdfBase64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-        reader.onerror = () => reject(reader.error);
+        reader.onerror = () => reject(reader.error || new Error("file_read_failed"));
         reader.readAsDataURL(blob);
       });
       const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
@@ -182,12 +196,13 @@ export default function Preview({ resume, onBack, onDone }) {
         method: "POST",
         body: { pdfBase64, fileName, shareUrl, title },
       });
-      setSendResult("ok");
+      if (!timedOut) setSendResult("ok");
     } catch (err) {
       console.error("[Preview] send via bot failed", err);
-      setSendResult("error");
+      if (!timedOut) setSendResult("error");
     } finally {
-      setSendingViaBot(false);
+      clearTimeout(timeoutId);
+      if (!timedOut) setSendingViaBot(false);
     }
   };
 

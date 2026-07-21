@@ -44,24 +44,28 @@ export function getColorTheme(id) {
 
 // Фон документа (резюме/вакансії): звичайний суцільний колір теми, або, якщо
 // вказано backgroundUrl (картинка чи гіф), — те саме зображення з напівпрозорим
-// градієнтом кольору теми поверх нього. 60% (як було раніше) виявилось
-// замало — на світлих ділянках фото текст ставав нечитабельним ("видно по
-// половинах"). 78% — робочий баланс: фото/гіф все ще добре видно, але текст
-// не зливається з картинкою. Додатково додаємо легку тінь під текст —
-// це підстраховка для особливо контрастних/строкатих фото, де самого
-// градієнта може не вистачити. GIF у background-image анімується нормально
-// в браузері; у PDF (html2canvas) застигне на кадрі.
+// градієнтом кольору теми поверх нього. 60%, а потім 78% виявилось замало —
+// на контрастних чорно-білих фото (яскраве обличчя на темному тлі й навпаки)
+// частина тексту все одно зливалася з картинкою. 92% — фото лишається
+// помітним як м'який watermark, а колір/яскравість під текстом майже завжди
+// впирається у колір теми, тож текст читається незалежно від того, що на
+// фото. Додатково — подвійна тінь під текстом (тонка темна/світла + ширша
+// розмита) як ще одна підстраховка на випадок особливо строкатих ділянок.
+// GIF у background-image анімується нормально в браузері; у PDF
+// (html2canvas) застигне на кадрі.
 export function getDocBackgroundStyle(theme, backgroundUrl) {
   if (!backgroundUrl) return { background: theme.bg };
   const url = normalizeMediaUrl(backgroundUrl);
-  const shadowColor = theme.id === "dark" ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.85)";
+  const isDark = theme.id === "dark";
+  const shadowSoft = isDark ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.95)";
+  const shadowWide = isDark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.65)";
   return {
     backgroundColor: theme.bg,
-    backgroundImage: `linear-gradient(${theme.bg}c7, ${theme.bg}c7), url("${url}")`,
+    backgroundImage: `linear-gradient(${theme.bg}eb, ${theme.bg}eb), url("${url}")`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
-    textShadow: `0 1px 3px ${shadowColor}`,
+    textShadow: `0 0 1px ${shadowSoft}, 0 1px 4px ${shadowSoft}, 0 0 10px ${shadowWide}`,
   };
 }
 
