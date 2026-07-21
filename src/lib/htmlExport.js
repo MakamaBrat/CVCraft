@@ -1,10 +1,17 @@
-// Генерує самодостатній HTML-файл з DOM-вузла за id (наприклад #resume-doc
-// чи #vacancy-doc): клонує вузол, вшиває всі CSS-правила зі сторінки в
-// один <style>, підвантажує зовнішні стилі (наприклад шрифт Google Fonts)
-// окремим <link>, і зберігає посилання на живі елементи (YouTube/Vimeo/PDF/
-// Figma iframe) — на відміну від колишнього PDF, HTML-файл їх чудово
-// показує, тому статичні "для PDF" заглушки (data-pdf-only) тут просто
-// прибираються, а живі версії (data-pdf-hide) лишаються видимими.
+// Генерує повністю самодостатній HTML-файл з DOM-вузла за id (наприклад
+// #resume-doc чи #vacancy-doc): CSS вшивається текстом (а не посиланням),
+// а картинки (аватар, фон, гіфки) перекодовуються у base64 (data:) прямо
+// в розмітку. Це критично важливо, бо типовий спосіб відкрити файл —
+// iOS/Android Quick Look (той самий попередній перегляд файлу з кнопкою
+// "Готово", БЕЗ адресного рядка) — це пісочниця, яка взагалі блокує будь-
+// які мережеві запити зсередини HTML: ні <link rel="stylesheet">, ні
+// <img src="https://...">, ні зовнішній шрифт вантажитись не будуть, і
+// сторінка виглядає геть неоформленою (як голий текст), а картинки —
+// битими іконками. Єдине, що працює будь-де без інтернету, — це вміст,
+// вшитий прямо у файл: <style> текстом і data:-картинки.
+// Виняток — важкі речі, які фізично не влізуть у файл (відео, iframe
+// YouTube/Vimeo/Figma): вони лишаються звичайними посиланнями/iframe і
+// працюють тільки якщо файл відкрити у справжньому браузері з інтернетом.
 
 function sanitizeFileName(name) {
   return (name || "document")
@@ -14,20 +21,60 @@ function sanitizeFileName(name) {
     .slice(0, 80);
 }
 
-// Абсолютизуємо src/href, які в розмітці могли бути відносними
-// (наприклад "/assets/..."), — інакше після збереження й відкриття файлу
-// з диска (file://) вони вестимуть у нікуди. Атрибут crossorigin теж
-// прибираємо: він був потрібен лише html2canvas для безпечного читання
-// пікселів у canvas, а в реальному <img>/<video> він, навпаки, шкодить —
-// браузер вимагає від сервера коректних CORS-заголовків і, якщо їх
-// немає (а в більшості картинок/відео з чужих доменів їх немає), просто
-// НЕ завантажує ресурс — саме тому аватарка, обкладинка гіфки, фон і
-// відео могли виглядати зламаними в експортованому файлі.
-function absolutizeUrls(root) {
-  root.querySelectorAll("img[src]").forEach((el) => {
-    el.setAttribute("src", el.src);
-    el.removeAttribute("crossorigin");
+// Максимальний розмір однієї картинки, яку варто вшивати в base64 —
+// щоб великі фото/гіфки не роздували файл понад ліміт Telegram на
+// відправку документа ботом.
+const MAX_INLINE_IMAGE_BYTES = 3_000_000;
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("blob_read_failed"));
+    reader.readAsDataURL(blob);
   });
+}
+
+// Завантажує картинку і повертає її як data: URL. Якщо сервер не віддає
+// потрібних CORS-заголовків (fetch впаде) або картинка завелика —
+// повертає null, і виклик лишає оригінальне посилання як є (працюватиме
+// тільки з інтернетом, але це краще, ніж зовсім нічого).
+async function fetchAsDataUrl(url) {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size > MAX_INLINE_IMAGE_BYTES) return null;
+    return await blobToDataUrl(blob);
+  } catch {
+    return null;
+  }
+}
+
+// Замінює всі src/background-image картинки в дереві на base64, і
+// абсолютизує все, що лишилось зовнішнім посиланням (відео, iframe) —
+// інакше відносні шляхи на кшталт "/assets/..." вестимуть у нікуди після
+// збереження файлу на диск.
+async function inlineImages(root) {
+  const imgEls = Array.from(root.querySelectorAll("img[src]"));
+  await Promise.all(
+    imgEls.map(async (el) => {
+      const dataUrl = await fetchAsDataUrl(el.src);
+      el.setAttribute("src", dataUrl || el.src);
+      el.removeAttribute("crossorigin");
+    })
+  );
+
+  const bgEls = Array.from(root.querySelectorAll('[style*="background-image"]'));
+  await Promise.all(
+    bgEls.map(async (el) => {
+      const match = el.style.backgroundImage.match(/url\((['"]?)(.*?)\1\)/);
+      if (!match) return;
+      const dataUrl = await fetchAsDataUrl(match[2]);
+      if (dataUrl) el.style.backgroundImage = el.style.backgroundImage.replace(match[0], `url("${dataUrl}")`);
+    })
+  );
+
   root.querySelectorAll("iframe[src]").forEach((el) => el.setAttribute("src", el.src));
   root.querySelectorAll("video[src], video source[src]").forEach((el) => {
     el.setAttribute("src", el.src);
@@ -39,7 +86,8 @@ function absolutizeUrls(root) {
 
 // Прибираємо статичні "для PDF" заглушки й лишаємо натомість живі
 // елементи (iframe з відео, вбудований PDF-перегляд, Figma) видимими —
-// у HTML, на відміну від PDF, вони працюють як є.
+// у HTML, на відміну від PDF, вони працюють як є (щоправда лише з
+// інтернетом і у звичайному браузері, не в Quick Look).
 function swapLiveForStatic(root) {
   root.querySelectorAll('[data-pdf-only="true"]').forEach((el) => el.remove());
   root.querySelectorAll('[data-pdf-hide="true"]').forEach((el) => {
@@ -48,34 +96,39 @@ function swapLiveForStatic(root) {
   });
 }
 
-// Для стилів зі своїм href (зібраний Tailwind-бандл, шрифт Google Fonts)
-// лишаємо звичайний <link> — так усі url(...) всередині CSS (шрифти,
-// фонові картинки-іконки тощо) резолвляться відносно СПРАВЖНЬОГО файлу
-// стилів, а не відносно нашого HTML-файлу, де відносний шлях був би
-// битим. cssText-копію використовуємо лише для <style>-тегів без href
-// (напр. інжектовані Vite у dev-режимі).
-function collectStyles() {
-  let inlineCss = "";
-  const externalHrefs = new Set();
+// Вшиваємо CSS ТЕКСТОМ (а не через <link>), щоб оформлення (Tailwind-
+// класи, кольори, шрифт) працювало навіть у пісочниці Quick Look, де
+// жоден мережевий запит не проходить. Для стилів із чужого домену
+// (шрифт Google Fonts, підключений через <link>) cssRules напряму
+// недоступні через CORS — тому для них теж робимо fetch() і вшиваємо
+// текст CSS-файлу (Google Fonts віддає CSS з дозволом на CORS).
+async function collectStyles() {
+  let css = "";
 
   for (const sheet of Array.from(document.styleSheets)) {
-    if (sheet.href) {
-      externalHrefs.add(sheet.href);
-      continue;
-    }
     try {
       if (sheet.cssRules) {
-        inlineCss += Array.from(sheet.cssRules)
+        css += Array.from(sheet.cssRules)
           .map((rule) => rule.cssText)
           .join("\n");
-        inlineCss += "\n";
+        css += "\n";
+        continue;
       }
     } catch {
-      // cross-origin stylesheet без href (рідкісний випадок) — пропускаємо
+      // cssRules недоступні (CORS) — спробуємо дістати текст через fetch нижче
+    }
+    if (sheet.href) {
+      try {
+        const res = await fetch(sheet.href, { mode: "cors" });
+        if (res.ok) css += (await res.text()) + "\n";
+      } catch {
+        // немає CORS навіть на fetch — цей шматок стилів (зазвичай шрифт)
+        // просто не потрапить у файл; решта оформлення відпрацює й так
+      }
     }
   }
 
-  return { inlineCss, externalHrefs: Array.from(externalHrefs) };
+  return css;
 }
 
 export async function generateHtmlFromElement(elementId, fileNameBase, backgroundColor = "#ffffff") {
@@ -92,10 +145,9 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
 
   const clone = node.cloneNode(true);
   swapLiveForStatic(clone);
-  absolutizeUrls(clone);
+  await inlineImages(clone);
 
-  const { inlineCss, externalHrefs } = collectStyles();
-  const externalLinksHtml = externalHrefs.map((href) => `<link rel="stylesheet" href="${href}">`).join("\n    ");
+  const css = await collectStyles();
   const title = sanitizeFileName(fileNameBase) || "document";
 
   const html = `<!doctype html>
@@ -104,12 +156,11 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${title}</title>
-    ${externalLinksHtml}
     <style>
       html, body { margin: 0; padding: 0; background: ${backgroundColor}; }
       body { display: flex; justify-content: center; }
       #export-root { max-width: 720px; width: 100%; }
-      ${inlineCss}
+      ${css}
     </style>
   </head>
   <body>
