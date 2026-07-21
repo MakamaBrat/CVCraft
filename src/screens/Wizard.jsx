@@ -618,6 +618,77 @@ function VideoPdfCard({ thumbUrl, url }) {
   );
 }
 
+// Багато сайтів забороняють вбудовування через X-Frame-Options / CSP
+// frame-ancestors — у такому разі iframe просто лишається порожнім, без
+// жодної JS-помилки, яку можна відловити. Тому над iframe завжди
+// лишаємо міні-шапку (іконка/назва сайту + кнопка "Відкрити"), щоб
+// користувач міг перейти на сторінку, навіть якщо прев'ю не завантажилось.
+function WebsiteFrame({ url, title }) {
+  const [state, setState] = useState({ loading: true, title: null, image: null, failed: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true, title: null, image: null, failed: false });
+    apiFetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+      .then((data) => {
+        if (cancelled) return;
+        setState({ loading: false, title: data?.title || null, image: data?.image || null, failed: false });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setState({ loading: false, title: null, image: null, failed: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  const openSite = () => {
+    const tg = getTelegramWebApp();
+    if (tg?.openLink) tg.openLink(url);
+    else window.open(url, "_blank");
+  };
+
+  let hostname = url;
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    // залишаємо url як є, якщо не спарсився
+  }
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-base-700 bg-base-800">
+      <button onClick={openSite} className="tap w-full flex items-center gap-3 px-3 py-2.5 text-left border-b border-base-700">
+        {!state.loading && !state.failed && state.image ? (
+          <img src={state.image} alt="" crossOrigin="anonymous" className="w-7 h-7 rounded-lg object-cover shrink-0" />
+        ) : (
+          <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3c2.5 2.7 4 6 4 9s-1.5 6.3-4 9c-2.5-2.7-4-6-4-9s1.5-6.3 4-9z" />
+            </svg>
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold truncate text-white/90">{title || state.title || hostname}</p>
+          <p className="text-[10px] text-white/40 truncate">{hostname}</p>
+        </div>
+        <svg width="12" height="12" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0 text-white/40">
+          <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <iframe
+        src={url}
+        title={title || hostname}
+        className="w-full bg-white"
+        style={{ height: 360, border: 0 }}
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
 function WebsiteCard({ url, title }) {
   const [state, setState] = useState({ loading: true, title: null, image: null, failed: false });
 
@@ -824,7 +895,12 @@ export function MediaPreview({ item }) {
       />
     );
   }
-  return <WebsiteCard url={item.url} title={item.title} />;
+  return (
+    <PdfSwap
+      live={<WebsiteFrame url={item.url} title={item.title} />}
+      fallback={<WebsiteCard url={item.url} title={item.title} />}
+    />
+  );
 }
 
 function SkillsStep({ draft, set }) {
