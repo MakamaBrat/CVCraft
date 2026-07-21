@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
+import ReportModal from "../components/ReportModal.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -59,6 +60,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
   const theme = getColorTheme(r?.colorScheme);
   const align = getAlign(r?.align);
   const isCenter = align === "center";
+  const [reporting, setReporting] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 bg-base-950 flex flex-col">
@@ -69,6 +71,12 @@ function ApplicantDetail({ applicant, onClose, t }) {
           </svg>
         </button>
         <h1 className="text-lg font-bold flex-1 truncate">{t("vacancy.viewFullResume")}</h1>
+        <button
+          onClick={() => setReporting(true)}
+          className="tap shrink-0 text-xs font-medium text-white/45 border border-base-700 rounded-full px-3 py-1.5"
+        >
+          {t("report.reportApplicant")}
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
@@ -229,6 +237,10 @@ function ApplicantDetail({ applicant, onClose, t }) {
           />
         </div>
       </div>
+
+      {reporting && (
+        <ReportModal targetType="applicant" applicationId={applicant.id} onClose={() => setReporting(false)} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
+import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
@@ -11,6 +12,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
   const [message, setMessage] = useState("");
   const [resumeId, setResumeId] = useState(resumes[0]?.id || "");
   const [sent, setSent] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy.colorScheme);
   const align = getAlign(vacancy.align);
@@ -33,7 +35,13 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             <path d="M11 3L5 9l6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold">{t("vacancy.title")}</h1>
+        <h1 className="text-lg font-bold flex-1">{t("vacancy.title")}</h1>
+        <button
+          onClick={() => setReporting(true)}
+          className="tap shrink-0 text-xs font-medium text-white/45 border border-base-700 rounded-full px-3 py-1.5"
+        >
+          {t("report.reportVacancy")}
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
@@ -154,6 +162,10 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
           </div>
         )}
       </div>
+
+      {reporting && (
+        <ReportModal targetType="vacancy" vacancyId={vacancy.id} onClose={() => setReporting(false)} />
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useLanguage } from "../lib/i18n/index.jsx";
 import { vacancyFromRow } from "../lib/vacancy.js";
 import { VacancyDocument } from "./VacancyPreview.jsx";
 
-const TABS = ["stats", "moderation", "applications", "users", "pricing"];
+const TABS = ["stats", "moderation", "reports", "applications", "users", "pricing"];
 
 export default function AdminPanel({ onBack, adminId }) {
   const { t } = useLanguage();
@@ -14,6 +14,8 @@ export default function AdminPanel({ onBack, adminId }) {
   const [pending, setPending] = useState([]);
   const [applications, setApplications] = useState([]);
   const [users, setUsers] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [resolvingReportId, setResolvingReportId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [previewVacancy, setPreviewVacancy] = useState(null);
@@ -25,18 +27,20 @@ export default function AdminPanel({ onBack, adminId }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [statsRes, moderationRes, applicationsRes, usersRes, pricingRes] = await Promise.all([
+      const [statsRes, moderationRes, applicationsRes, usersRes, pricingRes, reportsRes] = await Promise.all([
         apiFetch("/api/admin?action=stats"),
         apiFetch("/api/admin?action=moderation"),
         apiFetch("/api/admin?action=applications"),
         apiFetch("/api/admin?action=users"),
         apiFetch("/api/admin?action=pricing"),
+        apiFetch("/api/admin?action=reports&status=open"),
       ]);
       setStats(statsRes);
       setPending((moderationRes?.vacancies || []).map(vacancyFromRow));
       setApplications(applicationsRes?.applications || []);
       setUsers(usersRes?.users || []);
       setPricing(pricingRes);
+      setReports(reportsRes?.reports || []);
       setPricingForm({
         listingPrice: String(pricingRes?.listingPrice ?? ""),
         topPrice: String(pricingRes?.topPrice ?? ""),
@@ -87,6 +91,26 @@ export default function AdminPanel({ onBack, adminId }) {
     } catch (err) {
       setActionError(`Помилка: ${err?.payload?.error || err.message}`);
     }
+  };
+
+  const resolveReport = async (id, decision, banTarget = false) => {
+    setActionError(null);
+    setResolvingReportId(id);
+    try {
+      await apiFetch("/api/admin", { method: "POST", body: { action: "resolveReport", id, decision, banTarget } });
+      setReports((prev) => prev.filter((r) => r.id !== id));
+      if (banTarget) {
+        // Локально позначаємо юзера забаненим, якщо він є у вкладці "Користувачі".
+        setUsers((prev) => {
+          const report = reports.find((r) => r.id === id);
+          const targetId = report?.target?.telegram_id;
+          return targetId ? prev.map((u) => (u.telegram_id === targetId ? { ...u, is_banned: true } : u)) : prev;
+        });
+      }
+    } catch (err) {
+      setActionError(`Помилка обробки скарги: ${err?.payload?.error || err.message}`);
+    }
+    setResolvingReportId(null);
   };
 
   const savePricing = async () => {
@@ -159,6 +183,7 @@ export default function AdminPanel({ onBack, adminId }) {
                   [t("admin.totalUsers"), stats.totalUsers],
                   [t("admin.totalVacancies"), stats.totalVacancies],
                   [t("admin.pendingModeration"), stats.pendingCount],
+                  [t("admin.pendingReports"), stats.pendingReportsCount],
                 ].map(([label, value]) => (
                   <div key={label} className="bg-base-850 border border-base-700 rounded-xl p-4">
                     <p className="text-2xl font-bold">{value ?? 0}</p>
@@ -211,6 +236,68 @@ export default function AdminPanel({ onBack, adminId }) {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {tab === "reports" && (
+              <div className="flex flex-col gap-3">
+                {reports.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noReports")}</p>}
+                {reports.map((rep) => {
+                  const vacancyTitle = rep.vacancies?.data?.position || rep.vacancy_applications?.vacancy_id || "—";
+                  const isBusy = resolvingReportId === rep.id;
+                  return (
+                    <div key={rep.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
+                      <p className="font-semibold text-sm mb-1">
+                        {rep.type === "vacancy" ? t("admin.reportOnVacancy") : t("admin.reportOnApplicant")}
+                      </p>
+                      <p className="text-xs text-white/50 mb-2">
+                        {t(`report.reasons.${rep.reason}`)} · {vacancyTitle}
+                      </p>
+                      <p className="text-xs text-white/45 mb-1">
+                        {t("admin.reportedBy")}: {rep.reporter?.telegram_username ? `@${rep.reporter.telegram_username}` : rep.reporter?.telegram_id}
+                      </p>
+                      <p className="text-xs text-white/45 mb-2">
+                        {t("admin.reportedTarget")}: {rep.target?.telegram_username ? `@${rep.target.telegram_username}` : rep.target?.telegram_id}
+                        {rep.target?.is_banned && <span className="ml-2 text-[10px] text-red-400 font-semibold">{t("admin.banned")}</span>}
+                      </p>
+                      {rep.comment && (
+                        <p className="text-xs text-white/70 whitespace-pre-line mb-3">
+                          {t("admin.reportComment")}: {rep.comment}
+                        </p>
+                      )}
+                      {rep.vacancy_applications?.message && (
+                        <p className="text-xs text-white/60 whitespace-pre-line mb-3 line-clamp-3">
+                          {rep.vacancy_applications.message}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => resolveReport(rep.id, "resolved")}
+                          disabled={isBusy}
+                          className="tap flex-1 bg-emerald-500/90 text-white text-xs font-semibold rounded-lg py-2 disabled:opacity-50"
+                        >
+                          {t("admin.resolve")}
+                        </button>
+                        <button
+                          onClick={() => resolveReport(rep.id, "dismissed")}
+                          disabled={isBusy}
+                          className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2 disabled:opacity-50"
+                        >
+                          {t("admin.dismiss")}
+                        </button>
+                        {!rep.target?.is_banned && (
+                          <button
+                            onClick={() => resolveReport(rep.id, "resolved", true)}
+                            disabled={isBusy}
+                            className="tap shrink-0 bg-red-500/90 text-white text-xs font-semibold rounded-lg px-3 py-2 disabled:opacity-50"
+                          >
+                            {t("admin.banUser")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

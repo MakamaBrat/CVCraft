@@ -46,13 +46,21 @@ async function handlerImpl(req, res) {
       admin.from("users").select("*", { count: "exact", head: true }).gte("last_active_at", todayIso),
       admin.from("vacancies").select("*", { count: "exact", head: true }),
       admin.from("vacancies").select("*", { count: "exact", head: true }).eq("status", "pending_review"),
+      admin.from("reports").select("*", { count: "exact", head: true }).eq("status", "open"),
     ]);
-    const labels = ["totalUsers", "usersToday", "activeToday", "totalVacancies", "pendingCount"];
+    const labels = ["totalUsers", "usersToday", "activeToday", "totalVacancies", "pendingCount", "pendingReportsCount"];
     results.forEach((r, i) => {
       if (r.error) logDbError(`admin stats: ${labels[i]}`, r.error, { telegramId: auth.user.id });
     });
-    const [{ count: totalUsers }, { count: usersToday }, { count: activeToday }, { count: totalVacancies }, { count: pendingCount }] = results;
-    return sendJson(res, 200, { totalUsers, usersToday, activeToday, totalVacancies, pendingCount });
+    const [
+      { count: totalUsers },
+      { count: usersToday },
+      { count: activeToday },
+      { count: totalVacancies },
+      { count: pendingCount },
+      { count: pendingReportsCount },
+    ] = results;
+    return sendJson(res, 200, { totalUsers, usersToday, activeToday, totalVacancies, pendingCount, pendingReportsCount });
   }
 
   if (req.method === "GET" && action === "moderation") {
@@ -92,6 +100,71 @@ async function handlerImpl(req, res) {
       return sendJson(res, 500, { error: "db_error" });
     }
     return sendJson(res, 200, { users: data });
+  }
+
+  if (req.method === "GET" && action === "reports") {
+    const statusFilter = req.query?.status || "open"; // 'open' | 'resolved' | 'dismissed' | 'all'
+    let query = admin
+      .from("reports")
+      .select(
+        `id, type, reason, comment, status, created_at, resolved_at, resolved_by,
+         vacancy_id, application_id,
+         reporter:users!reports_reporter_telegram_id_fkey(telegram_id, telegram_username, first_name),
+         target:users!reports_target_telegram_id_fkey(telegram_id, telegram_username, first_name, is_banned),
+         vacancies(id, data, status),
+         vacancy_applications(id, message, contact, resume_snapshot, vacancy_id)`
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (statusFilter !== "all") query = query.eq("status", statusFilter);
+
+    const { data, error } = await query;
+    if (error) {
+      logDbError("admin reports GET", error, { telegramId: auth.user.id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { reports: data });
+  }
+
+  if (req.method === "POST" && action === "resolveReport") {
+    const { id, decision, banTarget } = req.body || {};
+    if (!id || !["resolved", "dismissed"].includes(decision)) {
+      console.warn("[admin] resolveReport: invalid_body", { telegramId: auth.user.id, id, decision });
+      return sendJson(res, 400, { error: "invalid_body" });
+    }
+
+    const { data: report, error: fetchError } = await admin
+      .from("reports")
+      .select("id, target_telegram_id, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError) {
+      logDbError("admin resolveReport: fetch", fetchError, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    if (!report) return sendJson(res, 404, { error: "report_not_found" });
+
+    const { error } = await admin
+      .from("reports")
+      .update({ status: decision, resolved_by: auth.user.id, resolved_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      logDbError("admin resolveReport POST", error, { telegramId: auth.user.id, id, decision });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+
+    if (banTarget === true) {
+      const { error: banError } = await admin
+        .from("users")
+        .update({ is_banned: true })
+        .eq("telegram_id", report.target_telegram_id);
+      if (banError) {
+        logDbError("admin resolveReport: ban target", banError, { telegramId: auth.user.id, id, target: report.target_telegram_id });
+      }
+    }
+
+    logInfo("admin resolveReport POST: ok", { telegramId: auth.user.id, id, decision, banTarget: Boolean(banTarget) });
+    return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === "GET" && action === "pricing") {
