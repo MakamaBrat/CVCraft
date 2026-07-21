@@ -44,19 +44,24 @@ export function getColorTheme(id) {
 
 // Фон документа (резюме/вакансії): звичайний суцільний колір теми, або, якщо
 // вказано backgroundUrl (картинка чи гіф), — те саме зображення з напівпрозорим
-// градієнтом кольору теми поверх нього, щоб текст лишався читабельним, але
-// саме зображення/гіф було видно (раніше було 85% — картинка була майже не
-// помітна, здавалось, що вона взагалі не працює). GIF у background-image
-// анімується нормально в браузері; у PDF (html2canvas) застигне на кадрі.
+// градієнтом кольору теми поверх нього. 60% (як було раніше) виявилось
+// замало — на світлих ділянках фото текст ставав нечитабельним ("видно по
+// половинах"). 78% — робочий баланс: фото/гіф все ще добре видно, але текст
+// не зливається з картинкою. Додатково додаємо легку тінь під текст —
+// це підстраховка для особливо контрастних/строкатих фото, де самого
+// градієнта може не вистачити. GIF у background-image анімується нормально
+// в браузері; у PDF (html2canvas) застигне на кадрі.
 export function getDocBackgroundStyle(theme, backgroundUrl) {
   if (!backgroundUrl) return { background: theme.bg };
   const url = normalizeMediaUrl(backgroundUrl);
+  const shadowColor = theme.id === "dark" ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.85)";
   return {
     backgroundColor: theme.bg,
-    backgroundImage: `linear-gradient(${theme.bg}99, ${theme.bg}99), url("${url}")`,
+    backgroundImage: `linear-gradient(${theme.bg}c7, ${theme.bg}c7), url("${url}")`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
+    textShadow: `0 1px 3px ${shadowColor}`,
   };
 }
 
