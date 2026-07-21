@@ -6,7 +6,7 @@ import { buildShareLink, TELEGRAM_BOT_USERNAME } from "../lib/config.js";
 import { generateResumePdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { getColorTheme, getAlign, getDocBackgroundStyle, getHeaderStyle } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -58,7 +58,7 @@ function ResumeDocument({ resume }) {
 
       {resume.summary && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             Про мене
           </h3>
           <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
@@ -69,7 +69,7 @@ function ResumeDocument({ resume }) {
 
       {resume.experience.length > 0 && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Досвід роботи
           </h3>
           <div className="space-y-3">
@@ -97,7 +97,7 @@ function ResumeDocument({ resume }) {
 
       {resume.education.length > 0 && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Освіта
           </h3>
           <div className="space-y-2">
@@ -122,7 +122,7 @@ function ResumeDocument({ resume }) {
 
       {resume.skills.length > 0 && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Навички
           </h3>
           <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
@@ -141,7 +141,7 @@ function ResumeDocument({ resume }) {
 
       {(resume.portfolio || []).length > 0 && (
         <section>
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
             Портфоліо
           </h3>
           <div className="space-y-3">

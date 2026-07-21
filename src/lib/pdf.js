@@ -149,19 +149,12 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
 
     let heightLeft = imgHeight;
     let position = 0;
-    pdf.setFillColor(backgroundColor);
-    pdf.rect(0, 0, pageWidth, pageHeight, "F");
     pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
 
     while (heightLeft > 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
-      // Останній фрагмент зазвичай коротший за повну сторінку — без цієї
-      // заливки під зображенням лишалася смуга дефолтного білого фону
-      // PDF-сторінки (те, що виглядало як "друга половина сторінки біла").
-      pdf.setFillColor(backgroundColor);
-      pdf.rect(0, 0, pageWidth, pageHeight, "F");
       pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
     }
