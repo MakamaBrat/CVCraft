@@ -90,6 +90,23 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     }
   }
 
+  // html2canvas погано вміє коректно рендерити `text-overflow: ellipsis`
+  // разом з кастомним веб-шрифтом (Manrope) — рядки на кшталт ПІБ/посади
+  // з класом .truncate (overflow:hidden + line-height, як в TailwindCSS)
+  // на скріншоті виходять обрізаними чи "наїжджають" одна на одну. Знімаємо
+  // обрізання ще ДО вимірювання будь-яких координат (нижче), щоб і
+  // скріншот, і координати overlay-ів рахувались по ОДНАКОВІЙ розкладці —
+  // інакше після зняття truncate текст переноситься на другий рядок,
+  // все зсувається нижче, і кнопки/відео на фінальному файлі "поїдуть".
+  const truncatedEls = Array.from(node.querySelectorAll(".truncate"));
+  const prevTruncateCss = truncatedEls.map((el) => el.style.cssText);
+  truncatedEls.forEach((el) => {
+    el.style.overflow = "visible";
+    el.style.textOverflow = "clip";
+    el.style.whiteSpace = "normal";
+    el.style.lineHeight = "normal";
+  });
+
   // Позиції "живих" елементів (відео/iframe) записуємо ДО того, як їх
   // приховаємо для скріншоту — контейнер живого й статичного варіанту
   // однакового розміру, тому координати збігаються.
@@ -129,6 +146,9 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     });
     showEls.forEach((el, i) => {
       el.style.display = prevShowDisplay[i];
+    });
+    truncatedEls.forEach((el, i) => {
+      el.style.cssText = prevTruncateCss[i];
     });
   }
 
