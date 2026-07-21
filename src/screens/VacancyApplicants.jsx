@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle, getHeaderStyle } from "../lib/docTheme.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
@@ -109,7 +109,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
 
             {r.summary && (
               <section className="mb-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
+                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={getHeaderStyle(theme, accent, !!r?.backgroundUrl)}>
                   Про мене
                 </h3>
                 <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
@@ -120,7 +120,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
 
             {(r.experience || []).length > 0 && (
               <section className="mb-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!r?.backgroundUrl)}>
                   Досвід роботи
                 </h3>
                 <div className="space-y-3">
@@ -148,7 +148,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
 
             {(r.education || []).length > 0 && (
               <section className="mb-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!r?.backgroundUrl)}>
                   Освіта
                 </h3>
                 <div className="space-y-2">
@@ -173,7 +173,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
 
             {(r.skills || []).length > 0 && (
               <section className="mb-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!r?.backgroundUrl)}>
                   Навички
                 </h3>
                 <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
@@ -192,7 +192,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
 
             {(r.portfolio || []).length > 0 && (
               <section>
-                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+                <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!r?.backgroundUrl)}>
                   Портфоліо
                 </h3>
                 <div className="space-y-3">

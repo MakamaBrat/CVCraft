@@ -68,7 +68,58 @@ function collectLinkRects(node) {
     .filter((l) => l && l.url);
 }
 
-function addLinkAnnotations(pdf, linkRects, cssToPtScale, pageHeight, pageCount) {
+// Елементи, позначені data-pdf-avoid-break="true" (заголовок з фото,
+// кожен запис досвіду/освіти, кожна картка портфоліо тощо) — це
+// "неподільні" блоки: розрізати їх точно по межі сторінки не можна,
+// інакше текст всередині показує лише верхню/нижню половину рядків, а
+// картки (наприклад, кнопка Instagram/TikTok) виглядають обірваними.
+// Повертаємо їх межі (top/bottom), щоб підбирати точку розриву сторінки
+// так, щоб вона не проходила крізь жоден з цих блоків.
+function collectAvoidBreakRects(node) {
+  const nodeRect = node.getBoundingClientRect();
+  return Array.from(node.querySelectorAll('[data-pdf-avoid-break="true"]'))
+    .map((el) => {
+      const style = window.getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") return null;
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return null;
+      return { top: r.top - nodeRect.top, bottom: r.bottom - nodeRect.top };
+    })
+    .filter(Boolean);
+}
+
+// Рахує межі кожної сторінки (у pt, від верху повного зображення) так,
+// щоб жодна точка розриву не потрапляла всередину "неподільного" блоку.
+// Якщо звичайна межа (position + pageHeight) перетинає такий блок —
+// зсуваємо розрив вище, до верху цього блоку: цілком переносимо його на
+// наступну сторінку, а знизу поточної лишається трохи фону (не текст, що
+// зникає чи ріжеться навпіл).
+function computePageBreaks(imgHeight, pageHeight, avoidRects) {
+  const breaks = [];
+  let cursor = 0;
+  const EPS = 0.5;
+  while (cursor < imgHeight - EPS) {
+    let cut = Math.min(cursor + pageHeight, imgHeight);
+    if (cut < imgHeight - EPS) {
+      const crossing = avoidRects.filter((r) => r.top < cut - EPS && r.bottom > cut + EPS);
+      if (crossing.length) {
+        const earliestTop = Math.min(...crossing.map((r) => r.top));
+        // Зсуваємо розрив тільки якщо на поточній сторінці й так лишається
+        // достатньо контенту — інакше (блок сам по собі більший за
+        // сторінку) розрив довелось би зсунути аж до cursor, тобто
+        // сторінка була б порожньою, а це нескінченний цикл/марна сторінка.
+        if (earliestTop > cursor + Math.min(60, pageHeight * 0.15)) {
+          cut = earliestTop;
+        }
+      }
+    }
+    breaks.push(cut);
+    cursor = cut;
+  }
+  return breaks;
+}
+
+function addLinkAnnotations(pdf, linkRects, cssToPtScale, pageBreaks) {
   for (const link of linkRects) {
     const xPt = link.x * cssToPtScale;
     const yTopPt = link.y * cssToPtScale;
@@ -80,17 +131,21 @@ function addLinkAnnotations(pdf, linkRects, cssToPtScale, pageHeight, pageCount)
     // область, що фізично надрукована вже на наступній.
     let remainingTop = yTopPt;
     let remainingHeight = hPt;
-    while (remainingHeight > 0) {
-      const pageIndex = Math.min(Math.floor(remainingTop / pageHeight), pageCount - 1);
-      const pageTop = pageIndex * pageHeight;
-      const yOnPage = remainingTop - pageTop;
-      const hOnPage = Math.min(remainingHeight, pageHeight - yOnPage);
-      if (hOnPage > 0) {
-        pdf.setPage(pageIndex + 1);
-        pdf.link(xPt, yOnPage, wPt, hOnPage, { url: link.url });
+    let pageIndex = 0;
+    while (remainingHeight > 0 && pageIndex < pageBreaks.length) {
+      const pageTop = pageIndex === 0 ? 0 : pageBreaks[pageIndex - 1];
+      const pageBottom = pageBreaks[pageIndex];
+      if (remainingTop < pageBottom - 1e-6) {
+        const yOnPage = remainingTop - pageTop;
+        const hOnPage = Math.min(remainingHeight, pageBottom - remainingTop);
+        if (hOnPage > 0) {
+          pdf.setPage(pageIndex + 1);
+          pdf.link(xPt, yOnPage, wPt, hOnPage, { url: link.url });
+        }
+        remainingTop += hOnPage;
+        remainingHeight -= hOnPage;
       }
-      remainingTop += hOnPage;
-      remainingHeight -= hOnPage;
+      pageIndex += 1;
     }
   }
 }
@@ -136,8 +191,10 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
 
     const canvas = await captureCanvas(node, html2canvas, backgroundColor);
     // DOM ще в тому самому стані, що й на знімку (pdf-hide/pdf-only вже
-    // застосовані) — саме зараз координати клікабельних зон коректні.
+    // застосовані) — саме зараз координати клікабельних зон та "неподільних"
+    // блоків коректні.
     const linkRects = collectLinkRects(node);
+    const avoidBreakRectsCss = collectAvoidBreakRects(node);
     const nodeCssWidth = node.getBoundingClientRect().width || node.offsetWidth;
 
     const imgData = canvas.toDataURL("image/png");
@@ -146,22 +203,28 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
     const pageHeight = pdf.internal.pageSize.getHeight();
     const imgWidth = pageWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = 0;
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    const pageCount = pdf.internal.getNumberOfPages();
     const cssToPtScale = imgWidth / nodeCssWidth; // css-пікселі елемента -> pt у PDF
-    addLinkAnnotations(pdf, linkRects, cssToPtScale, pageHeight, pageCount);
+
+    const avoidBreakRects = avoidBreakRectsCss.map((r) => ({
+      top: r.top * cssToPtScale,
+      bottom: r.bottom * cssToPtScale,
+    }));
+
+    // Розриви сторінок підібрані так, щоб не проходити крізь заголовок,
+    // запис досвіду/освіти чи картку портфоліо — замість фіксованого кроку
+    // pageHeight, який міг розрізати текст чи картку рівно навпіл.
+    const pageBreaks = computePageBreaks(imgHeight, pageHeight, avoidBreakRects);
+
+    pageBreaks.forEach((pageBottom, i) => {
+      const pageTop = i === 0 ? 0 : pageBreaks[i - 1];
+      const position = -pageTop;
+      if (i > 0) pdf.addPage();
+      pdf.setFillColor(backgroundColor);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    });
+
+    addLinkAnnotations(pdf, linkRects, cssToPtScale, pageBreaks);
 
     const blob = pdf.output("blob");
     const fileName = `${sanitizeFileName(fileNameBase) || "document"}.pdf`;

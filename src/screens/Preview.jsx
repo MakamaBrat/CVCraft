@@ -6,7 +6,7 @@ import { buildShareLink, TELEGRAM_BOT_USERNAME } from "../lib/config.js";
 import { generateResumePdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle, getHeaderStyle } from "../lib/docTheme.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -35,6 +35,7 @@ function ResumeDocument({ resume }) {
       }}
     >
       <div
+        data-pdf-avoid-break="true"
         className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
         style={{ borderBottom: `2px solid ${accent}` }}
       >
@@ -57,8 +58,8 @@ function ResumeDocument({ resume }) {
       </div>
 
       {resume.summary && (
-        <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
+        <section className="mb-4" data-pdf-avoid-break="true">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
             Про мене
           </h3>
           <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
@@ -69,12 +70,12 @@ function ResumeDocument({ resume }) {
 
       {resume.experience.length > 0 && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
             Досвід роботи
           </h3>
           <div className="space-y-3">
             {resume.experience.map((e) => (
-              <div key={e.id}>
+              <div key={e.id} data-pdf-avoid-break="true">
                 <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
                   <p className="text-[12.5px] font-semibold">{e.position}</p>
                   <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
@@ -97,12 +98,12 @@ function ResumeDocument({ resume }) {
 
       {resume.education.length > 0 && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
             Освіта
           </h3>
           <div className="space-y-2">
             {resume.education.map((e) => (
-              <div key={e.id}>
+              <div key={e.id} data-pdf-avoid-break="true">
                 <div className={`flex items-baseline gap-2 ${isCenter ? "flex-col" : "justify-between"}`}>
                   <p className="text-[12.5px] font-semibold">{e.school}</p>
                   <p className="text-[10px] shrink-0" style={{ color: theme.textFaint }}>
@@ -122,7 +123,7 @@ function ResumeDocument({ resume }) {
 
       {resume.skills.length > 0 && (
         <section className="mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
             Навички
           </h3>
           <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
@@ -141,12 +142,12 @@ function ResumeDocument({ resume }) {
 
       {(resume.portfolio || []).length > 0 && (
         <section>
-          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={getHeaderStyle(theme, accent, !!resume.backgroundUrl)}>
             Портфоліо
           </h3>
           <div className="space-y-3">
             {resume.portfolio.map((p) => (
-              <div key={p.id}>
+              <div key={p.id} data-pdf-avoid-break="true">
                 {p.title && <p className="text-[11.5px] font-semibold mb-1">{p.title}</p>}
                 <MediaPreview item={p} />
               </div>

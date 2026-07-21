@@ -37,6 +37,7 @@ export function VacancyDocument({ vacancy }) {
       }}
     >
       <div
+        data-pdf-avoid-break="true"
         className={`flex gap-3 pb-4 mb-4 ${isCenter ? "flex-col items-center text-center" : "items-center"}`}
         style={{ borderBottom: `2px solid ${accent}` }}
       >
@@ -59,7 +60,7 @@ export function VacancyDocument({ vacancy }) {
       </div>
 
       {vacancy.description && (
-        <section className="mb-4">
+        <section className="mb-4" data-pdf-avoid-break="true">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("vacancy.description")}
           </h3>
@@ -70,7 +71,7 @@ export function VacancyDocument({ vacancy }) {
       )}
 
       {vacancy.requirements && (
-        <section className="mb-4">
+        <section className="mb-4" data-pdf-avoid-break="true">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("vacancy.requirements")}
           </h3>
@@ -81,7 +82,7 @@ export function VacancyDocument({ vacancy }) {
       )}
 
       {vacancy.contact && (
-        <section className="mb-4">
+        <section className="mb-4" data-pdf-avoid-break="true">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("vacancy.contact")}
           </h3>
@@ -98,7 +99,7 @@ export function VacancyDocument({ vacancy }) {
           </h3>
           <div className="space-y-3">
             {vacancy.media.map((p) => (
-              <div key={p.id}>
+              <div key={p.id} data-pdf-avoid-break="true">
                 {p.title && <p className="text-[11.5px] font-semibold mb-1">{p.title}</p>}
                 <MediaPreview item={p} />
               </div>
