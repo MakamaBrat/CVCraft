@@ -3,6 +3,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { timeAgo } from "../lib/timeAgo.js";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
 const ACCENTS = { minimal: "#4b5563", modern: "#6c5ce7", bold: "#ff7a59", classic: "#2f6fb0" };
@@ -71,6 +72,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             {vacancy.salary && <span>{vacancy.salary}</span>}
             {vacancy.city && <span>{vacancy.city}</span>}
             {vacancy.employmentType && <span>{vacancy.employmentType}</span>}
+            {vacancy.createdAt && <span>{timeAgo(vacancy.createdAt, t)}</span>}
           </div>
           {(vacancy.tags || []).length > 0 && (
             <div className={`flex flex-wrap gap-1.5 mb-4 ${isCenter ? "justify-center" : ""}`}>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { timeAgo } from "../lib/timeAgo.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
@@ -98,6 +99,9 @@ export default function VacancyList({
                     <p className="text-[11px] text-white/35 mt-0.5">
                       {t("vacancy.viewsCount", v.viewsCount || 0)}
                     </p>
+                    {v.createdAt && (
+                      <p className="text-[11px] text-white/35 mt-0.5">{timeAgo(v.createdAt, t)}</p>
+                    )}
                   </div>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
                     <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

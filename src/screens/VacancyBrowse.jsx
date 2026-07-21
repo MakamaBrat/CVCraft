@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import Avatar from "../components/Avatar.jsx";
 import { getColorTheme } from "../lib/docTheme.js";
+import { timeAgo } from "../lib/timeAgo.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = { minimal: "#9aa0a6", modern: "#6c5ce7", bold: "#ff7a59", classic: "#4c9be8" };
@@ -9,6 +10,7 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
   const { t } = useLanguage();
   const [activeTags, setActiveTags] = useState([]);
   const [activeCity, setActiveCity] = useState("");
+  const [query, setQuery] = useState("");
 
   const allTags = useMemo(() => {
     const set = new Set();
@@ -28,12 +30,17 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
     setActiveTags((prev) => (prev.includes(tg) ? prev.filter((x) => x !== tg) : [...prev, tg]));
 
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return vacancies.filter((v) => {
       const matchesTags = activeTags.length === 0 || (v.tags || []).some((tg) => activeTags.includes(tg));
       const matchesCity = !activeCity || (v.city || "").trim() === activeCity;
-      return matchesTags && matchesCity;
+      const matchesQuery =
+        !q ||
+        (v.position || "").toLowerCase().includes(q) ||
+        (v.company || "").toLowerCase().includes(q);
+      return matchesTags && matchesCity && matchesQuery;
     });
-  }, [vacancies, activeTags, activeCity]);
+  }, [vacancies, activeTags, activeCity, query]);
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -45,6 +52,37 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
           </svg>
         </button>
         <h1 className="text-lg font-bold">{t("vacancy.listTitle")}</h1>
+      </div>
+
+      <div className="px-6 pb-3">
+        <div className="relative">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"
+          >
+            <circle cx="6.5" cy="6.5" r="4.8" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M10.3 10.3L13 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("vacancy.searchPlaceholder")}
+            className="w-full bg-base-850 border border-base-700 rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-accent-500"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="tap absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-white/40"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {allCities.length > 0 && (
@@ -130,6 +168,9 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
                     {v.company}
                     {v.city ? ` · ${v.city}` : ""}
                   </p>
+                  {v.createdAt && (
+                    <p className="text-[11px] text-white/35 mt-0.5">{timeAgo(v.createdAt, t)}</p>
+                  )}
                   {v.salary && <p className="text-xs text-accent-300 mt-0.5">{v.salary}</p>}
                   {(v.tags || []).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">

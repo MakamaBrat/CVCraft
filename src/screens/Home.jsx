@@ -1,21 +1,10 @@
 import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { timeAgo } from "../lib/timeAgo.js";
 import { buildShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
-
-function timeAgo(ts, t) {
-  const diff = Date.now() - ts;
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return t("timeAgo.justNow");
-  if (min < 60) return t("timeAgo.minutes", min);
-  const hrs = Math.floor(min / 60);
-  if (hrs < 24) return t("timeAgo.hours", hrs);
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return t("timeAgo.yesterday");
-  return t("timeAgo.days", days);
-}
 
 const DRAFT_BADGE = { uk: "Чернетка", ru: "Черновик", en: "Draft" };
 
@@ -39,6 +28,7 @@ export default function Home({
   onOpenVacancies,
   onCreateVacancy,
   onBrowseVacancies,
+  onOpenMyApplications,
   onOpenAdmin,
   isAdmin,
 }) {
@@ -133,6 +123,18 @@ export default function Home({
             </span>
           </button>
         </div>
+
+        {onOpenMyApplications && (
+          <div className="px-6 pb-5">
+            <button
+              onClick={onOpenMyApplications}
+              className="tap w-full flex items-center justify-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-2xl px-3.5 py-3"
+            >
+              <span className="text-base leading-none">📨</span>
+              <span className="text-[13px] font-medium text-amber-100/90">{t("home.myApplications")}</span>
+            </button>
+          </div>
+        )}
 
         <div className="px-6 flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-center gap-3 mb-3">
