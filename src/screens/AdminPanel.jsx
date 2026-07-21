@@ -12,6 +12,7 @@ const TABS = [
   { id: "stats", label: "Статистика" },
   { id: "moderation", label: "Модерація" },
   { id: "vacancies", label: "Всі вакансії" },
+  { id: "resumes", label: "Резюме" },
   { id: "reports", label: "Скарги" },
   { id: "applications", label: "Відгуки" },
   { id: "users", label: "Користувачі" },
@@ -45,6 +46,15 @@ function vacancyDocFromRaw(raw) {
   } catch {
     return { id: raw.id, status: raw.status, ...(raw.data || {}) };
   }
+}
+
+// Resume rows are stored the same way vacancies are (id + JSON `data` blob).
+// There's no resumeFromRow helper exported today, so flatten it the same way
+// vacancyDocFromRaw does as a fallback.
+function resumeDocFromRaw(raw) {
+  if (!raw) return null;
+  if (raw.fullName !== undefined || raw.role !== undefined) return raw; // already flat (e.g. a snapshot)
+  return { id: raw.id, ...(raw.data || {}) };
 }
 
 // ---------- Small building blocks ----------
@@ -312,6 +322,8 @@ export default function AdminPanel({ onBack, adminId }) {
   const [users, setUsers] = useState([]);
   const [reports, setReports] = useState([]);
   const [allVacancies, setAllVacancies] = useState([]); // [{ v, row }]
+  const [allResumes, setAllResumes] = useState([]); // [{ r, row }]
+  const [resumeSearch, setResumeSearch] = useState("");
   const [resolvingReportId, setResolvingReportId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -328,7 +340,7 @@ export default function AdminPanel({ onBack, adminId }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [statsRes, moderationRes, applicationsRes, usersRes, pricingRes, reportsRes, vacanciesRes] =
+      const [statsRes, moderationRes, applicationsRes, usersRes, pricingRes, reportsRes, vacanciesRes, resumesRes] =
         await Promise.all([
           apiFetch("/api/admin?action=stats"),
           apiFetch("/api/admin?action=moderation"),
@@ -339,6 +351,9 @@ export default function AdminPanel({ onBack, adminId }) {
           // NEW backend action: returns { vacancies: [rawRow, ...] } — every vacancy row
           // of any status, each row keeping telegram_id/telegram_username/views_count.
           apiFetch("/api/admin?action=allVacancies").catch(() => ({ vacancies: [] })),
+          // NEW backend action: returns { resumes: [rawRow, ...] } — every saved resume,
+          // each row keeping telegram_id/telegram_username so it can be tied to a user.
+          apiFetch("/api/admin?action=allResumes").catch(() => ({ resumes: [] })),
         ]);
       setStats(statsRes);
       setPending((moderationRes?.vacancies || []).map((row) => ({ row, v: vacancyFromRow(row) })));
@@ -347,6 +362,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setPricing(pricingRes);
       setReports(reportsRes?.reports || []);
       setAllVacancies((vacanciesRes?.vacancies || []).map((row) => ({ row, v: vacancyFromRow(row) })));
+      setAllResumes((resumesRes?.resumes || []).map((row) => ({ row, r: resumeDocFromRaw(row) })));
       setPricingForm({
         listingPrice: String(pricingRes?.listingPrice ?? ""),
         topPrice: String(pricingRes?.topPrice ?? ""),
@@ -467,7 +483,7 @@ export default function AdminPanel({ onBack, adminId }) {
   // ---------- Navigation helpers ----------
 
   const openVacancyPreview = (v, row, mode) => setPreview({ type: "vacancy", data: v, row, mode });
-  const openResumePreview = (resume, mode = "plain") => setPreview({ type: "resume", data: resume, mode });
+  const openResumePreview = (resume, row, mode = "plain") => setPreview({ type: "resume", data: resume, row, mode });
 
   // Opens the user sheet, preferring the full record from `users` (loaded once)
   // and falling back to whatever partial info the report/vacancy row carried.
@@ -521,6 +537,33 @@ export default function AdminPanel({ onBack, adminId }) {
     if (!activeUser) return [];
     return applications.filter((a) => String(a.telegram_id) === String(activeUser.telegram_id));
   }, [activeUser, applications]);
+
+  const activeUserResumes = useMemo(() => {
+    if (!activeUser) return [];
+    return allResumes.filter(({ row }) => String(row?.telegram_id) === String(activeUser.telegram_id));
+  }, [activeUser, allResumes]);
+
+  const filteredResumes = useMemo(() => {
+    const q = resumeSearch.trim().toLowerCase();
+    if (!q) return allResumes;
+    return allResumes.filter(({ r, row }) => {
+      const haystack = [
+        r.fullName,
+        r.role,
+        r.city,
+        r.email,
+        r.phone,
+        r.summary,
+        row?.telegram_id,
+        row?.telegram_username,
+        ...(r.skills || []),
+      ]
+        .filter(Boolean)
+        .join(" \n ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [allResumes, resumeSearch]);
 
   const vacancyStatusChartData = useMemo(
     () =>
@@ -775,6 +818,48 @@ export default function AdminPanel({ onBack, adminId }) {
               </div>
             )}
 
+            {tab === "resumes" && (
+              <div className="flex flex-col gap-3">
+                <input
+                  value={resumeSearch}
+                  onChange={(e) => setResumeSearch(e.target.value)}
+                  placeholder="Пошук по резюме: ім'я, посада, місто, навички, telegram_id..."
+                  className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+                />
+                <p className="text-xs text-white/40">Знайдено: {filteredResumes.length}</p>
+
+                {filteredResumes.length === 0 && (
+                  <p className="text-sm text-white/45 py-6 text-center">Нічого не знайдено</p>
+                )}
+
+                {filteredResumes.map(({ r, row }) => (
+                  <button
+                    key={row.id}
+                    onClick={() => openResumePreview(r, row, "plain")}
+                    className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
+                  >
+                    <Avatar
+                      url={r.avatarUrl}
+                      name={r.fullName || "?"}
+                      accent={ACCENTS[r.template] || ACCENTS.minimal}
+                      theme={getColorTheme(r.colorScheme)}
+                      size={10}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{r.fullName || "—"}</p>
+                      <p className="text-xs text-white/45 truncate">{r.role}</p>
+                      <p className="text-[11px] text-white/35 truncate">
+                        {row?.telegram_username ? `@${row.telegram_username}` : `id ${row?.telegram_id ?? "—"}`}
+                      </p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
+                      <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {tab === "reports" && (
               <div className="flex flex-col gap-3">
                 {reports.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noReports")}</p>}
@@ -829,7 +914,7 @@ export default function AdminPanel({ onBack, adminId }) {
                         )}
                         {resumeSnapshot && (
                           <button
-                            onClick={() => openResumePreview(resumeSnapshot)}
+                            onClick={() => openResumePreview(resumeSnapshot, { telegram_id: rep.target?.telegram_id, telegram_username: rep.target?.telegram_username })}
                             className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
                           >
                             Переглянути резюме
@@ -1062,6 +1147,32 @@ export default function AdminPanel({ onBack, adminId }) {
               <Row label="Статус" value={activeUser.is_banned ? "Забанений" : "Активний"} />
               <Row label="Резюме" value={activeUser.resumes_count} />
               <Row label="Всього зірок витрачено" value={activeUser.stars_spent} />
+            </div>
+
+            <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">
+              Резюме ({activeUserResumes.length})
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              {activeUserResumes.length === 0 && <p className="text-xs text-white/35 mb-2">Немає збережених резюме</p>}
+              {activeUserResumes.map(({ r, row }) => (
+                <button
+                  key={row.id}
+                  onClick={() => openResumePreview(r, row, "plain")}
+                  className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-lg px-3 py-2.5 text-left"
+                >
+                  <Avatar
+                    url={r.avatarUrl}
+                    name={r.fullName || "?"}
+                    accent={ACCENTS[r.template] || ACCENTS.minimal}
+                    theme={getColorTheme(r.colorScheme)}
+                    size={8}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{r.fullName || "—"}</p>
+                    <p className="text-[11px] text-white/45 truncate">{r.role}</p>
+                  </div>
+                </button>
+              ))}
             </div>
 
             <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">
