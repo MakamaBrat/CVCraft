@@ -50,7 +50,8 @@ export default async function handler(req, res) {
   form.append("chat_id", String(user.id));
   form.append("caption", caption);
   form.append("parse_mode", "HTML");
-  form.append("document", new Blob([buffer], { type: "text/html" }), fileName);
+  const mimeType = fileName.toLowerCase().endsWith(".pdf") ? "application/pdf" : "text/html";
+  form.append("document", new Blob([buffer], { type: mimeType }), fileName);
 
   let tgRes;
   try {

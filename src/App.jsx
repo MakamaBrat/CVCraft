@@ -272,6 +272,7 @@ export default function App() {
     const isNew = !previous;
 
     if (isNew && resumes.length >= MAX_RESUMES_PER_USER) {
+      await alertDialog(t("home.limitReached")(MAX_RESUMES_PER_USER));
       goHome();
       return;
     }
@@ -292,7 +293,11 @@ export default function App() {
           previous ? prev.map((r) => (r.id === id ? previous : r)) : prev.filter((r) => r.id !== id)
         );
         if (previous) setDraft(previous);
-        await alertDialog(t("home.saveFailed"));
+        const reason =
+          err?.payload?.error === "resume_limit_reached"
+            ? t("home.limitReached")(MAX_RESUMES_PER_USER)
+            : t("home.saveFailed");
+        await alertDialog(reason);
       }
     }
   };
