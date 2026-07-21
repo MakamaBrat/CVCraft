@@ -282,7 +282,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       {(resume.portfolio || []).length > 0 && (
         <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-          Відео та гіфки з портфоліо відтворюються на сторінці, але не включаються у PDF.
+          У PDF елементи портфоліо потрапляють як картки-прев'ю — натискання на них у файлі відкриває оригінальне посилання.
         </p>
       )}
 

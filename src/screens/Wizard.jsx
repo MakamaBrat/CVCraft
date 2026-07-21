@@ -592,38 +592,33 @@ function PdfSwap({ live, fallback }) {
   );
 }
 
-function LinkCaption({ url }) {
-  return (
-    <a href={url} target="_blank" rel="noreferrer" className="text-[11px] text-accent-300 underline break-all mt-1 block">
-      {url}
-    </a>
-  );
-}
+// Картки-заглушки нижче використовуються як "fallback" для PDF (через
+// data-pdf-only) — сам <video>/<audio>/iframe html2canvas коректно не
+// знімає. Клікабельність тепер забезпечує не текстове посилання всередині
+// картки, а прозорий оверлей поверх усієї картки, який pdf.js додає
+// окремо (через data-pdf-link на обгортці MediaPreview) — тому в самих
+// картках жодного видимого URL більше немає.
 
 // Статична картка-заглушка для відео (YouTube/Vimeo) у PDF: обкладинка
-// відео + кнопка Play поверх + посилання під картинкою.
-function VideoPdfCard({ thumbUrl, url }) {
+// відео + кнопка Play поверх.
+function VideoPdfCard({ thumbUrl }) {
   return (
-    <div>
-      <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
-        {thumbUrl && <img src={thumbUrl} alt="" crossOrigin="anonymous" className="w-full h-full object-cover" />}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-14 h-14 rounded-full bg-black/60 flex items-center justify-center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
+    <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+      {thumbUrl && <img src={thumbUrl} alt="" crossOrigin="anonymous" className="w-full h-full object-cover" />}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-full bg-black/60 flex items-center justify-center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
+            <path d="M8 5v14l11-7z" />
+          </svg>
         </div>
       </div>
-      <LinkCaption url={url} />
     </div>
   );
 }
 
 // Статична картка-заглушка для аудіо (файл або SoundCloud) у PDF:
-// іконка ноти + назва + посилання, бо сам <audio>/iframe-плеєр
-// html2canvas коректно не знімає.
-function AudioPdfCard({ title, url }) {
+// іконка ноти + назва.
+function AudioPdfCard({ title }) {
   return (
     <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700">
       <div className="w-11 h-11 rounded-xl bg-accent-500/15 flex items-center justify-center shrink-0">
@@ -635,7 +630,6 @@ function AudioPdfCard({ title, url }) {
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate">{title || "Аудіо"}</p>
-        <LinkCaption url={url} />
       </div>
     </div>
   );
@@ -783,7 +777,11 @@ function WebsiteCard({ url, title }) {
   );
 }
 
-export function MediaPreview({ item }) {
+// Рендерить конкретне прев'ю за типом. Обгортка MediaPreview нижче додає
+// навколо результату контейнер з data-pdf-link, щоб під час генерації
+// PDF (html2canvas + jsPDF) на всю картку можна було накласти невидиме
+// клікабельне посилання — без показу самого URL текстом.
+function renderMediaPreviewContent(item) {
   const type = item.type || detectMediaType(item.url);
   if (type === "youtube") {
     const id = youtubeId(item.url);
@@ -802,7 +800,7 @@ export function MediaPreview({ item }) {
             />
           </div>
         }
-        fallback={<VideoPdfCard thumbUrl={youtubeThumb(id)} url={item.url} />}
+        fallback={<VideoPdfCard thumbUrl={youtubeThumb(id)} />}
       />
     );
   }
@@ -823,7 +821,7 @@ export function MediaPreview({ item }) {
             />
           </div>
         }
-        fallback={<VideoPdfCard thumbUrl={vimeoThumb(id)} url={item.url} />}
+        fallback={<VideoPdfCard thumbUrl={vimeoThumb(id)} />}
       />
     );
   }
@@ -831,7 +829,7 @@ export function MediaPreview({ item }) {
     return (
       <PdfSwap
         live={<video src={item.url} controls crossOrigin="anonymous" className="w-full rounded-lg bg-black" style={{ maxHeight: 220 }} />}
-        fallback={<VideoPdfCard thumbUrl={null} url={item.url} />}
+        fallback={<VideoPdfCard thumbUrl={null} />}
       />
     );
   }
@@ -850,7 +848,7 @@ export function MediaPreview({ item }) {
             <audio src={item.url} controls className="flex-1 min-w-0 h-9" style={{ maxWidth: "100%" }} />
           </div>
         }
-        fallback={<AudioPdfCard title={item.title} url={item.url} />}
+        fallback={<AudioPdfCard title={item.title} />}
       />
     );
   }
@@ -866,7 +864,7 @@ export function MediaPreview({ item }) {
             allow="autoplay"
           />
         }
-        fallback={<AudioPdfCard title={item.title} url={item.url} />}
+        fallback={<AudioPdfCard title={item.title} />}
       />
     );
   }
@@ -896,7 +894,6 @@ export function MediaPreview({ item }) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{item.title || "PDF"}</p>
-              <LinkCaption url={item.url} />
             </div>
           </div>
         }
@@ -946,7 +943,6 @@ export function MediaPreview({ item }) {
             </svg>
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{item.title || "Figma"}</p>
-              <LinkCaption url={item.url} />
             </div>
           </div>
         }
@@ -959,6 +955,15 @@ export function MediaPreview({ item }) {
       fallback={<WebsiteCard url={item.url} title={item.title} />}
     />
   );
+}
+
+export function MediaPreview({ item }) {
+  const content = renderMediaPreviewContent(item);
+  if (!content) return null;
+  // data-pdf-link зчитує pdf.js під час експорту: поверх усього прямокутника
+  // цієї картки в готовому PDF буде накладено клікабельне посилання на
+  // item.url — без будь-якого видимого тексту URL.
+  return <div data-pdf-link={item.url}>{content}</div>;
 }
 
 function SkillsStep({ draft, set }) {
