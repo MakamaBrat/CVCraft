@@ -461,6 +461,7 @@ function SocialButton({ type, url, title }) {
       href={url}
       target="_blank"
       rel="noreferrer"
+      data-pdf-link={url}
       className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline"
       style={{ background: s.bg, color: s.fg }}
     >
@@ -526,6 +527,7 @@ function AppStoreCard({ type, url, title }) {
       href={url}
       target="_blank"
       rel="noreferrer"
+      data-pdf-link={url}
       className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline"
       style={{ background: meta.bg, color: meta.fg }}
     >
@@ -589,19 +591,11 @@ function PdfSwap({ live, fallback }) {
   );
 }
 
-function LinkCaption({ url }) {
-  return (
-    <a href={url} target="_blank" rel="noreferrer" className="text-[11px] text-accent-300 underline break-all mt-1 block">
-      {url}
-    </a>
-  );
-}
-
 // Статична картка-заглушка для відео (YouTube/Vimeo) у PDF: обкладинка
 // відео + кнопка Play поверх + посилання під картинкою.
 function VideoPdfCard({ thumbUrl, url }) {
   return (
-    <div>
+    <div data-pdf-link={url}>
       <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
         {thumbUrl && <img src={thumbUrl} alt="" crossOrigin="anonymous" className="w-full h-full object-cover" />}
         <div className="absolute inset-0 flex items-center justify-center">
@@ -612,7 +606,6 @@ function VideoPdfCard({ thumbUrl, url }) {
           </div>
         </div>
       </div>
-      <LinkCaption url={url} />
     </div>
   );
 }
@@ -684,7 +677,7 @@ export function MediaPreview({ item }) {
           />
         }
         fallback={
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700">
+          <div data-pdf-link={item.url} className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700">
             <div className="w-11 h-11 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#ef4444">
                 <path d="M6 2h9l5 5v15a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm8 1.5V8h4.5L14 3.5z" />
@@ -692,7 +685,7 @@ export function MediaPreview({ item }) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{item.title || "PDF"}</p>
-              <LinkCaption url={item.url} />
+              <p className="text-xs opacity-60">Відкрити PDF</p>
             </div>
           </div>
         }
@@ -718,13 +711,13 @@ export function MediaPreview({ item }) {
           />
         }
         fallback={
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "#1e1e1e", color: "#ffffff" }}>
+          <div data-pdf-link={item.url} className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "#1e1e1e", color: "#ffffff" }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
               <path d="M8 24a4 4 0 004-4v-4H8a4 4 0 000 8zM4 12a4 4 0 014-4h4v8H8a4 4 0 01-4-4zm0-8a4 4 0 014-4h4v8H8a4 4 0 01-4-4zm9-4h4a4 4 0 010 8h-4V0zm4 12a4 4 0 11-4 4v-4h4z" />
             </svg>
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{item.title || "Figma"}</p>
-              <LinkCaption url={item.url} />
+              <p className="text-xs opacity-60">Відкрити в Figma</p>
             </div>
           </div>
         }
@@ -732,7 +725,7 @@ export function MediaPreview({ item }) {
     );
   }
   return (
-    <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-300 underline break-all">
+    <a href={item.url} target="_blank" rel="noreferrer" data-pdf-link={item.url} className="text-xs text-accent-300 underline break-all">
       {item.url}
     </a>
   );
