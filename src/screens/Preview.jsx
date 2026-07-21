@@ -236,7 +236,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       {(resume.portfolio || []).length > 0 && (
         <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-          Відео з портфоліо у файлі відкриваються так само, як на сторінці (потрібен інтернет).
+          Відео з портфоліо у файлі відкриваються за посиланням по кліку на обкладинку (потрібен інтернет).
         </p>
       )}
 

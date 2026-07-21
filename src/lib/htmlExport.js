@@ -5,14 +5,14 @@
 // файл повністю самодостатній і відкривається навіть у пісочниці на
 // кшталт iOS/Android Quick Look, без інтернету.
 //
-// Поверх цього скріншоту (а не замість нього) додаються "живі" деталі,
-// яких на статичній картинці бути не може:
-//   - кнопки (соцмережі, App Store, Figma-картка) — прозорі клікабельні
-//     зони з посиланням поверх намальованої кнопки;
-//   - відео (YouTube/Vimeo/пряме відео) — справжній плеєр поверх
-//     скріншоту обкладинки, працює з інтернетом як і раніше.
-// Координати overlay-ів рахуються у відсотках від розміру скріншоту, тому
-// лишаються на місці, навіть якщо файл відкрити на іншій ширині екрана.
+// Поверх цього скріншоту (а не замість нього) додаються прозорі
+// клікабельні зони — кнопки соцмереж, App Store, Figma, і так само
+// відео (YouTube/Vimeo/пряме відео): клік по ньому відкриває посилання
+// у новій вкладці/застосунку, а не програє відео прямо у файлі — так
+// однаковіше й надійніше (не залежить від того, чи дозволяє iframe
+// конкретний переглядач файлу). Координати overlay-ів рахуються у
+// відсотках від розміру скріншоту, тому лишаються на місці, навіть
+// якщо файл відкрити на іншій ширині екрана.
 
 function sanitizeFileName(name) {
   return (name || "document")
@@ -91,40 +91,28 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
   }
 
   // html2canvas погано вміє коректно рендерити `text-overflow: ellipsis`
-  // разом з кастомним веб-шрифтом (Manrope) — рядки на кшталт ПІБ/посади
-  // з класом .truncate (overflow:hidden + line-height, як в TailwindCSS)
-  // на скріншоті виходять обрізаними чи "наїжджають" одна на одну. Знімаємо
-  // обрізання ще ДО вимірювання будь-яких координат (нижче), щоб і
-  // скріншот, і координати overlay-ів рахувались по ОДНАКОВІЙ розкладці —
-  // інакше після зняття truncate текст переноситься на другий рядок,
-  // все зсувається нижче, і кнопки/відео на фінальному файлі "поїдуть".
+  // разом з кастомним веб-шрифтом (Manrope) — рядки з класом .truncate
+  // (ПІБ/посада, назви кнопок) на скріншоті виходили обрізаними чи
+  // "наїжджали" одна на одну. Знімаємо саме ellipsis і вирівнюємо
+  // line-height, АЛЕ лишаємо white-space:nowrap (як було) — щоб рядок не
+  // переносився на другий і не міняв висоту картки: це зсунуло б усе, що
+  // нижче, і координати overlay-кнопок/відео більше не збігалися б зі
+  // скріншотом. Довгий текст просто акуратно "виходить" за межі пігулки
+  // одним рядком замість зламаного рендеру ellipsis.
   const truncatedEls = Array.from(node.querySelectorAll(".truncate"));
   const prevTruncateCss = truncatedEls.map((el) => el.style.cssText);
   truncatedEls.forEach((el) => {
-    el.style.overflow = "visible";
     el.style.textOverflow = "clip";
-    el.style.whiteSpace = "normal";
     el.style.lineHeight = "normal";
   });
 
-  // Позиції "живих" елементів (відео/iframe) записуємо ДО того, як їх
-  // приховаємо для скріншоту — контейнер живого й статичного варіанту
-  // однакового розміру, тому координати збігаються.
-  const liveWrappers = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
-  const nodeRectBefore = node.getBoundingClientRect();
-  const liveRects = liveWrappers.map((el) => {
-    const r = el.getBoundingClientRect();
-    return {
-      html: el.innerHTML,
-      leftPct: ((r.left - nodeRectBefore.left) / nodeRectBefore.width) * 100,
-      topPct: ((r.top - nodeRectBefore.top) / nodeRectBefore.height) * 100,
-      widthPct: (r.width / nodeRectBefore.width) * 100,
-      heightPct: (r.height / nodeRectBefore.height) * 100,
-    };
-  });
-
-  const prevHideDisplay = liveWrappers.map((el) => el.style.display);
-  liveWrappers.forEach((el) => {
+  // Ховаємо "живі" iframe/відео (data-pdf-hide) і показуємо статичні
+  // "для знімку" картки (data-pdf-only, обкладинка + кнопка Play) — саме
+  // їх і знімає html2canvas, а клікабельною зоною поверх стане звичайне
+  // посилання (як для решти кнопок), не сам iframe.
+  const hideEls = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
+  const prevHideDisplay = hideEls.map((el) => el.style.display);
+  hideEls.forEach((el) => {
     el.style.display = "none";
   });
   const showEls = Array.from(node.querySelectorAll('[data-pdf-only="true"]'));
@@ -141,7 +129,7 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     linkRects = collectRectPercents(linkEls, nodeRect);
     dataUrl = canvas.toDataURL("image/png");
   } finally {
-    liveWrappers.forEach((el, i) => {
+    hideEls.forEach((el, i) => {
       el.style.display = prevHideDisplay[i];
     });
     showEls.forEach((el, i) => {
@@ -152,23 +140,13 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     });
   }
 
-  // Клікабельні прозорі зони поверх кнопок (соцмережі, App Store, Figma).
+  // Клікабельні прозорі зони поверх кнопок (соцмережі, App Store, Figma,
+  // відео) — клік відкриває справжнє посилання в новій вкладці.
   const linkOverlaysHtml = linkRects
     .map(
       ({ el, leftPct, topPct, widthPct, heightPct }) => `
       <a href="${escapeAttr(el.getAttribute("data-pdf-link"))}" target="_blank" rel="noreferrer"
          style="position:absolute;left:${leftPct}%;top:${topPct}%;width:${widthPct}%;height:${heightPct}%;display:block;"></a>`
-    )
-    .join("");
-
-  // Справжні відео/iframe поверх обкладинки на скріншоті — працюють з
-  // інтернетом як і раніше, просто тепер накладені на картинку, а не
-  // замінюють весь документ.
-  const liveOverlaysHtml = liveRects
-    .filter((r) => r.widthPct > 0 && r.heightPct > 0)
-    .map(
-      (r) => `
-      <div style="position:absolute;left:${r.leftPct}%;top:${r.topPct}%;width:${r.widthPct}%;height:${r.heightPct}%;">${r.html}</div>`
     )
     .join("");
 
@@ -185,14 +163,12 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
       body { display: flex; justify-content: center; }
       #export-root { position: relative; max-width: 720px; width: 100%; }
       #export-root > img { display: block; width: 100%; height: auto; }
-      #export-root iframe, #export-root video { width: 100%; height: 100%; border: 0; }
     </style>
   </head>
   <body>
     <div id="export-root">
       <img src="${dataUrl}" alt="${title}" />
       ${linkOverlaysHtml}
-      ${liveOverlaysHtml}
     </div>
   </body>
 </html>`;
