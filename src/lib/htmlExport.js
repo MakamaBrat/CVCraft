@@ -1,17 +1,18 @@
-// Генерує повністю самодостатній HTML-файл з DOM-вузла за id (наприклад
-// #resume-doc чи #vacancy-doc): CSS вшивається текстом (а не посиланням),
-// а картинки (аватар, фон, гіфки) перекодовуються у base64 (data:) прямо
-// в розмітку. Це критично важливо, бо типовий спосіб відкрити файл —
-// iOS/Android Quick Look (той самий попередній перегляд файлу з кнопкою
-// "Готово", БЕЗ адресного рядка) — це пісочниця, яка взагалі блокує будь-
-// які мережеві запити зсередини HTML: ні <link rel="stylesheet">, ні
-// <img src="https://...">, ні зовнішній шрифт вантажитись не будуть, і
-// сторінка виглядає геть неоформленою (як голий текст), а картинки —
-// битими іконками. Єдине, що працює будь-де без інтернету, — це вміст,
-// вшитий прямо у файл: <style> текстом і data:-картинки.
-// Виняток — важкі речі, які фізично не влізуть у файл (відео, iframe
-// YouTube/Vimeo/Figma): вони лишаються звичайними посиланнями/iframe і
-// працюють тільки якщо файл відкрити у справжньому браузері з інтернетом.
+// Генерує самодостатній HTML-файл: береться той самий підхід, що раніше
+// був для PDF (html2canvas робить точний скріншот резюме/вакансії — це
+// разом розв'язує аватарку/фон/кадр гіфки/кольори, бо це просто пікселі,
+// а не залежність від CSS чи мережі), картинка вшивається в base64 —
+// файл повністю самодостатній і відкривається навіть у пісочниці на
+// кшталт iOS/Android Quick Look, без інтернету.
+//
+// Поверх цього скріншоту (а не замість нього) додаються "живі" деталі,
+// яких на статичній картинці бути не може:
+//   - кнопки (соцмережі, App Store, Figma-картка) — прозорі клікабельні
+//     зони з посиланням поверх намальованої кнопки;
+//   - відео (YouTube/Vimeo/пряме відео) — справжній плеєр поверх
+//     скріншоту обкладинки, працює з інтернетом як і раніше.
+// Координати overlay-ів рахуються у відсотках від розміру скріншоту, тому
+// лишаються на місці, навіть якщо файл відкрити на іншій ширині екрана.
 
 function sanitizeFileName(name) {
   return (name || "document")
@@ -21,117 +22,63 @@ function sanitizeFileName(name) {
     .slice(0, 80);
 }
 
-// Максимальний розмір однієї картинки, яку варто вшивати в base64 —
-// щоб великі фото/гіфки не роздували файл понад ліміт Telegram на
-// відправку документа ботом.
-const MAX_INLINE_IMAGE_BYTES = 3_000_000;
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("blob_read_failed"));
-    reader.readAsDataURL(blob);
-  });
-}
-
-// Завантажує картинку і повертає її як data: URL. Якщо сервер не віддає
-// потрібних CORS-заголовків (fetch впаде) або картинка завелика —
-// повертає null, і виклик лишає оригінальне посилання як є (працюватиме
-// тільки з інтернетом, але це краще, ніж зовсім нічого).
-async function fetchAsDataUrl(url) {
+// Картинки з чужих доменів без CORS-заголовків інколи "заражають" (taint)
+// canvas навіть з useCORS:true. У такому разі canvas.toDataURL() кидає
+// SecurityError і ламає весь скріншот. Щоб файл генерувався завжди,
+// пробуємо ще раз, попередньо приховавши всі такі "ризиковані" картинки
+// (позначені атрибутом crossOrigin у розмітці).
+async function captureCanvas(node, html2canvas, backgroundColor) {
+  const opts = { scale: 2, backgroundColor, useCORS: true };
   try {
-    const res = await fetch(url, { mode: "cors" });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    if (blob.size > MAX_INLINE_IMAGE_BYTES) return null;
-    return await blobToDataUrl(blob);
-  } catch {
-    return null;
-  }
-}
-
-// Замінює всі src/background-image картинки в дереві на base64, і
-// абсолютизує все, що лишилось зовнішнім посиланням (відео, iframe) —
-// інакше відносні шляхи на кшталт "/assets/..." вестимуть у нікуди після
-// збереження файлу на диск.
-async function inlineImages(root) {
-  const imgEls = Array.from(root.querySelectorAll("img[src]"));
-  await Promise.all(
-    imgEls.map(async (el) => {
-      const dataUrl = await fetchAsDataUrl(el.src);
-      el.setAttribute("src", dataUrl || el.src);
-      el.removeAttribute("crossorigin");
-    })
-  );
-
-  const bgEls = Array.from(root.querySelectorAll('[style*="background-image"]'));
-  await Promise.all(
-    bgEls.map(async (el) => {
-      const match = el.style.backgroundImage.match(/url\((['"]?)(.*?)\1\)/);
-      if (!match) return;
-      const dataUrl = await fetchAsDataUrl(match[2]);
-      if (dataUrl) el.style.backgroundImage = el.style.backgroundImage.replace(match[0], `url("${dataUrl}")`);
-    })
-  );
-
-  root.querySelectorAll("iframe[src]").forEach((el) => el.setAttribute("src", el.src));
-  root.querySelectorAll("video[src], video source[src]").forEach((el) => {
-    el.setAttribute("src", el.src);
-    el.removeAttribute("crossorigin");
-  });
-  root.querySelectorAll("video").forEach((el) => el.removeAttribute("crossorigin"));
-  root.querySelectorAll("a[href]").forEach((el) => el.setAttribute("href", el.href));
-}
-
-// Прибираємо статичні "для PDF" заглушки й лишаємо натомість живі
-// елементи (iframe з відео, вбудований PDF-перегляд, Figma) видимими —
-// у HTML, на відміну від PDF, вони працюють як є (щоправда лише з
-// інтернетом і у звичайному браузері, не в Quick Look).
-function swapLiveForStatic(root) {
-  root.querySelectorAll('[data-pdf-only="true"]').forEach((el) => el.remove());
-  root.querySelectorAll('[data-pdf-hide="true"]').forEach((el) => {
-    el.removeAttribute("data-pdf-hide");
-    el.style.display = "";
-  });
-}
-
-// Вшиваємо CSS ТЕКСТОМ (а не через <link>), щоб оформлення (Tailwind-
-// класи, кольори, шрифт) працювало навіть у пісочниці Quick Look, де
-// жоден мережевий запит не проходить. Для стилів із чужого домену
-// (шрифт Google Fonts, підключений через <link>) cssRules напряму
-// недоступні через CORS — тому для них теж робимо fetch() і вшиваємо
-// текст CSS-файлу (Google Fonts віддає CSS з дозволом на CORS).
-async function collectStyles() {
-  let css = "";
-
-  for (const sheet of Array.from(document.styleSheets)) {
+    const canvas = await html2canvas(node, opts);
+    canvas.toDataURL("image/png");
+    return canvas;
+  } catch (err) {
+    const riskyEls = Array.from(node.querySelectorAll("img[crossorigin]"));
+    if (!riskyEls.length) throw err;
+    const prevDisplay = riskyEls.map((el) => el.style.display);
+    riskyEls.forEach((el) => {
+      el.style.display = "none";
+    });
     try {
-      if (sheet.cssRules) {
-        css += Array.from(sheet.cssRules)
-          .map((rule) => rule.cssText)
-          .join("\n");
-        css += "\n";
-        continue;
-      }
-    } catch {
-      // cssRules недоступні (CORS) — спробуємо дістати текст через fetch нижче
-    }
-    if (sheet.href) {
-      try {
-        const res = await fetch(sheet.href, { mode: "cors" });
-        if (res.ok) css += (await res.text()) + "\n";
-      } catch {
-        // немає CORS навіть на fetch — цей шматок стилів (зазвичай шрифт)
-        // просто не потрапить у файл; решта оформлення відпрацює й так
-      }
+      const canvas = await html2canvas(node, opts);
+      canvas.toDataURL("image/png");
+      return canvas;
+    } finally {
+      riskyEls.forEach((el, i) => {
+        el.style.display = prevDisplay[i];
+      });
     }
   }
+}
 
-  return css;
+// Прямокутники (у % від розміру node) для клікабельних кнопок —
+// елементи з data-pdf-link, видимі у стані "для скріншоту".
+function collectRectPercents(elements, nodeRect) {
+  return elements
+    .map((el) => {
+      const style = window.getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") return null;
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return null;
+      return {
+        el,
+        leftPct: ((r.left - nodeRect.left) / nodeRect.width) * 100,
+        topPct: ((r.top - nodeRect.top) / nodeRect.height) * 100,
+        widthPct: (r.width / nodeRect.width) * 100,
+        heightPct: (r.height / nodeRect.height) * 100,
+      };
+    })
+    .filter(Boolean);
+}
+
+function escapeAttr(str) {
+  return String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
 export async function generateHtmlFromElement(elementId, fileNameBase, backgroundColor = "#ffffff") {
+  const { default: html2canvas } = await import("html2canvas");
+
   const node = document.getElementById(elementId);
   if (!node) throw new Error(`html_source_not_found:${elementId}`);
 
@@ -143,11 +90,68 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     }
   }
 
-  const clone = node.cloneNode(true);
-  swapLiveForStatic(clone);
-  await inlineImages(clone);
+  // Позиції "живих" елементів (відео/iframe) записуємо ДО того, як їх
+  // приховаємо для скріншоту — контейнер живого й статичного варіанту
+  // однакового розміру, тому координати збігаються.
+  const liveWrappers = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
+  const nodeRectBefore = node.getBoundingClientRect();
+  const liveRects = liveWrappers.map((el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      html: el.innerHTML,
+      leftPct: ((r.left - nodeRectBefore.left) / nodeRectBefore.width) * 100,
+      topPct: ((r.top - nodeRectBefore.top) / nodeRectBefore.height) * 100,
+      widthPct: (r.width / nodeRectBefore.width) * 100,
+      heightPct: (r.height / nodeRectBefore.height) * 100,
+    };
+  });
 
-  const css = await collectStyles();
+  const prevHideDisplay = liveWrappers.map((el) => el.style.display);
+  liveWrappers.forEach((el) => {
+    el.style.display = "none";
+  });
+  const showEls = Array.from(node.querySelectorAll('[data-pdf-only="true"]'));
+  const prevShowDisplay = showEls.map((el) => el.style.display);
+  showEls.forEach((el) => {
+    el.style.display = "";
+  });
+
+  let dataUrl, linkRects;
+  try {
+    const canvas = await captureCanvas(node, html2canvas, backgroundColor);
+    const nodeRect = node.getBoundingClientRect();
+    const linkEls = Array.from(node.querySelectorAll("[data-pdf-link]"));
+    linkRects = collectRectPercents(linkEls, nodeRect);
+    dataUrl = canvas.toDataURL("image/png");
+  } finally {
+    liveWrappers.forEach((el, i) => {
+      el.style.display = prevHideDisplay[i];
+    });
+    showEls.forEach((el, i) => {
+      el.style.display = prevShowDisplay[i];
+    });
+  }
+
+  // Клікабельні прозорі зони поверх кнопок (соцмережі, App Store, Figma).
+  const linkOverlaysHtml = linkRects
+    .map(
+      ({ el, leftPct, topPct, widthPct, heightPct }) => `
+      <a href="${escapeAttr(el.getAttribute("data-pdf-link"))}" target="_blank" rel="noreferrer"
+         style="position:absolute;left:${leftPct}%;top:${topPct}%;width:${widthPct}%;height:${heightPct}%;display:block;"></a>`
+    )
+    .join("");
+
+  // Справжні відео/iframe поверх обкладинки на скріншоті — працюють з
+  // інтернетом як і раніше, просто тепер накладені на картинку, а не
+  // замінюють весь документ.
+  const liveOverlaysHtml = liveRects
+    .filter((r) => r.widthPct > 0 && r.heightPct > 0)
+    .map(
+      (r) => `
+      <div style="position:absolute;left:${r.leftPct}%;top:${r.topPct}%;width:${r.widthPct}%;height:${r.heightPct}%;">${r.html}</div>`
+    )
+    .join("");
+
   const title = sanitizeFileName(fileNameBase) || "document";
 
   const html = `<!doctype html>
@@ -159,12 +163,17 @@ export async function generateHtmlFromElement(elementId, fileNameBase, backgroun
     <style>
       html, body { margin: 0; padding: 0; background: ${backgroundColor}; }
       body { display: flex; justify-content: center; }
-      #export-root { max-width: 720px; width: 100%; }
-      ${css}
+      #export-root { position: relative; max-width: 720px; width: 100%; }
+      #export-root > img { display: block; width: 100%; height: auto; }
+      #export-root iframe, #export-root video { width: 100%; height: 100%; border: 0; }
     </style>
   </head>
   <body>
-    <div id="export-root">${clone.outerHTML}</div>
+    <div id="export-root">
+      <img src="${dataUrl}" alt="${title}" />
+      ${linkOverlaysHtml}
+      ${liveOverlaysHtml}
+    </div>
   </body>
 </html>`;
 
