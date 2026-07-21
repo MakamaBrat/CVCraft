@@ -533,6 +533,7 @@ function AppStoreCard({ type, url, title }) {
         <img
           src={state.image}
           alt=""
+          crossOrigin="anonymous"
           data-pdf-hide="true"
           className="w-11 h-11 rounded-xl object-cover shrink-0 bg-white"
         />
@@ -602,7 +603,7 @@ function VideoPdfCard({ thumbUrl, url }) {
   return (
     <div>
       <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
-        {thumbUrl && <img src={thumbUrl} alt="" className="w-full h-full object-cover" />}
+        {thumbUrl && <img src={thumbUrl} alt="" crossOrigin="anonymous" className="w-full h-full object-cover" />}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-14 h-14 rounded-full bg-black/60 flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">

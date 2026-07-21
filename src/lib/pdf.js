@@ -11,6 +11,38 @@ function sanitizeFileName(name) {
     .slice(0, 80);
 }
 
+// Картинки з чужих доменів без CORS-заголовків (обкладинки YouTube/Vimeo,
+// іконки застосунків тощо) інколи "заражають" (taint) canvas навіть з
+// useCORS:true — залежить від браузера й того, чи картинка вже була в
+// кеші без CORS-режиму. У такому разі canvas.toDataURL() кидає
+// SecurityError і ламає ВЕСЬ PDF, а не тільки цю картинку. Щоб PDF
+// генерувався завжди, пробуємо ще раз, попередньо приховавши всі такі
+// "ризиковані" картинки (позначені атрибутом crossOrigin у розмітці).
+async function captureCanvas(node, html2canvas, backgroundColor) {
+  const opts = { scale: 2, backgroundColor, useCORS: true };
+  try {
+    const canvas = await html2canvas(node, opts);
+    canvas.toDataURL("image/png"); // тут і "спливає" SecurityError, якщо він є
+    return canvas;
+  } catch (err) {
+    const riskyEls = Array.from(node.querySelectorAll("img[crossorigin]"));
+    if (!riskyEls.length) throw err;
+    const prevDisplay = riskyEls.map((el) => el.style.display);
+    riskyEls.forEach((el) => {
+      el.style.display = "none";
+    });
+    try {
+      const canvas = await html2canvas(node, opts);
+      canvas.toDataURL("image/png");
+      return canvas;
+    } finally {
+      riskyEls.forEach((el, i) => {
+        el.style.display = prevDisplay[i];
+      });
+    }
+  }
+}
+
 export async function generatePdfFromElement(elementId, fileNameBase, backgroundColor = "#ffffff") {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
 
@@ -18,10 +50,10 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
   if (!node) throw new Error(`pdf_source_not_found:${elementId}`);
 
   // Відео/соцмережі/PDF/Figma всередині документа мають два DOM-варіанти:
-  // "живий" (iframe/фетчена картинка з чужого CORS) — ховаємо на час
-  // знімку, бо html2canvas не вміє знімати сторонні iframe (то порожнє
-  // місце, то взагалі SecurityError, що ламає весь PDF); і статичний
-  // "для PDF" (обкладинка/іконка + посилання) — показуємо натомість.
+  // "живий" (iframe) — ховаємо на час знімку, бо html2canvas не вміє
+  // знімати сторонні iframe (то порожнє місце, то взагалі SecurityError,
+  // що ламає весь PDF); і статичний "для PDF" (обкладинка/іконка +
+  // посилання) — показуємо натомість.
   const hideEls = Array.from(node.querySelectorAll('[data-pdf-hide="true"]'));
   const prevDisplay = hideEls.map((el) => el.style.display);
   hideEls.forEach((el) => {
@@ -50,11 +82,7 @@ export async function generatePdfFromElement(elementId, fileNameBase, background
       }
     }
 
-    const canvas = await html2canvas(node, {
-      scale: 2,
-      backgroundColor,
-      useCORS: true,
-    });
+    const canvas = await captureCanvas(node, html2canvas, backgroundColor);
 
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF({ unit: "pt", format: "a4" });
