@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { backendEnabled } from "../lib/api.js";
-import { buildShareLink } from "../lib/config.js";
+import { backendEnabled, apiFetch } from "../lib/api.js";
+import { buildShareLink, TELEGRAM_BOT_USERNAME } from "../lib/config.js";
 import { generateResumePdf } from "../lib/pdf.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -159,11 +159,37 @@ function ResumeDocument({ resume }) {
 }
 
 export default function Preview({ resume, onBack, onDone }) {
-  const [sharing, setSharing] = useState(false);
-  const [shareError, setShareError] = useState(null);
+  const [sendingViaBot, setSendingViaBot] = useState(false);
+  const [sendResult, setSendResult] = useState(null); // "ok" | "error" | null
   const { t } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
+
+  const handleSendViaBot = async () => {
+    setSendResult(null);
+    setSendingViaBot(true);
+    try {
+      const { blob, fileName } = await generateResumePdf(resume);
+      const pdfBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+
+      await apiFetch("/api/resume-send", {
+        method: "POST",
+        body: { pdfBase64, fileName, shareUrl, title },
+      });
+      setSendResult("ok");
+    } catch (err) {
+      console.error("[Preview] send via bot failed", err);
+      setSendResult("error");
+    } finally {
+      setSendingViaBot(false);
+    }
+  };
 
   const handleShareLink = () => {
     const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
@@ -178,55 +204,6 @@ export default function Preview({ resume, onBack, onDone }) {
     else window.open(telegramShareUrl, "_blank");
   };
 
-  const handleShare = async () => {
-    setShareError(null);
-    setSharing(true);
-    try {
-      const { blob, fileName } = await generateResumePdf(resume);
-      const file = new File([blob], fileName, { type: "application/pdf" });
-      const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
-      // Тут файл (PDF) іде окремо від "url", тож Web Share API не завжди
-      // будує з url клікабельну картку — лишаємо посилання явно в тексті,
-      // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
-      const caption = [title, "", t("share.resumeClickHint"), shareUrl].join("\n");
-
-      // Web Share API з файлом — одна дія одразу шерить і PDF, і посилання
-      // з підписом (підтримується мобільними браузерами й Telegram
-      // in-app browser на iOS/Android).
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], text: caption, title: fileName });
-        return;
-      }
-
-      // Фолбек, якщо файловий шеринг недоступний (напр. десктоп): качаємо
-      // PDF і одразу відкриваємо Telegram-шеринг. Тут url іде окремим
-      // параметром, тому в text лишаємо тільки локалізовану підказку —
-      // Telegram сам покаже посилання як клікабельну картку.
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
-
-      const shareText = `${t("share.resumeClickHint")}\n\n${title}`;
-      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
-      const tg = getTelegramWebApp();
-      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
-      else if (tg?.openLink) tg.openLink(telegramShareUrl);
-      else window.open(telegramShareUrl, "_blank");
-    } catch (err) {
-      if (err?.name !== "AbortError") {
-        console.error("[Preview] share failed", err);
-        setShareError("Не вдалося поділитися резюме. Спробуйте ще раз.");
-      }
-    } finally {
-      setSharing(false);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col bg-base-950">
       <div className="print:hidden">
@@ -237,25 +214,6 @@ export default function Preview({ resume, onBack, onDone }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold flex-1">Попередній перегляд</h1>
-          <button
-            onClick={handleShare}
-            disabled={sharing}
-            title="PDF + посилання"
-            className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
-          >
-            {sharing ? (
-              <span className="text-[10px]">…</span>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M4 2h8v3H4zM3 6h10a1 1 0 011 1v4a1 1 0 01-1 1h-1v2H4v-2H3a1 1 0 01-1-1V7a1 1 0 011-1z"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
 
@@ -275,9 +233,7 @@ export default function Preview({ resume, onBack, onDone }) {
         </p>
       )}
 
-      {shareError && <p className="px-6 pb-2 text-[11px] text-red-400 print:hidden">{shareError}</p>}
-
-      <div className="px-6 pb-6 print:hidden flex gap-3">
+      <div className="px-6 pb-3 print:hidden flex gap-3">
         <button
           onClick={handleShareLink}
           className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
@@ -297,6 +253,52 @@ export default function Preview({ resume, onBack, onDone }) {
           {t("common.save")}
         </button>
       </div>
+
+      <div className="px-6 pb-2 print:hidden">
+        <button
+          onClick={handleSendViaBot}
+          disabled={sendingViaBot}
+          className="tap w-full flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-medium text-sm rounded-xl py-3.5 disabled:opacity-50"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M21.5 3.5L2.7 11.1c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14c.3-1.2-.5-1.7-1.3-1.4z"
+              fill="currentColor"
+            />
+          </svg>
+          {sendingViaBot ? t("share.sendingViaBot") : t("share.sendViaBot")}
+        </button>
+      </div>
+
+      <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
+        {t("share.sendViaBotHint")}
+      </p>
+
+      {sendResult === "ok" && (
+        <p className="px-6 pb-4 text-[11px] text-emerald-400 print:hidden">{t("share.sendViaBotSuccess")}</p>
+      )}
+      {sendResult === "error" && (
+        <p className="px-6 pb-4 text-[11px] text-red-400 print:hidden">
+          {t("share.sendViaBotFailed")}{" "}
+          <a
+            href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
+            onClick={(e) => {
+              e.preventDefault();
+              openTelegramLinkSafe(`https://t.me/${TELEGRAM_BOT_USERNAME}`);
+            }}
+            className="text-accent-300 underline"
+          >
+            @{TELEGRAM_BOT_USERNAME}
+          </a>
+        </p>
+      )}
     </div>
   );
+}
+
+function openTelegramLinkSafe(url) {
+  const tg = getTelegramWebApp();
+  if (tg?.openTelegramLink) tg.openTelegramLink(url);
+  else if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank");
 }
