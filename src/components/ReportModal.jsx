@@ -4,9 +4,9 @@ import { useLanguage } from "../lib/i18n/index.jsx";
 
 const REASONS = ["spam", "scam", "inappropriate", "fake", "offensive", "other"];
 
-// Універсальна модалка скарги. targetType: 'vacancy' | 'applicant'.
-// Для 'vacancy' треба vacancyId, для 'applicant' — applicationId.
-export default function ReportModal({ targetType, vacancyId, applicationId, onClose, onSubmitted }) {
+// Універсальна модалка скарги. targetType: 'vacancy' | 'applicant' | 'resume'.
+// Для 'vacancy' треба vacancyId, для 'applicant' — applicationId, для 'resume' — resumeId.
+export default function ReportModal({ targetType, vacancyId, applicationId, resumeId, onClose, onSubmitted }) {
   const { t } = useLanguage();
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
@@ -25,6 +25,7 @@ export default function ReportModal({ targetType, vacancyId, applicationId, onCl
           type: targetType,
           vacancyId: targetType === "vacancy" ? vacancyId : undefined,
           applicationId: targetType === "applicant" ? applicationId : undefined,
+          resumeId: targetType === "resume" ? resumeId : undefined,
           reason,
           comment: comment.trim() || undefined,
         },
@@ -58,7 +59,11 @@ export default function ReportModal({ targetType, vacancyId, applicationId, onCl
         ) : (
           <>
             <p className="text-sm font-semibold text-white/90 mb-3">
-              {targetType === "vacancy" ? t("report.titleVacancy") : t("report.titleApplicant")}
+              {targetType === "vacancy"
+                ? t("report.titleVacancy")
+                : targetType === "resume"
+                ? t("report.titleResume")
+                : t("report.titleApplicant")}
             </p>
 
             <div className="flex flex-col gap-2 mb-3">

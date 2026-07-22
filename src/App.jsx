@@ -282,12 +282,38 @@ export default function App() {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       setSharedId(null);
     };
+    // Локальні версії переходів "Дивитись вакансії" / "Створити вакансію" —
+    // навмисно НЕ викликаємо goBrowseVacancies/startNewVacancy (оголошені
+    // нижче через const), бо цей блок повертається раніше за їх оголошення
+    // і посилання на них тут кинуло б ReferenceError (temporal dead zone).
+    // setRoute/setVacancyDraft — це сеттери useState, а loadPublicVacancies
+    // та emptyVacancy оголошені/імпортовані вище — їх можна викликати тут.
+    const goBrowseFromShare = () => {
+      closeShared();
+      loadPublicVacancies();
+      setRoute({ screen: "browseVacancies" });
+    };
+    const goCreateFromShare = () => {
+      closeShared();
+      setVacancyDraft(emptyVacancy());
+      setRoute({ screen: "vacancyWizard", step: 0 });
+    };
     return (
       <div className="phone-shell">
         {isVacancyShare ? (
-          <SharedVacancyView vacancyId={sharedId.slice(2)} onOpenApp={closeShared} />
+          <SharedVacancyView
+            vacancyId={sharedId.slice(2)}
+            onOpenApp={closeShared}
+            onBrowseVacancies={goBrowseFromShare}
+            onCreateVacancy={goCreateFromShare}
+          />
         ) : (
-          <SharedView resumeId={sharedId} onOpenApp={closeShared} />
+          <SharedView
+            resumeId={sharedId}
+            onOpenApp={closeShared}
+            onBrowseVacancies={goBrowseFromShare}
+            onCreateVacancy={goCreateFromShare}
+          />
         )}
       </div>
     );

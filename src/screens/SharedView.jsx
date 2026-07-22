@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api.js";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
+import ReportModal from "../components/ReportModal.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
@@ -12,10 +13,11 @@ const ACCENTS = {
   classic: "#2f6fb0",
 };
 
-export default function SharedView({ resumeId, onOpenApp }) {
+export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onCreateVacancy }) {
   const { t } = useLanguage();
   const [resume, setResume] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,7 +215,33 @@ export default function SharedView({ resumeId, onOpenApp }) {
         >
           {t("share.createOwnResume")}
         </button>
+
+        <div className="mt-2.5 w-full max-w-[400px] mx-auto grid grid-cols-2 gap-2.5">
+          <button
+            onClick={onBrowseVacancies}
+            className="tap flex items-center justify-center gap-2 bg-base-900 border border-base-700 text-white/80 font-semibold text-sm rounded-xl py-3"
+          >
+            {t("share.browseVacancies")}
+          </button>
+          <button
+            onClick={onCreateVacancy}
+            className="tap flex items-center justify-center gap-2 bg-base-900 border border-base-700 text-white/80 font-semibold text-sm rounded-xl py-3"
+          >
+            {t("share.createVacancy")}
+          </button>
+        </div>
+
+        <button
+          onClick={() => setReportOpen(true)}
+          className="tap mt-3 w-full max-w-[400px] mx-auto flex items-center justify-center text-xs text-white/35 py-1"
+        >
+          {t("report.reportResume")}
+        </button>
       </div>
+
+      {reportOpen && (
+        <ReportModal targetType="resume" resumeId={resumeId} onClose={() => setReportOpen(false)} />
+      )}
     </div>
   );
 }

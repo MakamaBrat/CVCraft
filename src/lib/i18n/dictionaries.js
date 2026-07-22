@@ -145,6 +145,8 @@ export const uk = {
     resumeNotFound: "Резюме не знайдено або посилання застаріло.",
     openApp: "Перейти до CV DECK",
     createOwnResume: "Створити своє резюме",
+    browseVacancies: "Переглянути вакансії",
+    createVacancy: "Створити вакансію",
   },
   admin: {
     title: "Адмін-панель",
@@ -246,8 +248,10 @@ export const uk = {
   report: {
     reportVacancy: "Поскаржитись",
     reportApplicant: "Поскаржитись",
+    reportResume: "Поскаржитись",
     titleVacancy: "Скарга на вакансію",
     titleApplicant: "Скарга на кандидата",
+    titleResume: "Скарга на резюме",
     reasons: {
       spam: "Спам / реклама",
       scam: "Шахрайство",
@@ -525,6 +529,8 @@ export const ru = {
     resumeNotFound: "Резюме не найдено или ссылка устарела.",
     openApp: "Перейти в CV DECK",
     createOwnResume: "Создать своё резюме",
+    browseVacancies: "Смотреть вакансии",
+    createVacancy: "Создать вакансию",
   },
   admin: {
     title: "Админ-панель",
@@ -626,8 +632,10 @@ export const ru = {
   report: {
     reportVacancy: "Пожаловаться",
     reportApplicant: "Пожаловаться",
+    reportResume: "Пожаловаться",
     titleVacancy: "Жалоба на вакансию",
     titleApplicant: "Жалоба на кандидата",
+    titleResume: "Жалоба на резюме",
     reasons: {
       spam: "Спам / реклама",
       scam: "Мошенничество",
@@ -905,6 +913,8 @@ export const en = {
     resumeNotFound: "Resume not found or the link is outdated.",
     openApp: "Open CV DECK",
     createOwnResume: "Create your own resume",
+    browseVacancies: "Browse jobs",
+    createVacancy: "Create job post",
   },
   admin: {
     title: "Admin panel",
@@ -1006,8 +1016,10 @@ export const en = {
   report: {
     reportVacancy: "Report",
     reportApplicant: "Report",
+    reportResume: "Report",
     titleVacancy: "Report this job post",
     titleApplicant: "Report this applicant",
+    titleResume: "Report this resume",
     reasons: {
       spam: "Spam / advertising",
       scam: "Scam / fraud",

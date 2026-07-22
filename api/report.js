@@ -18,9 +18,9 @@ export default async function handler(req, res) {
   const user = await authenticate(req, res, botToken, admin);
   if (!user) return;
 
-  const { type, vacancyId, applicationId, reason, comment } = req.body || {};
+  const { type, vacancyId, applicationId, resumeId, reason, comment } = req.body || {};
 
-  if (!["vacancy", "applicant"].includes(type)) {
+  if (!["vacancy", "applicant", "resume"].includes(type)) {
     return sendJson(res, 400, { error: "invalid_type" });
   }
   if (!VALID_REASONS.has(reason)) {
@@ -53,6 +53,35 @@ export default async function handler(req, res) {
       type,
       vacancy_id: vacancyId,
       application_id: null,
+      resume_id: null,
+      reporter_telegram_id: user.id,
+      target_telegram_id: targetTelegramId,
+      reason,
+      comment: trimmedComment,
+    };
+  } else if (type === "resume") {
+    if (!resumeId) return sendJson(res, 400, { error: "missing_resume_id" });
+
+    const { data: resume, error } = await admin
+      .from("resumes")
+      .select("id, telegram_id")
+      .eq("id", resumeId)
+      .maybeSingle();
+    if (error) {
+      logDbError("report: resume lookup", error, { telegramId: user.id, resumeId });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    if (!resume) return sendJson(res, 404, { error: "resume_not_found" });
+    if (resume.telegram_id === user.id) {
+      return sendJson(res, 400, { error: "cannot_report_own" });
+    }
+
+    targetTelegramId = resume.telegram_id;
+    insertPayload = {
+      type,
+      vacancy_id: null,
+      application_id: null,
+      resume_id: resumeId,
       reporter_telegram_id: user.id,
       target_telegram_id: targetTelegramId,
       reason,
@@ -87,6 +116,7 @@ export default async function handler(req, res) {
       type,
       vacancy_id: application.vacancy_id,
       application_id: applicationId,
+      resume_id: null,
       reporter_telegram_id: user.id,
       target_telegram_id: targetTelegramId,
       reason,

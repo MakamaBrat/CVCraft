@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api.js";
 import { VacancyDocument } from "./VacancyPreview.jsx";
+import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const MESSAGES = {
@@ -21,15 +22,26 @@ const MESSAGES = {
     ru: "Смотреть все вакансии",
     en: "Browse all job posts",
   },
+  createVacancy: {
+    uk: "Створити вакансію",
+    ru: "Создать вакансию",
+    en: "Create job post",
+  },
+  reportVacancy: {
+    uk: "Поскаржитись",
+    ru: "Пожаловаться",
+    en: "Report",
+  },
 };
 
 // Публічний перегляд вакансії за посланням-запрошенням (startapp=v_<id>),
 // без авторизації — аналог SharedView.jsx для резюме. Дані тягне з
 // /api/vacancy-share, який віддає тільки active/paused вакансії.
-export default function SharedVacancyView({ vacancyId, onOpenApp }) {
+export default function SharedVacancyView({ vacancyId, onOpenApp, onBrowseVacancies, onCreateVacancy }) {
   const { lang } = useLanguage();
   const [vacancy, setVacancy] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,9 +104,35 @@ export default function SharedVacancyView({ vacancyId, onOpenApp }) {
           onClick={onOpenApp}
           className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          {MESSAGES.browseMore[lang]}
+          {MESSAGES.openApp[lang]}
+        </button>
+
+        <div className="mt-2.5 w-full max-w-[400px] mx-auto grid grid-cols-2 gap-2.5">
+          <button
+            onClick={onBrowseVacancies}
+            className="tap flex items-center justify-center gap-2 bg-base-900 border border-base-700 text-white/80 font-semibold text-sm rounded-xl py-3"
+          >
+            {MESSAGES.browseMore[lang]}
+          </button>
+          <button
+            onClick={onCreateVacancy}
+            className="tap flex items-center justify-center gap-2 bg-base-900 border border-base-700 text-white/80 font-semibold text-sm rounded-xl py-3"
+          >
+            {MESSAGES.createVacancy[lang]}
+          </button>
+        </div>
+
+        <button
+          onClick={() => setReportOpen(true)}
+          className="tap mt-3 w-full max-w-[400px] mx-auto flex items-center justify-center text-xs text-white/35 py-1"
+        >
+          {MESSAGES.reportVacancy[lang]}
         </button>
       </div>
+
+      {reportOpen && (
+        <ReportModal targetType="vacancy" vacancyId={vacancyId} onClose={() => setReportOpen(false)} />
+      )}
     </div>
   );
 }
