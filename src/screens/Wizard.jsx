@@ -636,6 +636,18 @@ function AudioPdfCard({ title }) {
 // жодної JS-помилки, яку можна відловити. Тому над iframe завжди
 // лишаємо міні-шапку (іконка/назва сайту + кнопка "Відкрити"), щоб
 // користувач міг перейти на сторінку, навіть якщо прев'ю не завантажилось.
+// Деякі сайти (напр. apostol-space.tech) — це не звичайні лендінги, а
+// одна сторінка-плеєр: увесь її "контент" — це вузька панель з аудіо, а
+// решта — порожній чорний фон. Показувати таку сторінку в стандартному
+// 220px iframe = здебільшого чорний прямокутник над маленьким плеєром.
+// Для відомих хостів такого типу підвантажуємо ту саму сторінку, але в
+// значно нижчому iframe — рівно під розмір плеєра.
+const COMPACT_EMBED_HOSTS = [/(^|\.)apostol-space\.tech$/i];
+
+function isCompactEmbedHost(hostname) {
+  return COMPACT_EMBED_HOSTS.some((re) => re.test(hostname));
+}
+
 function WebsiteFrame({ url, title }) {
   const [state, setState] = useState({ loading: true, title: null, image: null, failed: false });
 
@@ -694,7 +706,7 @@ function WebsiteFrame({ url, title }) {
         src={url}
         title={title || hostname}
         className="w-full bg-white"
-        style={{ height: 220, border: 0 }}
+        style={{ height: isCompactEmbedHost(hostname) ? 90 : 220, border: 0 }}
         sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
         loading="lazy"
       />
