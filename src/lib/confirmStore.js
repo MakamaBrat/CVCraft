@@ -18,11 +18,13 @@ export function registerConfirmHost(fn) {
 
 export function requestInAppConfirm(message) {
   if (!handler) {
-    // Хост ще не змонтований (не мало б статись, якщо <ConfirmModal /> є
-    // в App.jsx) — краще безпечно повернути "скасовано", ніж мовчки
-    // пропустити підтвердження для потенційно небезпечної дії.
-    console.error("[confirmStore] no ConfirmModal host mounted");
-    return Promise.resolve(false);
+    // Хост ще не змонтований — не мало б статись, якщо <ConfirmModal /> є
+    // в App.jsx, але якщо все ж так: краще пропустити підтвердження і
+    // дозволити дію (наприклад, вихід з екрана), ніж мовчки заблокувати
+    // користувача назавжди. "Не показали попередження" — прикро, але
+    // "неможливо вийти з екрана" — набагато гірше.
+    console.error("[confirmStore] no ConfirmModal host mounted — auto-confirming to avoid trapping the user");
+    return Promise.resolve(true);
   }
   return handler(message);
 }
