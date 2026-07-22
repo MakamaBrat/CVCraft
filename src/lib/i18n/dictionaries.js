@@ -287,6 +287,7 @@ export const uk = {
     idHint: "ID можна дізнатись у бота @userinfobot в Telegram.",
     continueBtn: "Продовжити",
     missingId: "Вкажіть ваш Telegram ID",
+    openInTelegram: "Відкрити в Telegram",
   },
   resume: {
     namePlaceholder: "Ваше ім'я",
@@ -666,6 +667,7 @@ export const ru = {
     idHint: "ID можно узнать у бота @userinfobot в Telegram.",
     continueBtn: "Продолжить",
     missingId: "Укажите ваш Telegram ID",
+    openInTelegram: "Открыть в Telegram",
   },
   resume: {
     namePlaceholder: "Ваше имя",
@@ -1045,6 +1047,7 @@ export const en = {
     idHint: "You can find your ID via the @userinfobot bot on Telegram.",
     continueBtn: "Continue",
     missingId: "Enter your Telegram ID",
+    openInTelegram: "Open in Telegram",
   },
   resume: {
     namePlaceholder: "Your name",

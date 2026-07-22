@@ -65,9 +65,11 @@ function loadLocalResumes() {
 }
 
 function parseHashRoute() {
-  const hash = window.location.hash;
-  const m = hash.match(/^#\/r\/([a-zA-Z0-9_-]+)/);
-  if (m) return m[1];
+  // РАНІШЕ тут ще був фолбек на #/r/<id> — це дозволяло відкрити застосунок
+  // (і навіть чужий шеринг резюме/вакансії) прямим посиланням у звичайному
+  // браузері, без Telegram взагалі. Застосунок тепер відкривається ТІЛЬКИ
+  // всередині Telegram, тому єдине законне джерело sharedId — start_param,
+  // який Telegram підставляє сам після ?startapp=... у диплінку бота.
   const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
   if (tgStartParam) return tgStartParam;
   return null;
@@ -304,12 +306,7 @@ export default function App() {
   if (!identity) {
     return (
       <div className="phone-shell">
-        <TelegramGate
-          onSubmit={(id) => {
-            localStorage.setItem(IDENTITY_KEY, JSON.stringify(id));
-            setIdentity(id);
-          }}
-        />
+        <TelegramGate />
       </div>
     );
   }

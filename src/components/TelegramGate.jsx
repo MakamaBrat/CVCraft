@@ -1,25 +1,18 @@
-import { useState } from "react";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { TELEGRAM_BOT_USERNAME, TELEGRAM_MINI_APP_NAME } from "../lib/config.js";
 
-export default function TelegramGate({ onSubmit }) {
+// РАНІШЕ цей екран дозволяв вручну ввести Telegram ID і продовжити роботу
+// прямо в браузері — це був навмисний "чорний хід" для розробки/дебагу поза
+// Telegram. Він же дозволяв будь-кому відкрити застосунок як звичайний сайт.
+// Тепер жодного вводу немає: якщо Telegram WebView не виявлено — показуємо
+// лише посилання, яке відкриває цей самий застосунок усередині Telegram.
+export default function TelegramGate() {
   const { t } = useLanguage();
-  const [id, setId] = useState("");
-  const [username, setUsername] = useState("");
-  const [error, setError] = useState("");
-
-  const submit = () => {
-    const cleanId = id.trim();
-    if (!cleanId) {
-      setError(t("gate.missingId"));
-      return;
-    }
-    const cleanUsername = username.trim().replace(/^@/, "");
-    onSubmit({ id: cleanId, username: cleanUsername });
-  };
+  const openInTelegram = `https://t.me/${TELEGRAM_BOT_USERNAME}/${TELEGRAM_MINI_APP_NAME}`;
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
-      <div className="flex-1 flex flex-col justify-center px-6 pb-10 fade-up">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center fade-up">
         <div className="w-12 h-12 rounded-2xl bg-accent-500 flex items-center justify-center mb-5">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <path
@@ -31,40 +24,15 @@ export default function TelegramGate({ onSubmit }) {
             />
           </svg>
         </div>
-        <h1 className="text-xl font-bold mb-1.5">{t("gate.loginTitle")}</h1>
-        <p className="text-sm text-white/50 mb-6">{t("gate.loginSubtitle")}</p>
+        <h1 className="text-xl font-bold mb-1.5">{t("gate.title")}</h1>
+        <p className="text-sm text-white/50 mb-6 max-w-[280px]">{t("gate.subtitle")}</p>
 
-        <label className="block text-sm font-medium text-white/85 mb-1.5">{t("gate.idLabel")}</label>
-        <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-4"
-          placeholder="123456789"
-          inputMode="numeric"
-          value={id}
-          onChange={(e) => {
-            setId(e.target.value);
-            setError("");
-          }}
-        />
-
-        <label className="block text-sm font-medium text-white/85 mb-1.5">
-          {t("gate.usernameLabel")} <span className="text-white/40 font-normal">{t("gate.usernameOptional")}</span>
-        </label>
-        <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-1.5"
-          placeholder="@ivan_petrenko"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <p className="text-xs text-white/35 mb-6">{t("gate.idHint")}</p>
-
-        {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
-
-        <button
-          onClick={submit}
+        <a
+          href={openInTelegram}
           className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          {t("gate.continueBtn")}
-        </button>
+          {t("gate.openInTelegram")}
+        </a>
       </div>
     </div>
   );
