@@ -3,7 +3,8 @@ import { sendJson, methodNotAllowed, authenticate } from "./_lib/respond.js";
 
 // POST   /api/block   { action: "block", targetTelegramId, applicationId?, reason? }
 // POST   /api/block   { action: "unblock", targetTelegramId }
-// GET    /api/block   -> { blocked: string[] }  (кого поточний юзер заблокував)
+// GET    /api/block   -> { blocked: [{ telegramId, telegramUsername, firstName, createdAt }] }
+//                         (кого поточний юзер заблокував; для екрана "чорний список")
 
 export default async function handler(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -14,10 +15,17 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const { data, error } = await admin
       .from("blocks")
-      .select("blocked_telegram_id")
-      .eq("blocker_telegram_id", user.id);
+      .select("blocked_telegram_id, created_at, users:blocked_telegram_id(telegram_username, first_name)")
+      .eq("blocker_telegram_id", user.id)
+      .order("created_at", { ascending: false });
     if (error) return sendJson(res, 500, { error: "db_error" });
-    return sendJson(res, 200, { blocked: (data || []).map((r) => r.blocked_telegram_id) });
+    const blocked = (data || []).map((row) => ({
+      telegramId: row.blocked_telegram_id,
+      telegramUsername: row.users?.telegram_username || null,
+      firstName: row.users?.first_name || null,
+      createdAt: row.created_at,
+    }));
+    return sendJson(res, 200, { blocked });
   }
 
   if (req.method !== "POST") return methodNotAllowed(res, ["GET", "POST"]);

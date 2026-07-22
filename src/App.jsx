@@ -14,6 +14,7 @@ import VacancyDetail from "./screens/VacancyDetail.jsx";
 import VacancyApplicants from "./screens/VacancyApplicants.jsx";
 import VacancyMyApplications from "./screens/VacancyMyApplications.jsx";
 import AdminPanel from "./screens/AdminPanel.jsx";
+import BlockedUsers from "./screens/BlockedUsers.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
 import ConfirmModal from "./components/ConfirmModal.jsx";
 import { apiFetch, backendEnabled } from "./lib/api.js";
@@ -428,6 +429,8 @@ export default function App() {
   const goVacancyTemplates = () => setRoute({ screen: "vacancyTemplates" });
   const goVacancyPreview = () => setRoute({ screen: "vacancyPreview" });
   const goAdmin = () => setRoute({ screen: "admin" });
+
+  const goBlockedUsers = () => setRoute({ screen: "blockedUsers" });
   const goBrowseVacancies = () => {
     loadPublicVacancies();
     setRoute({ screen: "browseVacancies" });
@@ -672,6 +675,7 @@ export default function App() {
           onBrowseVacancies={goBrowseVacancies}
           onOpenMyApplications={goMyApplications}
           onOpenAdmin={goAdmin}
+          onOpenBlockedUsers={goBlockedUsers}
           isAdmin={isUserAdmin}
         />
       )}
@@ -809,6 +813,8 @@ export default function App() {
           onBack={goVacancyList}
         />
       )}
+
+      {route.screen === "blockedUsers" && <BlockedUsers onBack={goHome} />}
 
       {route.screen === "admin" && isUserAdmin && (
         <AdminPanel
