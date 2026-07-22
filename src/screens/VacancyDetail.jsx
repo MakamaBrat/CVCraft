@@ -5,15 +5,25 @@ import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { timeAgo } from "../lib/timeAgo.js";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { confirmDialog } from "../lib/telegram.js";
 
 const ACCENTS = { minimal: "#4b5563", modern: "#6c5ce7", bold: "#ff7a59", classic: "#2f6fb0" };
 
-export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, onApply }) {
-  const { t } = useLanguage();
+const WITHDRAW_CONFIRM = {
+  uk: "Забрати цей відгук? Дію не можна скасувати — щоб відгукнутися знову, доведеться відправити заявку заново.",
+  ru: "Забрать этот отклик? Действие нельзя отменить — чтобы откликнуться снова, придётся отправить заявку заново.",
+  en: "Withdraw this application? This can't be undone — you'll need to reapply from scratch.",
+};
+
+const WITHDRAW_LABEL = { uk: "Забрати відгук", ru: "Забрать отклик", en: "Withdraw application" };
+
+export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, onApply, onWithdraw }) {
+  const { lang, t } = useLanguage();
   const [message, setMessage] = useState("");
   const [resumeId, setResumeId] = useState(resumes[0]?.id || "");
   const [sent, setSent] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy.colorScheme);
   const align = getAlign(vacancy.align);
@@ -21,11 +31,21 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
 
   const requiresResume = Boolean(vacancy.requireResume);
   const canSubmit = !requiresResume || Boolean(resumeId);
+  const isApplied = applied || sent;
 
   const submit = async () => {
     if (!canSubmit) return;
     const ok = await onApply(message, resumeId || null);
     if (ok) setSent(true);
+  };
+
+  const withdraw = async () => {
+    if (!onWithdraw || withdrawing) return;
+    if (!(await confirmDialog(WITHDRAW_CONFIRM[lang]))) return;
+    setWithdrawing(true);
+    const ok = await onWithdraw(vacancy.id);
+    setWithdrawing(false);
+    if (ok) setSent(false);
   };
 
   return (
@@ -118,7 +138,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
           )}
         </div>
 
-        {!applied && !sent ? (
+        {!isApplied ? (
           <div className="bg-base-850 border border-base-700 rounded-xl p-4">
             {resumes.length > 0 ? (
               <>
@@ -159,8 +179,19 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             </button>
           </div>
         ) : (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium rounded-xl p-4 text-center">
-            {t("vacancy.applySent")}
+          <div>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium rounded-xl p-4 text-center">
+              {t("vacancy.applySent")}
+            </div>
+            {onWithdraw && (
+              <button
+                onClick={withdraw}
+                disabled={withdrawing}
+                className="tap w-full mt-3 text-center text-sm font-medium text-red-400/80 disabled:text-red-400/40 py-2"
+              >
+                {withdrawing ? t("common.loading") : WITHDRAW_LABEL[lang]}
+              </button>
+            )}
           </div>
         )}
       </div>

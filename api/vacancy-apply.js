@@ -1,6 +1,11 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate } from "./_lib/respond.js";
 
+// Загальний ліміт відгуків на юзера — сумарно по всіх вакансіях, а не
+// на одну. Захищає від спаму заявками й тримає списки "Мої відгуки" /
+// "Відгуки на вакансію" в розумних межах.
+const MAX_APPLICATIONS_PER_USER = 10;
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, ["POST"]);
 
@@ -50,6 +55,15 @@ export default async function handler(req, res) {
     .maybeSingle();
   if (existing) {
     return sendJson(res, 409, { error: "already_applied" });
+  }
+
+  const { count: applicationsCount, error: countError } = await admin
+    .from("vacancy_applications")
+    .select("id", { count: "exact", head: true })
+    .eq("telegram_id", user.id);
+  if (countError) return sendJson(res, 500, { error: "db_error" });
+  if ((applicationsCount || 0) >= MAX_APPLICATIONS_PER_USER) {
+    return sendJson(res, 409, { error: "application_limit_reached" });
   }
 
   const contact = (resumeSnapshot && resumeSnapshot.phone) || (user.username ? `@${user.username}` : null);

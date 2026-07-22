@@ -590,8 +590,47 @@ export default function App() {
       const reason =
         err?.payload?.error === "resume_required"
           ? t("vacancy.resumeRequiredNotice")
+          : err?.payload?.error === "application_limit_reached"
+          ? t("vacancy.applicationLimitReached")
           : t("vacancy.applyFailed");
       await alertDialog(reason);
+      return false;
+    }
+  };
+
+  // Забрати раніше відправлений відгук. Викликається і з деталей вакансії
+  // (кандидат ще бачить картку), і зі списку "Мої відгуки" — в обох
+  // випадках достатньо vacancyId, бо на вакансію в юзера лише одна заявка.
+  const withdrawFromVacancy = async (vacancyId) => {
+    if (!vacancyId) return false;
+    if (!backendEnabled) {
+      setAppliedVacancyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(vacancyId);
+        return next;
+      });
+      return true;
+    }
+    try {
+      await apiFetch("/api/vacancy-withdraw", { method: "POST", body: { vacancyId } });
+      setAppliedVacancyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(vacancyId);
+        return next;
+      });
+      return true;
+    } catch (err) {
+      if (err?.payload?.error === "not_found") {
+        // Вже забрано раніше (напр. в іншій сесії) — просто синхронізуємо стан.
+        setAppliedVacancyIds((prev) => {
+          const next = new Set(prev);
+          next.delete(vacancyId);
+          return next;
+        });
+        return true;
+      }
+      console.error("vacancy withdraw failed:", err.status, err.payload || err.message);
+      await alertDialog(t("vacancy.withdrawFailed"));
       return false;
     }
   };
@@ -754,11 +793,12 @@ export default function App() {
             setRoute({ screen: route.back === "myApplications" ? "myApplications" : "browseVacancies" })
           }
           onApply={applyToVacancy}
+          onWithdraw={withdrawFromVacancy}
         />
       )}
 
       {route.screen === "myApplications" && (
-        <VacancyMyApplications onBack={goHome} onOpen={openAppliedVacancy} />
+        <VacancyMyApplications onBack={goHome} onOpen={openAppliedVacancy} onWithdraw={withdrawFromVacancy} />
       )}
 
       {route.screen === "vacancyApplicants" && applicantsVacancy && (

@@ -3,8 +3,17 @@ import Avatar from "../components/Avatar.jsx";
 import { getColorTheme } from "../lib/docTheme.js";
 import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { confirmDialog } from "../lib/telegram.js";
 
 const ACCENTS = { minimal: "#9aa0a6", modern: "#6c5ce7", bold: "#ff7a59", classic: "#4c9be8" };
+
+const WITHDRAW_CONFIRM = {
+  uk: "Забрати цей відгук? Дію не можна скасувати — щоб відгукнутися знову, доведеться відправити заявку заново.",
+  ru: "Забрать этот отклик? Действие нельзя отменить — чтобы откликнуться снова, придётся отправить заявку заново.",
+  en: "Withdraw this application? This can't be undone — you'll need to reapply from scratch.",
+};
+
+const WITHDRAW_LABEL = { uk: "Забрати", ru: "Забрать", en: "Withdraw" };
 
 const STATUS_LABEL = {
   pending: { uk: "На розгляді", ru: "На рассмотрении", en: "Pending" },
@@ -25,11 +34,22 @@ const STATUS_COLOR = {
 // кожен елемент — { id, appliedAt, status, vacancy: <vacancyFromRow-сумісний рядок> }.
 // Бекенд-частину (сам ендпоінт + таблицю відгуків, якщо її ще нема) треба
 // додати окремо — тут лише підключення фронтенда під цей контракт.
-export default function VacancyMyApplications({ onBack, onOpen }) {
+export default function VacancyMyApplications({ onBack, onOpen, onWithdraw }) {
   const { lang, t } = useLanguage();
   const [applications, setApplications] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState(null);
+
+  const handleWithdraw = async (e, a) => {
+    e.stopPropagation();
+    if (!onWithdraw || withdrawingId) return;
+    if (!(await confirmDialog(WITHDRAW_CONFIRM[lang]))) return;
+    setWithdrawingId(a.id);
+    const ok = await onWithdraw(a.vacancy?.id);
+    setWithdrawingId(null);
+    if (ok) setApplications((prev) => (prev || []).filter((x) => x.id !== a.id));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +121,15 @@ export default function VacancyMyApplications({ onBack, onOpen }) {
                       {(STATUS_LABEL[a.status] || STATUS_LABEL.pending)[lang]}
                     </p>
                   </div>
+                  {onWithdraw && (
+                    <span
+                      role="button"
+                      onClick={(e) => handleWithdraw(e, a)}
+                      className="tap shrink-0 text-[11px] font-medium text-red-400/70 border border-base-700 rounded-full px-2.5 py-1"
+                    >
+                      {withdrawingId === a.id ? t("common.loading") : WITHDRAW_LABEL[lang]}
+                    </span>
+                  )}
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
                     <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
