@@ -24,6 +24,7 @@ export default function VacancyList({
   onDelete,
   onOpenApplicants,
   onPay,
+  onSendToModeration,
   canCreateMore = true,
   maxVacancies = 5,
 }) {
@@ -33,6 +34,10 @@ export default function VacancyList({
   const canPay =
     activeVacancy &&
     [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(activeVacancy.status);
+
+  const canSendToModeration =
+    activeVacancy &&
+    [VACANCY_STATUS.DRAFT, VACANCY_STATUS.REJECTED].includes(activeVacancy.status);
 
   const shareVacancy = (v) => {
     const shareUrl = buildVacancyShareLink(v.id);
@@ -156,6 +161,17 @@ export default function VacancyList({
               >
                 <span className="text-base leading-none">✏️</span> {t("common.edit")}
               </button>
+              {canSendToModeration && onSendToModeration && (
+                <button
+                  onClick={() => {
+                    onSendToModeration(activeVacancy);
+                    setActiveVacancy(null);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">📮</span> {t("vacancy.sendToModeration")}
+                </button>
+              )}
               {canPay && onPay && (
                 <button
                   onClick={() => {

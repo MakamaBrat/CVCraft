@@ -663,6 +663,7 @@ export default function App() {
           onDelete={deleteVacancy}
           onOpenApplicants={goApplicants}
           onPay={payVacancy}
+          onSendToModeration={sendVacancyToModeration}
           canCreateMore={canCreateMoreVacancies}
           maxVacancies={MAX_VACANCIES_PER_USER}
         />
