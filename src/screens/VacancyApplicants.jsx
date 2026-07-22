@@ -54,7 +54,7 @@ function MessageButton({ username, label, disabledLabel }) {
   );
 }
 
-function ApplicantDetail({ applicant, onClose, t }) {
+function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext, t }) {
   const r = applicant.resume_snapshot;
   const accent = ACCENTS[r?.template] || ACCENTS.minimal;
   const theme = getColorTheme(r?.colorScheme);
@@ -72,10 +72,22 @@ function ApplicantDetail({ applicant, onClose, t }) {
         </button>
         <h1 className="text-lg font-bold flex-1 truncate">{t("vacancy.viewFullResume")}</h1>
         <button
-          onClick={() => setReporting(true)}
-          className="tap shrink-0 text-xs font-medium text-white/45 border border-base-700 rounded-full px-3 py-1.5"
+          onClick={onPrev}
+          disabled={!hasPrev}
+          className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 disabled:text-white/20 bg-base-850 border border-base-700 rounded-lg"
         >
-          {t("report.reportApplicant")}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!hasNext}
+          className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 disabled:text-white/20 bg-base-850 border border-base-700 rounded-lg"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
 
@@ -236,6 +248,15 @@ function ApplicantDetail({ applicant, onClose, t }) {
             disabledLabel={t("vacancy.noApplicantUsername")}
           />
         </div>
+
+        <div className="mx-auto mt-3 pb-2" style={{ maxWidth: 400 }}>
+          <button
+            onClick={() => setReporting(true)}
+            className="tap w-full text-center text-xs font-medium text-white/45 border border-base-700 rounded-full py-2"
+          >
+            {t("report.reportApplicant")}
+          </button>
+        </div>
       </div>
 
       {reporting && (
@@ -247,7 +268,8 @@ function ApplicantDetail({ applicant, onClose, t }) {
 
 export default function VacancyApplicants({ vacancy, applicants, loading, onBack }) {
   const { t } = useLanguage();
-  const [openApplicant, setOpenApplicant] = useState(null);
+  const [openIndex, setOpenIndex] = useState(null);
+  const openApplicant = openIndex != null ? applicants[openIndex] : null;
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -277,7 +299,7 @@ export default function VacancyApplicants({ vacancy, applicants, loading, onBack
               return (
                 <button
                   key={a.id}
-                  onClick={() => setOpenApplicant(a)}
+                  onClick={() => setOpenIndex(applicants.indexOf(a))}
                   className="tap text-left bg-base-850 border border-base-700 rounded-xl p-4"
                 >
                   {r ? (
@@ -320,7 +342,15 @@ export default function VacancyApplicants({ vacancy, applicants, loading, onBack
       </div>
 
       {openApplicant && (
-        <ApplicantDetail applicant={openApplicant} onClose={() => setOpenApplicant(null)} t={t} />
+        <ApplicantDetail
+          applicant={openApplicant}
+          onClose={() => setOpenIndex(null)}
+          onPrev={() => setOpenIndex((i) => Math.max(0, i - 1))}
+          onNext={() => setOpenIndex((i) => Math.min(applicants.length - 1, i + 1))}
+          hasPrev={openIndex > 0}
+          hasNext={openIndex < applicants.length - 1}
+          t={t}
+        />
       )}
     </div>
   );
