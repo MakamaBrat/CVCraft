@@ -28,6 +28,21 @@ export function getTelegramInitData() {
 export function confirmDialog(message) {
   return new Promise((resolve) => {
     const tg = getTelegramWebApp();
+    let settled = false;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    // Захист від "мертвих" кнопок: на деяких клієнтах Telegram
+    // (особливо старі версії Desktop/iOS) showPopup/showConfirm не кидають
+    // помилку, але й ніколи не викликають callback — Promise висить вічно,
+    // і кнопка виглядає так, ніби натискання взагалі нічого не дало.
+    // Якщо за 4с відповіді нема — вважаємо дію підтвердженою і йдемо далі,
+    // аби інтерфейс не зависав намертво.
+    const timer = setTimeout(() => settle(true), 4000);
+
     // showPopup — найнадійніший варіант: showConfirm на деяких клієнтах
     // (особливо старі версії Telegram Desktop/iOS) не викликає callback
     // взагалі, а window.confirm() у WebView Telegram нерідко мовчки
@@ -45,24 +60,24 @@ export function confirmDialog(message) {
               { id: "ok", type: "ok" },
             ],
           },
-          (buttonId) => resolve(buttonId === "ok")
+          (buttonId) => settle(buttonId === "ok")
         );
       } catch {
         // Будь-яка неочікувана помилка нативного API не має "з'їдати"
         // натискання кнопки мовчки — пробуємо наступний доступний варіант.
-        if (tg?.showConfirm) tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
-        else resolve(true);
+        if (tg?.showConfirm) tg.showConfirm(message, (ok) => settle(Boolean(ok)));
+        else settle(true);
       }
     } else if (tg?.showConfirm) {
-      tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+      tg.showConfirm(message, (ok) => settle(Boolean(ok)));
     } else if (tg) {
       // Ми точно в Telegram, але клієнт зовсім старий і не підтримує
       // жодного нативного діалогу підтвердження. window.confirm тут
       // ненадійний (може мовчки нічого не показати), тож краще пропустити
       // підтвердження, ніж дати кнопці виглядати "мертвою".
-      resolve(true);
+      settle(true);
     } else {
-      resolve(window.confirm(message));
+      settle(window.confirm(message));
     }
   });
 }
