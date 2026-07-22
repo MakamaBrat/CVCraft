@@ -431,14 +431,9 @@ export default function App() {
     setRoute({ screen: "vacancyWizard", step: 0 });
   };
 
-  const editVacancy = async (id) => {
+  const editVacancy = (id) => {
     const v = vacancies.find((x) => x.id === id);
     if (!v) return;
-    // Активну/схвалену/призупинену вакансію тепер теж можна редагувати —
-    // але після збереження вона піде на повторну модерацію і тимчасово
-    // зникне з публічного списку, тому попереджаємо про це наперед.
-    const isLive = [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(v.status);
-    if (isLive && !(await confirmDialog(t("vacancy.editLiveWarning")))) return;
     setVacancyDraft(v);
     setRoute({ screen: "vacancyWizard", step: 0 });
   };
