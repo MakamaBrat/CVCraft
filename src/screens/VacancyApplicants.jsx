@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
+import BlockModal from "../components/BlockModal.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -54,13 +55,14 @@ function MessageButton({ username, label, disabledLabel }) {
   );
 }
 
-function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext, t }) {
+function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext, onBlocked, t }) {
   const r = applicant.resume_snapshot;
   const accent = ACCENTS[r?.template] || ACCENTS.minimal;
   const theme = getColorTheme(r?.colorScheme);
   const align = getAlign(r?.align);
   const isCenter = align === "center";
   const [reporting, setReporting] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 bg-base-950 flex flex-col">
@@ -227,7 +229,7 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
             )}
           </div>
         ) : (
-          <p className="text-sm text-white/40 text-center py-10">{t("vacancy.noResumesYet")}</p>
+          <p className="text-sm text-white/40 text-center py-10">{t("vacancy.applicantNoResume")}</p>
         )}
 
         {(applicant.contact || applicant.message) && (
@@ -241,20 +243,28 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
           </div>
         )}
 
-        <div className="mx-auto mt-4" style={{ maxWidth: 400 }}>
-          <MessageButton
-            username={applicant.telegram_username}
-            label={t("vacancy.messageApplicant")}
-            disabledLabel={t("vacancy.noApplicantUsername")}
-          />
-        </div>
-
-        <div className="mx-auto mt-3 pb-2" style={{ maxWidth: 400 }}>
+        <div className="mx-auto mt-4 flex items-stretch gap-2" style={{ maxWidth: 400 }}>
+          <div className="flex-1">
+            <MessageButton
+              username={applicant.telegram_username}
+              label={t("vacancy.messageApplicant")}
+              disabledLabel={t("vacancy.noApplicantUsername")}
+            />
+          </div>
           <button
             onClick={() => setReporting(true)}
-            className="tap w-full text-center text-xs font-medium text-white/45 border border-base-700 rounded-full py-2"
+            className="tap flex-1 mt-2 flex items-center justify-center text-xs font-medium text-white/45 border border-base-700 rounded-lg px-3 py-2"
           >
             {t("report.reportApplicant")}
+          </button>
+        </div>
+
+        <div className="mx-auto mt-2 pb-2" style={{ maxWidth: 400 }}>
+          <button
+            onClick={() => setBlocking(true)}
+            className="tap w-full text-center text-xs font-medium text-red-400/70 border border-red-500/20 rounded-lg py-2"
+          >
+            {t("block.blockApplicant")}
           </button>
         </div>
       </div>
@@ -262,14 +272,34 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
       {reporting && (
         <ReportModal targetType="applicant" applicationId={applicant.id} onClose={() => setReporting(false)} />
       )}
+
+      {blocking && (
+        <BlockModal
+          targetTelegramId={applicant.telegram_id}
+          applicationId={applicant.id}
+          targetName={r?.fullName}
+          onClose={() => setBlocking(false)}
+          onBlocked={() => {
+            setBlocking(false);
+            onBlocked?.(applicant);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-export default function VacancyApplicants({ vacancy, applicants, loading, onBack }) {
+export default function VacancyApplicants({ vacancy, applicants: applicantsProp, loading, onBack }) {
   const { t } = useLanguage();
   const [openIndex, setOpenIndex] = useState(null);
+  const [hiddenIds, setHiddenIds] = useState(() => new Set());
+  const applicants = applicantsProp.filter((a) => !hiddenIds.has(a.id));
   const openApplicant = openIndex != null ? applicants[openIndex] : null;
+
+  const handleBlocked = (blockedApplicant) => {
+    setHiddenIds((prev) => new Set(prev).add(blockedApplicant.id));
+    setOpenIndex(null);
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -318,7 +348,7 @@ export default function VacancyApplicants({ vacancy, applicants, loading, onBack
                       )}
                     </>
                   ) : (
-                    <p className="text-xs text-white/40 mb-2">{t("vacancy.noResumesYet")}</p>
+                    <p className="text-xs text-white/40 mb-2">{t("vacancy.applicantNoResume")}</p>
                   )}
                   {a.contact && (
                     <p className="text-xs text-white/60 mb-1">
@@ -349,6 +379,7 @@ export default function VacancyApplicants({ vacancy, applicants, loading, onBack
           onNext={() => setOpenIndex((i) => Math.min(applicants.length - 1, i + 1))}
           hasPrev={openIndex > 0}
           hasNext={openIndex < applicants.length - 1}
+          onBlocked={handleBlocked}
           t={t}
         />
       )}
