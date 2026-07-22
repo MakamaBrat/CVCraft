@@ -12,6 +12,7 @@ import VacancyList from "./screens/VacancyList.jsx";
 import VacancyBrowse from "./screens/VacancyBrowse.jsx";
 import VacancyDetail from "./screens/VacancyDetail.jsx";
 import VacancyApplicants from "./screens/VacancyApplicants.jsx";
+import VacancyMyApplications from "./screens/VacancyMyApplications.jsx";
 import AdminPanel from "./screens/AdminPanel.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
 import { apiFetch, backendEnabled } from "./lib/api.js";
@@ -204,6 +205,25 @@ export default function App() {
     setLoadingPublicVacancies(false);
   };
 
+  // Підтягуємо список вакансій, куди юзер вже відгукнувся, при старті —
+  // інакше appliedVacancyIds завжди порожній після рестарту і форму
+  // відгуку можна відправити повторно. Потребує бекенд-ендпоінта
+  // /api/my-applications у форматі { applications: [{ vacancy: { id } }] }.
+  useEffect(() => {
+    if (!identity || !backendEnabled) return;
+    let cancelled = false;
+    apiFetch("/api/my-applications")
+      .then((res) => {
+        if (cancelled) return;
+        const ids = new Set((res?.applications || []).map((a) => a.vacancy?.id).filter(Boolean));
+        setAppliedVacancyIds(ids);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [identity]);
+
   // Автозбереження чернетки резюме просто в процесі заповнення: як тільки
   // з'явився хоч якийсь вміст (навіть на першому кроці візарда) — за ~800мс
   // тиші після останнього натискання клавіші чернетка йде на бекенд зі
@@ -392,6 +412,17 @@ export default function App() {
     loadPublicVacancies();
     setRoute({ screen: "browseVacancies" });
   };
+  const goMyApplications = () => setRoute({ screen: "myApplications" });
+
+  // Відкриття вакансії зі списку "Мої відгуки" — дані вакансії беремо
+  // напряму з рядка заявки (бекенд віддає їх embedded), бо вакансія вже
+  // могла зникнути з publicVacancies (напр. заповнена/на паузі).
+  const openAppliedVacancy = (v) => {
+    if (!v) return;
+    setOpenVacancy(v);
+    setAppliedVacancyIds((prev) => new Set(prev).add(v.id));
+    setRoute({ screen: "vacancyDetail", back: "myApplications" });
+  };
 
   const startNewVacancy = () => {
     if (!canCreateMoreVacancies) return;
@@ -535,6 +566,7 @@ export default function App() {
           onOpenVacancies={goVacancyList}
           onCreateVacancy={startNewVacancy}
           onBrowseVacancies={goBrowseVacancies}
+          onOpenMyApplications={goMyApplications}
           onOpenAdmin={goAdmin}
           isAdmin={isUserAdmin}
         />
@@ -654,9 +686,15 @@ export default function App() {
           vacancy={openVacancy}
           applied={appliedVacancyIds.has(openVacancy.id)}
           resumes={resumes}
-          onBack={() => setRoute({ screen: "browseVacancies" })}
+          onBack={() =>
+            setRoute({ screen: route.back === "myApplications" ? "myApplications" : "browseVacancies" })
+          }
           onApply={applyToVacancy}
         />
+      )}
+
+      {route.screen === "myApplications" && (
+        <VacancyMyApplications onBack={goHome} onOpen={openAppliedVacancy} />
       )}
 
       {route.screen === "vacancyApplicants" && applicantsVacancy && (
