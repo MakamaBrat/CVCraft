@@ -15,6 +15,7 @@ import VacancyApplicants from "./screens/VacancyApplicants.jsx";
 import VacancyMyApplications from "./screens/VacancyMyApplications.jsx";
 import AdminPanel from "./screens/AdminPanel.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
+import ConfirmModal from "./components/ConfirmModal.jsx";
 import { apiFetch, backendEnabled } from "./lib/api.js";
 import { getTelegramUser, initTelegramApp, alertDialog } from "./lib/telegram.js";
 import { MAX_RESUMES_PER_USER, MAX_VACANCIES_PER_USER } from "./lib/config.js";
@@ -747,6 +748,8 @@ export default function App() {
       {route.screen === "admin" && isUserAdmin && (
         <AdminPanel onBack={goHome} adminId={identity.id} />
       )}
+
+      <ConfirmModal />
     </div>
   );
 }

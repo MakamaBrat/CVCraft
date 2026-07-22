@@ -1,3 +1,5 @@
+import { requestInAppConfirm } from "./confirmStore.js";
+
 export function getTelegramWebApp() {
   return typeof window !== "undefined" ? window.Telegram?.WebApp : null;
 }
@@ -77,7 +79,20 @@ export function confirmDialog(message) {
       // підтвердження, ніж дати кнопці виглядати "мертвою".
       settle(true);
     } else {
-      settle(window.confirm(message));
+      // Поза Telegram (звичайний браузер, dev-прев'ю, sandboxed iframe)
+      // window.confirm() ненадійний: у sandboxed iframe без дозволу
+      // allow-modals він мовчки повертає false БЕЗ жодного видимого вікна
+      // і без помилки в консолі — саме тому кнопка виглядала "мертвою".
+      // Власна React-модалка (ConfirmModal, змонтована в App.jsx) завжди
+      // видима незалежно від контексту показу застосунку.
+      //
+      // 4-секундний timer вище — це запобіжник саме проти "мертвих"
+      // колбеків нативного Telegram API; на нашу ж модалку він не
+      // повинен діяти, бо вона рано чи пізно точно зарезолвиться сама
+      // (коли користувач натисне кнопку) — інакше вибір "Скасувати",
+      // зроблений через 4+ секунди роздумів, буде тихо проігнорований.
+      clearTimeout(timer);
+      requestInAppConfirm(message).then(settle);
     }
   });
 }
