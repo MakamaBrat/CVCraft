@@ -24,8 +24,8 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
 
   const submit = async () => {
     if (!canSubmit) return;
-    await onApply(message, resumeId || null);
-    setSent(true);
+    const ok = await onApply(message, resumeId || null);
+    if (ok) setSent(true);
   };
 
   return (

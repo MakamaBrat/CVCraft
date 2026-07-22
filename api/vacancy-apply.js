@@ -39,6 +39,19 @@ export default async function handler(req, res) {
     return sendJson(res, 400, { error: "resume_required" });
   }
 
+  // Один юзер — одна заявка на конкретну вакансію. Без цієї перевірки
+  // insert проходив би повторно щоразу після рестарту фронтенду (там
+  // статус "вже відгукнувся" тримається лише в оперативній пам'яті).
+  const { data: existing } = await admin
+    .from("vacancy_applications")
+    .select("id")
+    .eq("vacancy_id", vacancyId)
+    .eq("telegram_id", user.id)
+    .maybeSingle();
+  if (existing) {
+    return sendJson(res, 409, { error: "already_applied" });
+  }
+
   const contact = (resumeSnapshot && resumeSnapshot.phone) || (user.username ? `@${user.username}` : null);
 
   const { error } = await admin.from("vacancy_applications").insert({

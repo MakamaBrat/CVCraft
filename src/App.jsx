@@ -521,13 +521,32 @@ export default function App() {
   };
 
   const applyToVacancy = async (message, resumeId) => {
-    if (!openVacancy) return;
-    setAppliedVacancyIds((prev) => new Set(prev).add(openVacancy.id));
-    if (backendEnabled) {
+    if (!openVacancy) return false;
+    if (!backendEnabled) {
+      setAppliedVacancyIds((prev) => new Set(prev).add(openVacancy.id));
+      return true;
+    }
+    try {
       await apiFetch("/api/vacancy-apply", {
         method: "POST",
         body: { vacancyId: openVacancy.id, message: message || null, resumeId: resumeId || null },
-      }).catch(() => {});
+      });
+      setAppliedVacancyIds((prev) => new Set(prev).add(openVacancy.id));
+      return true;
+    } catch (err) {
+      if (err?.payload?.error === "already_applied") {
+        // Вже відгукувались раніше (напр. в іншій сесії) — не помилка для
+        // користувача, просто синхронізуємо локальний стан.
+        setAppliedVacancyIds((prev) => new Set(prev).add(openVacancy.id));
+        return true;
+      }
+      console.error("vacancy apply failed:", err.status, err.payload || err.message);
+      const reason =
+        err?.payload?.error === "resume_required"
+          ? t("vacancy.resumeRequiredNotice")
+          : t("vacancy.applyFailed");
+      await alertDialog(reason);
+      return false;
     }
   };
 
