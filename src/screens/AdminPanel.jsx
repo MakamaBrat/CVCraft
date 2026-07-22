@@ -1042,6 +1042,9 @@ export default function AdminPanel({ onBack, adminId }) {
                         <p className="text-xs text-white/40">
                           @{u.telegram_username || "—"} · {u.telegram_id} · {uVacancyCount} {t("admin.vacCountSuffix")}
                         </p>
+                        <p className="text-xs text-white/30">
+                          {t("admin.userFieldLastSeen")}: {fmtDate(u.last_active_at)}
+                        </p>
                       </div>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
                         <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -1146,7 +1149,7 @@ export default function AdminPanel({ onBack, adminId }) {
               <Row label={t("admin.userFieldUsername")} value={activeUser.telegram_username && `@${activeUser.telegram_username}`} />
               <Row label={t("admin.userFieldLanguage")} value={activeUser.language_code} />
               <Row label={t("admin.userFieldRegistered")} value={fmtDate(activeUser.created_at)} />
-              <Row label={t("admin.userFieldLastSeen")} value={fmtDate(activeUser.last_seen_at || activeUser.updated_at)} />
+              <Row label={t("admin.userFieldLastSeen")} value={fmtDate(activeUser.last_active_at)} />
               <Row label={t("admin.userFieldStatus")} value={activeUser.is_banned ? t("admin.banned") : t("admin.statusActive")} />
               <Row label={t("admin.userFieldResumesCount")} value={activeUser.resumes_count} />
               <Row label={t("admin.userFieldStarsSpent")} value={activeUser.stars_spent} />
