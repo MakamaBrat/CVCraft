@@ -95,6 +95,8 @@ async function handlerImpl(req, res) {
       return sendJson(res, 500, { error: "db_error" });
     }
 
+    let resubmitForReview = false;
+
     if (!existing) {
       const { count, error: countError } = await admin
         .from("vacancies")
@@ -108,13 +110,20 @@ async function handlerImpl(req, res) {
         console.warn("[vacancies] save: limit_reached", { telegramId: user.id, count });
         return sendJson(res, 409, { error: "vacancy_limit_reached" });
       }
-    } else if (!["draft", "rejected"].includes(existing.status)) {
-      console.warn("[vacancies] save: not_editable", { telegramId: user.id, id, status: existing.status });
-      return sendJson(res, 409, { error: "not_editable" });
+    } else if (["approved", "active", "paused"].includes(existing.status)) {
+      // Вакансія вже публічна — дозволяємо редагувати, але правки не мають
+      // з'являтись без повторної модерації: ховаємо її назад у
+      // pending_review. draft/rejected/pending_review редагуються як і
+      // раніше, без зміни статусу.
+      resubmitForReview = true;
     }
 
     const payload = { id, telegram_id: user.id, data };
     if (template) payload.template = template;
+    if (resubmitForReview) {
+      payload.status = "pending_review";
+      payload.reject_reason = null;
+    }
     void CLIENT_WRITABLE;
 
     const { error } = await admin.from("vacancies").upsert(payload);
@@ -122,8 +131,8 @@ async function handlerImpl(req, res) {
       logDbError("vacancies POST save: upsert", error, { telegramId: user.id, id, isNew: !existing });
       return sendJson(res, 500, { error: "db_error" });
     }
-    logInfo("vacancies POST save: ok", { telegramId: user.id, id, isNew: !existing });
-    return sendJson(res, 200, { ok: true });
+    logInfo("vacancies POST save: ok", { telegramId: user.id, id, isNew: !existing, resubmitForReview });
+    return sendJson(res, 200, { ok: true, resubmitForReview });
   }
 
   if (req.method === "DELETE") {

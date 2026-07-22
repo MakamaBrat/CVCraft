@@ -433,10 +433,11 @@ export default function App() {
   const editVacancy = async (id) => {
     const v = vacancies.find((x) => x.id === id);
     if (!v) return;
-    if (![VACANCY_STATUS.DRAFT, VACANCY_STATUS.REJECTED].includes(v.status)) {
-      await alertDialog(t("vacancy.editLocked"));
-      return;
-    }
+    // Активну/схвалену/призупинену вакансію тепер теж можна редагувати —
+    // але після збереження вона піде на повторну модерацію і тимчасово
+    // зникне з публічного списку, тому попереджаємо про це наперед.
+    const isLive = [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(v.status);
+    if (isLive && !(await confirmDialog(t("vacancy.editLiveWarning")))) return;
     setVacancyDraft(v);
     setRoute({ screen: "vacancyWizard", step: 0 });
   };
@@ -491,6 +492,27 @@ export default function App() {
         await alertDialog(reason);
       }
     }
+  };
+
+  // Фінальне збереження зі "Перегляду вакансії" (кнопка "Зберегти").
+  // Якщо вакансія на момент початку редагування вже була публічною
+  // (approved/active/paused) — бекенд сам поверне її статус на
+  // pending_review в тому ж запиті збереження (/api/vacancies), тому тут
+  // достатньо лише віддзеркалити це в локальному стані.
+  const saveVacancyEdit = async (vacancy) => {
+    const original = vacancies.find((v) => v.id === vacancy.id);
+    const wasLive =
+      original && [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(original.status);
+
+    await commitVacancyDraft(vacancy);
+
+    if (wasLive) {
+      const next = { ...vacancy, status: VACANCY_STATUS.PENDING_REVIEW, rejectReason: null, updatedAt: Date.now() };
+      setVacancyDraft(next);
+      setVacancies((prev) => prev.map((v) => (v.id === next.id ? next : v)));
+    }
+
+    goVacancyList();
   };
 
   const deleteVacancy = async (id) => {
@@ -671,10 +693,7 @@ export default function App() {
         <VacancyPreview
           vacancy={vacancyDraft}
           onBack={route.back === "vacancies" ? goVacancyList : goVacancyTemplates}
-          onSave={() => {
-            commitVacancyDraft(vacancyDraft);
-            goVacancyList();
-          }}
+          onSave={() => saveVacancyEdit(vacancyDraft)}
           onSendToModeration={() => sendVacancyToModeration(vacancyDraft)}
           onPaid={async (id) => {
             if (!backendEnabled) return;
