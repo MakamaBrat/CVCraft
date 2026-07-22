@@ -44,6 +44,7 @@ export function vacancyFromRow(row) {
   return {
     ...row.data,
     id: row.id,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : null,
     updatedAt: new Date(row.updated_at).getTime(),
     status: row.status,
     rejectReason: row.reject_reason,
