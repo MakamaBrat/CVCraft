@@ -454,7 +454,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
       <div className="px-6 pb-3 pt-0 flex gap-3 print:hidden">
         <button
           onClick={handleShareLink}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+          className={`tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5`}
         >
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
@@ -464,12 +464,23 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
           </svg>
           {t("vacancy.share")}
         </button>
-        <button
-          onClick={onSave}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-base-800 border border-base-700 text-white font-semibold text-sm rounded-xl py-3.5"
-        >
-          {t("common.save")}
-        </button>
+        {/* Кнопка "Зберегти" відправляє вакансію на повторну модерацію,
+            якщо вона вже публічна (approved/active/paused) — це коректно
+            лише як частина свідомого редагування (вхід через "Редагувати"
+            у списку, з попередженням). Показувати її тут для вакансії, яку
+            відкрили просто щоб переглянути чи оплатити, не можна: людина
+            тисне "Зберегти" без жодних правок — і вакансія зникає назад у
+            модерацію. Тому для draft/rejected це звичайне "зберегти
+            чернетку", а для вже публічних статусів кнопки тут просто немає —
+            редагування доступне окремо, через список вакансій. */}
+        {(status === VACANCY_STATUS.DRAFT || status === VACANCY_STATUS.REJECTED) && (
+          <button
+            onClick={onSave}
+            className="tap flex-1 flex items-center justify-center gap-2 bg-base-800 border border-base-700 text-white font-semibold text-sm rounded-xl py-3.5"
+          >
+            {t("common.save")}
+          </button>
+        )}
       </div>
 
       {(status === VACANCY_STATUS.DRAFT || status === VACANCY_STATUS.REJECTED) && (
