@@ -33,6 +33,7 @@ export default function TelegramGate() {
         >
           {t("gate.openInTelegram")}
         </a>
+        <p className="text-xs text-white/35 mt-3">t.me/{TELEGRAM_BOT_USERNAME}</p>
       </div>
     </div>
   );

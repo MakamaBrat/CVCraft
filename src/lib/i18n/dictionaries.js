@@ -277,7 +277,7 @@ export const uk = {
   },
   gate: {
     title: "Відкрийте застосунок у Telegram",
-    subtitle: "Ми не змогли визначити ваш Telegram-акаунт автоматично",
+    subtitle: "Цей застосунок працює тільки всередині Telegram. Перейдіть за посиланням t.me/cvdeckbot, щоб відкрити його.",
     loginTitle: "Вхід через Telegram",
     loginSubtitle:
       "Схоже, застосунок відкрито поза Telegram. Усередині Telegram Mini App ці дані підтягуються автоматично — тут введіть їх вручну для перевірки.",
@@ -657,7 +657,7 @@ export const ru = {
   },
   gate: {
     title: "Откройте приложение в Telegram",
-    subtitle: "Не удалось определить ваш Telegram-аккаунт автоматически",
+    subtitle: "Это приложение работает только внутри Telegram. Перейдите по ссылке t.me/cvdeckbot, чтобы открыть его.",
     loginTitle: "Вход через Telegram",
     loginSubtitle:
       "Похоже, приложение открыто вне Telegram. Внутри Telegram Mini App эти данные подтягиваются автоматически — здесь введите их вручную для проверки.",
@@ -1037,7 +1037,7 @@ export const en = {
   },
   gate: {
     title: "Open this app in Telegram",
-    subtitle: "We couldn't detect your Telegram account automatically",
+    subtitle: "This app only works inside Telegram. Go to t.me/cvdeckbot to open it.",
     loginTitle: "Sign in with Telegram",
     loginSubtitle:
       "Looks like the app was opened outside Telegram. Inside a Telegram Mini App this data is picked up automatically — enter it manually here to verify.",
