@@ -28,8 +28,30 @@ export function getTelegramInitData() {
 export function confirmDialog(message) {
   return new Promise((resolve) => {
     const tg = getTelegramWebApp();
-    if (tg?.showConfirm) {
+    // showPopup — найнадійніший варіант: showConfirm на деяких клієнтах
+    // (особливо старі версії Telegram Desktop/iOS) не викликає callback
+    // взагалі, а window.confirm() у WebView Telegram нерідко мовчки
+    // блокується без будь-якого видимого діалогу — тоді кнопка виглядає
+    // так, ніби натискання не дало жодного ефекту.
+    if (tg?.showPopup) {
+      tg.showPopup(
+        {
+          message,
+          buttons: [
+            { id: "cancel", type: "cancel" },
+            { id: "ok", type: "ok", text: "OK" },
+          ],
+        },
+        (buttonId) => resolve(buttonId === "ok")
+      );
+    } else if (tg?.showConfirm) {
       tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+    } else if (tg) {
+      // Ми точно в Telegram, але клієнт зовсім старий і не підтримує
+      // жодного нативного діалогу підтвердження. window.confirm тут
+      // ненадійний (може мовчки нічого не показати), тож краще пропустити
+      // підтвердження, ніж дати кнопці виглядати "мертвою".
+      resolve(true);
     } else {
       resolve(window.confirm(message));
     }
