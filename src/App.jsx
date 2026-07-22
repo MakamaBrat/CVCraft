@@ -170,13 +170,32 @@ export default function App() {
     }
   }, [resumes, identity]);
 
+  const loadVacancies = async () => {
+    if (!backendEnabled) {
+      setLoadingVacancies(false);
+      return;
+    }
+    setLoadingVacancies(true);
+    try {
+      const res = await apiFetch("/api/vacancies");
+      setVacancies((res?.vacancies || []).map(vacancyFromRow));
+    } catch {
+      // ignore
+    }
+    setLoadingVacancies(false);
+  };
+
   useEffect(() => {
-    if (sharedId || !identity || !backendEnabled) {
+    if (sharedId || !identity) {
       setLoadingVacancies(false);
       return;
     }
     let cancelled = false;
     (async () => {
+      if (!backendEnabled) {
+        setLoadingVacancies(false);
+        return;
+      }
       setLoadingVacancies(true);
       try {
         const res = await apiFetch("/api/vacancies");
@@ -752,7 +771,19 @@ export default function App() {
       )}
 
       {route.screen === "admin" && isUserAdmin && (
-        <AdminPanel onBack={goHome} adminId={identity.id} />
+        <AdminPanel
+          onBack={() => {
+            // Адмінка тримає власний окремий стан (approve/reject оновлюють
+            // тільки його) — тому "Мої вакансії" тут же лишались зі старим
+            // статусом, поки не перезапустиш застосунок. Тож при виході з
+            // адмінки тихо (без спінера на цьому екрані) підвантажуємо
+            // актуальний список вакансій, щоб він був свіжим, коли людина
+            // відкриє "Мої вакансії".
+            loadVacancies();
+            goHome();
+          }}
+          adminId={identity.id}
+        />
       )}
 
       <ConfirmModal />
