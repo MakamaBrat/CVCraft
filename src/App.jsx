@@ -432,25 +432,13 @@ export default function App() {
   };
 
   const editVacancy = async (id) => {
-    console.log("[DEBUG] editVacancy called, id=", id);
     const v = vacancies.find((x) => x.id === id);
-    console.log("[DEBUG] found vacancy:", v);
-    if (!v) {
-      console.log("[DEBUG] no vacancy found for id, aborting");
-      return;
-    }
+    if (!v) return;
+    // Активну/схвалену/призупинену вакансію тепер теж можна редагувати —
+    // але після збереження вона піде на повторну модерацію і тимчасово
+    // зникне з публічного списку, тому попереджаємо про це наперед.
     const isLive = [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(v.status);
-    console.log("[DEBUG] isLive=", isLive, "status=", v.status);
-    if (isLive) {
-      console.log("[DEBUG] calling confirmDialog...");
-      const confirmed = await confirmDialog(t("vacancy.editLiveWarning"));
-      console.log("[DEBUG] confirmDialog resolved with:", confirmed);
-      if (!confirmed) {
-        console.log("[DEBUG] user cancelled, aborting");
-        return;
-      }
-    }
-    console.log("[DEBUG] proceeding to setVacancyDraft + setRoute");
+    if (isLive && !(await confirmDialog(t("vacancy.editLiveWarning")))) return;
     setVacancyDraft(v);
     setRoute({ screen: "vacancyWizard", step: 0 });
   };

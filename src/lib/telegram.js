@@ -27,88 +27,20 @@ export function getTelegramInitData() {
   return tg?.initData || null;
 }
 
+// Підтвердження дії. РАНІШЕ тут спершу пробувався нативний
+// tg.showPopup()/tg.showConfirm(), а власна модалка була лише фолбеком поза
+// Telegram, з 4-секундним таймером-запобіжником на випадок "мертвого"
+// callback. На практиці навіть цей запобіжник не рятував: усередині
+// Telegram Mini App showPopup на частині клієнтів не викликає callback
+// ВЗАГАЛІ і не кидає помилку — кнопка виглядала мертвою.
+//
+// Тепер підтвердження ЗАВЖДИ йде через власну React-модалку (ConfirmModal,
+// змонтована в App.jsx), незалежно від того, чи є tg. Вона не залежить від
+// версії клієнта Telegram і гарантовано резолвиться, щойно користувач
+// натисне кнопку — без гри в вгадування, яке саме нативне API підтримує
+// поточний клієнт.
 export function confirmDialog(message) {
-  console.log("[DEBUG] confirmDialog called");
-  return new Promise((resolve) => {
-    const tg = getTelegramWebApp();
-    console.log("[DEBUG] tg present?", Boolean(tg), "showPopup?", Boolean(tg?.showPopup), "showConfirm?", Boolean(tg?.showConfirm));
-    let settled = false;
-    const settle = (value) => {
-      if (settled) return;
-      settled = true;
-      console.log("[DEBUG] confirmDialog settling with:", value);
-      clearTimeout(timer);
-      resolve(value);
-    };
-    // Захист від "мертвих" кнопок: на деяких клієнтах Telegram
-    // (особливо старі версії Desktop/iOS) showPopup/showConfirm не кидають
-    // помилку, але й ніколи не викликають callback — Promise висить вічно,
-    // і кнопка виглядає так, ніби натискання взагалі нічого не дало.
-    // Якщо за 4с відповіді нема — вважаємо дію підтвердженою і йдемо далі,
-    // аби інтерфейс не зависав намертво.
-    const timer = setTimeout(() => settle(true), 4000);
-
-    // showPopup — найнадійніший варіант: showConfirm на деяких клієнтах
-    // (особливо старі версії Telegram Desktop/iOS) не викликає callback
-    // взагалі, а window.confirm() у WebView Telegram нерідко мовчки
-    // блокується без будь-якого видимого діалогу — тоді кнопка виглядає
-    // так, ніби натискання не дало жодного ефекту.
-    if (tg?.showPopup) {
-      console.log("[DEBUG] taking showPopup branch");
-      try {
-        tg.showPopup(
-          {
-            message,
-            buttons: [
-              { id: "cancel", type: "cancel" },
-              // type "ok"/"cancel" мають фіксований підпис — Telegram
-              // відхиляє (кидає виняток) спробу передати їм свій "text".
-              { id: "ok", type: "ok" },
-            ],
-          },
-          (buttonId) => {
-            console.log("[DEBUG] showPopup callback fired, buttonId=", buttonId);
-            settle(buttonId === "ok");
-          }
-        );
-        console.log("[DEBUG] showPopup call returned (sync), waiting for callback...");
-      } catch (err) {
-        console.log("[DEBUG] showPopup threw synchronously:", err);
-        // Будь-яка неочікувана помилка нативного API не має "з'їдати"
-        // натискання кнопки мовчки — пробуємо наступний доступний варіант.
-        if (tg?.showConfirm) tg.showConfirm(message, (ok) => settle(Boolean(ok)));
-        else settle(true);
-      }
-    } else if (tg?.showConfirm) {
-      console.log("[DEBUG] taking showConfirm branch");
-      tg.showConfirm(message, (ok) => {
-        console.log("[DEBUG] showConfirm callback fired, ok=", ok);
-        settle(Boolean(ok));
-      });
-    } else if (tg) {
-      console.log("[DEBUG] taking legacy-telegram-no-dialog branch, auto-settling true");
-      // Ми точно в Telegram, але клієнт зовсім старий і не підтримує
-      // жодного нативного діалогу підтвердження. window.confirm тут
-      // ненадійний (може мовчки нічого не показати), тож краще пропустити
-      // підтвердження, ніж дати кнопці виглядати "мертвою".
-      settle(true);
-    } else {
-      // Поза Telegram (звичайний браузер, dev-прев'ю, sandboxed iframe)
-      // window.confirm() ненадійний: у sandboxed iframe без дозволу
-      // allow-modals він мовчки повертає false БЕЗ жодного видимого вікна
-      // і без помилки в консолі — саме тому кнопка виглядала "мертвою".
-      // Власна React-модалка (ConfirmModal, змонтована в App.jsx) завжди
-      // видима незалежно від контексту показу застосунку.
-      //
-      // 4-секундний timer вище — це запобіжник саме проти "мертвих"
-      // колбеків нативного Telegram API; на нашу ж модалку він не
-      // повинен діяти, бо вона рано чи пізно точно зарезолвиться сама
-      // (коли користувач натисне кнопку) — інакше вибір "Скасувати",
-      // зроблений через 4+ секунди роздумів, буде тихо проігнорований.
-      clearTimeout(timer);
-      requestInAppConfirm(message).then(settle);
-    }
-  });
+  return requestInAppConfirm(message);
 }
 
 export function alertDialog(message) {
