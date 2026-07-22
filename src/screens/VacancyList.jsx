@@ -134,7 +134,7 @@ export default function VacancyList({
                 onClick={() => shareVacancy(activeVacancy)}
                 className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
               >
-                <span className="text-base leading-none">🔗</span> Поділитися
+                <span className="text-base leading-none">🔗</span> {t("common.share")}
               </button>
               {onView && (
                 <button
@@ -154,7 +154,7 @@ export default function VacancyList({
                 }}
                 className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
               >
-                <span className="text-base leading-none">✏️</span> Редагувати
+                <span className="text-base leading-none">✏️</span> {t("common.edit")}
               </button>
               {canPay && onPay && (
                 <button

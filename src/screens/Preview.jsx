@@ -15,7 +15,7 @@ const ACCENTS = {
   classic: "#2f6fb0",
 };
 
-function ResumeDocument({ resume }) {
+function ResumeDocument({ resume, t }) {
   const accent = ACCENTS[resume.template] || ACCENTS.minimal;
   const theme = getColorTheme(resume.colorScheme);
   const align = getAlign(resume.align);
@@ -40,9 +40,9 @@ function ResumeDocument({ resume }) {
       >
         <Avatar url={resume.avatarUrl} name={resume.fullName} accent={accent} theme={theme} />
         <div className="min-w-0">
-          <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || "Ваше ім'я"}</h2>
+          <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || t("resume.namePlaceholder")}</h2>
           <p className="text-sm font-medium truncate" style={{ color: accent }}>
-            {resume.role || "Посада"}
+            {resume.role || t("resume.rolePlaceholder")}
           </p>
         </div>
       </div>
@@ -59,7 +59,7 @@ function ResumeDocument({ resume }) {
       {resume.summary && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-            Про мене
+            {t("resume.sections.about")}
           </h3>
           <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
             {resume.summary}
@@ -70,7 +70,7 @@ function ResumeDocument({ resume }) {
       {resume.experience.length > 0 && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Досвід роботи
+            {t("resume.sections.experience")}
           </h3>
           <div className="space-y-3">
             {resume.experience.map((e) => (
@@ -98,7 +98,7 @@ function ResumeDocument({ resume }) {
       {resume.education.length > 0 && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Освіта
+            {t("resume.sections.education")}
           </h3>
           <div className="space-y-2">
             {resume.education.map((e) => (
@@ -123,7 +123,7 @@ function ResumeDocument({ resume }) {
       {resume.skills.length > 0 && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Навички
+            {t("resume.sections.skills")}
           </h3>
           <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
             {resume.skills.map((s) => (
@@ -142,7 +142,7 @@ function ResumeDocument({ resume }) {
       {(resume.portfolio || []).length > 0 && (
         <section>
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Портфоліо
+            {t("resume.sections.portfolio")}
           </h3>
           <div className="space-y-3">
             {resume.portfolio.map((p) => (
@@ -166,7 +166,7 @@ export default function Preview({ resume, onBack, onDone }) {
   const shareUrl = buildShareLink(resume.id);
 
   const handleShareLink = () => {
-    const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+    const title = `${resume.fullName || t("resume.untitled")}${resume.role ? " — " + resume.role : ""}`;
     // url передаємо окремим параметром — Telegram сам зробить з нього
     // клікабельну картку-прев'ю під текстом, тому саме посилання в text
     // дублювати не треба.
@@ -186,12 +186,12 @@ export default function Preview({ resume, onBack, onDone }) {
       ({ blob, fileName } = await generateResumeHtml(resume));
     } catch (err) {
       console.error("[Preview] html generation failed", err);
-      setShareError(`Не вдалося сформувати файл: ${err?.message || "невідома помилка"}. Спробуйте ще раз.`);
+      setShareError(t("preview.htmlGenFailed")(err?.message || t("preview.unknownError")));
       setSharing(false);
       return;
     }
 
-    const title = `${resume.fullName || "Резюме"}${resume.role ? " — " + resume.role : ""}`;
+    const title = `${resume.fullName || t("resume.untitled")}${resume.role ? " — " + resume.role : ""}`;
     // Тут файл (HTML) іде окремо від "url", тож Web Share API не завжди
     // будує з url клікабельну картку — лишаємо посилання явно в тексті,
     // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
@@ -239,7 +239,7 @@ export default function Preview({ resume, onBack, onDone }) {
       else window.open(telegramShareUrl, "_blank");
     } catch (err) {
       console.error("[Preview] download fallback failed", err);
-      setShareError(`Не вдалося поділитися резюме: ${err?.message || "невідома помилка"}. Спробуйте ще раз.`);
+      setShareError(t("preview.shareFailed")(err?.message || t("preview.unknownError")));
     } finally {
       setSharing(false);
     }
@@ -254,11 +254,11 @@ export default function Preview({ resume, onBack, onDone }) {
               <path d="M11 3L5 9l6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <h1 className="text-lg font-bold flex-1">Попередній перегляд</h1>
+          <h1 className="text-lg font-bold flex-1">{t("preview.title")}</h1>
           <button
             onClick={handleShare}
             disabled={sharing}
-            title="HTML-файл + посилання"
+            title={t("preview.htmlFileTitle")}
             className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
           >
             {sharing ? (
@@ -278,18 +278,18 @@ export default function Preview({ resume, onBack, onDone }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
-        <ResumeDocument resume={resume} />
+        <ResumeDocument resume={resume} t={t} />
       </div>
 
       {(resume.portfolio || []).length > 0 && (
         <p className="px-6 pb-2 text-[11px] text-white/35 print:hidden">
-          У файлі елементи портфоліо потрапляють як клікабельні картки — натискання на них відкриває оригінальне посилання.
+          {t("preview.portfolioFileHint")}
         </p>
       )}
 
       {!backendEnabled && (
         <p className="px-6 pb-2 text-[11px] text-amber-400/70 print:hidden">
-          Базу даних не підключено — посилання "Поділитись" відкриється лише у вашому браузері.
+          {t("preview.noBackendHint")}
         </p>
       )}
 
@@ -306,7 +306,7 @@ export default function Preview({ resume, onBack, onDone }) {
             <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
             <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
           </svg>
-          Поділитися
+          {t("common.share")}
         </button>
         <button
           onClick={onDone}

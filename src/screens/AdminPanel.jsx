@@ -8,16 +8,17 @@ import Avatar from "../components/Avatar.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { confirmDialog } from "../lib/telegram.js";
 
-const TABS = [
-  { id: "stats", label: "Статистика" },
-  { id: "moderation", label: "Модерація" },
-  { id: "vacancies", label: "Всі вакансії" },
-  { id: "resumes", label: "Резюме" },
-  { id: "reports", label: "Скарги" },
-  { id: "applications", label: "Відгуки" },
-  { id: "users", label: "Користувачі" },
-  { id: "pricing", label: "Ціни" },
-];
+const TAB_IDS = ["stats", "moderation", "vacancies", "resumes", "reports", "applications", "users", "pricing"];
+const TAB_LABEL_KEYS = {
+  stats: "admin.tabStats",
+  moderation: "admin.tabModeration",
+  vacancies: "admin.tabVacancies",
+  resumes: "admin.tabResumes",
+  reports: "admin.tabReports",
+  applications: "admin.tabApplications",
+  users: "admin.tabUsers",
+  pricing: "admin.tabPricing",
+};
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -169,8 +170,8 @@ function TrendChart({ title, points, color = "#22c55e" }) {
 }
 
 // Full resume document renderer (mirrors the markup used in VacancyApplicants' applicant detail).
-function ResumeDoc({ resume }) {
-  if (!resume) return <p className="text-sm text-white/40 text-center py-10">Резюме недоступне</p>;
+function ResumeDoc({ resume, t }) {
+  if (!resume) return <p className="text-sm text-white/40 text-center py-10">{t("resume.unavailable")}</p>;
   const accent = ACCENTS[resume.template] || ACCENTS.minimal;
   const theme = getColorTheme(resume.colorScheme);
   const align = getAlign(resume.align);
@@ -213,7 +214,7 @@ function ResumeDoc({ resume }) {
       {resume.summary && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-            Про мене
+            {t("resume.sections.about")}
           </h3>
           <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
             {resume.summary}
@@ -224,7 +225,7 @@ function ResumeDoc({ resume }) {
       {(resume.experience || []).length > 0 && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Досвід роботи
+            {t("resume.sections.experience")}
           </h3>
           <div className="space-y-3">
             {resume.experience.map((e) => (
@@ -252,7 +253,7 @@ function ResumeDoc({ resume }) {
       {(resume.education || []).length > 0 && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Освіта
+            {t("resume.sections.education")}
           </h3>
           <div className="space-y-2">
             {resume.education.map((e) => (
@@ -277,7 +278,7 @@ function ResumeDoc({ resume }) {
       {(resume.skills || []).length > 0 && (
         <section className="mb-4">
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Навички
+            {t("resume.sections.skills")}
           </h3>
           <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
             {resume.skills.map((s) => (
@@ -296,7 +297,7 @@ function ResumeDoc({ resume }) {
       {(resume.portfolio || []).length > 0 && (
         <section>
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-            Портфоліо
+            {t("resume.sections.portfolio")}
           </h3>
           <div className="space-y-3">
             {resume.portfolio.map((p) => (
@@ -398,7 +399,7 @@ export default function AdminPanel({ onBack, adminId }) {
         prev.map((x) => (x.v.id === id ? { ...x, v: { ...x.v, status: VACANCY_STATUS.APPROVED } } : x))
       );
     } catch (err) {
-      setActionError(`Помилка модерації: ${err?.payload?.error || err.message}`);
+      setActionError(t("admin.errModeration")(err?.payload?.error || err.message));
     }
   };
 
@@ -416,7 +417,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setRejectingId(null);
       setRejectReason("");
     } catch (err) {
-      setActionError(`Помилка модерації: ${err?.payload?.error || err.message}`);
+      setActionError(t("admin.errModeration")(err?.payload?.error || err.message));
     }
   };
 
@@ -431,7 +432,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setPending((prev) => prev.filter((x) => x.v.id !== id));
       setPreview(null);
     } catch (err) {
-      setActionError(`Помилка видалення: ${err?.payload?.error || err.message}`);
+      setActionError(t("admin.errDelete")(err?.payload?.error || err.message));
     }
     setDeletingId(null);
   };
@@ -444,7 +445,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setUsers((prev) => prev.map((x) => (x.telegram_id === u.telegram_id ? { ...x, is_banned: nextBanned } : x)));
       setActiveUser((prev) => (prev && prev.telegram_id === u.telegram_id ? { ...prev, is_banned: nextBanned } : prev));
     } catch (err) {
-      setActionError(`Помилка: ${err?.payload?.error || err.message}`);
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message));
     }
   };
 
@@ -462,7 +463,7 @@ export default function AdminPanel({ onBack, adminId }) {
         });
       }
     } catch (err) {
-      setActionError(`Помилка обробки скарги: ${err?.payload?.error || err.message}`);
+      setActionError(t("admin.errReport")(err?.payload?.error || err.message));
     }
     setResolvingReportId(null);
   };
@@ -473,7 +474,7 @@ export default function AdminPanel({ onBack, adminId }) {
     const listing = Number(pricingForm.listingPrice);
     const top = Number(pricingForm.topPrice);
     if (!Number.isInteger(listing) || listing < 0 || !Number.isInteger(top) || top < 0) {
-      setActionError("Ціни мають бути цілими невід'ємними числами.");
+      setActionError(t("admin.pricingInvalid"));
       return;
     }
     setSavingPricing(true);
@@ -485,7 +486,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setPricing({ listingPrice: res.listingPrice, topPrice: res.topPrice });
       setPricingSaved(true);
     } catch (err) {
-      setActionError(`Помилка збереження цін: ${err?.payload?.error || err.message}`);
+      setActionError(t("admin.errPricingSave")(err?.payload?.error || err.message));
     }
     setSavingPricing(false);
   };
@@ -606,15 +607,15 @@ export default function AdminPanel({ onBack, adminId }) {
 
       {/* No-scroll tab menu: wraps onto multiple lines instead of horizontal scrolling */}
       <div className="px-6 pb-3 flex flex-wrap gap-2">
-        {TABS.map((tb) => (
+        {TAB_IDS.map((tid) => (
           <button
-            key={tb.id}
-            onClick={() => setTab(tb.id)}
+            key={tid}
+            onClick={() => setTab(tid)}
             className={`tap text-xs font-medium rounded-full px-3.5 py-1.5 border ${
-              tab === tb.id ? "bg-accent-500 border-accent-500 text-base-950" : "border-base-700 text-white/60"
+              tab === tid ? "bg-accent-500 border-accent-500 text-base-950" : "border-base-700 text-white/60"
             }`}
           >
-            {tb.label}
+            {t(TAB_LABEL_KEYS[tid])}
           </button>
         ))}
       </div>
@@ -639,45 +640,45 @@ export default function AdminPanel({ onBack, adminId }) {
                   <StatCard label={t("admin.usersToday")} value={stats.usersToday} />
                   <StatCard label={t("admin.activeToday")} value={stats.activeToday} accent="text-emerald-400" />
                   <StatCard label={t("admin.totalUsers")} value={stats.totalUsers} />
-                  <StatCard label="Забанено" value={users.filter((u) => u.is_banned).length} accent="text-red-400" />
+                  <StatCard label={t("admin.bannedCount")} value={users.filter((u) => u.is_banned).length} accent="text-red-400" />
                 </div>
 
                 {stats.activitySeries?.length > 1 ? (
-                  <TrendChart title="Активні користувачі за період" points={stats.activitySeries} color="#22c55e" />
+                  <TrendChart title={t("admin.activeUsersChart")} points={stats.activitySeries} color="#22c55e" />
                 ) : (
                   <BarChart
-                    title="Активність (без часового ряду з бекенду)"
+                    title={t("admin.activityNoSeriesTitle")}
                     color="#22c55e"
                     data={[
-                      { label: "Сьогодні активні", value: stats.activeToday || 0 },
-                      { label: "Нові сьогодні", value: stats.usersToday || 0 },
-                      { label: "Всього юзерів", value: stats.totalUsers || 0 },
+                      { label: t("admin.activeTodayShort"), value: stats.activeToday || 0 },
+                      { label: t("admin.newTodayShort"), value: stats.usersToday || 0 },
+                      { label: t("admin.totalUsersShort"), value: stats.totalUsers || 0 },
                     ]}
                   />
                 )}
 
                 {stats.newUsersSeries?.length > 1 && (
-                  <TrendChart title="Нові користувачі за період" points={stats.newUsersSeries} color="#38bdf8" />
+                  <TrendChart title={t("admin.newUsersChart")} points={stats.newUsersSeries} color="#38bdf8" />
                 )}
 
                 {stats.applicationsSeries?.length > 1 && (
-                  <TrendChart title="Відгуки на вакансії за період" points={stats.applicationsSeries} color="#f59e0b" />
+                  <TrendChart title={t("admin.applicationsChart")} points={stats.applicationsSeries} color="#f59e0b" />
                 )}
 
-                <BarChart title="Вакансії за статусом" data={vacancyStatusChartData} />
+                <BarChart title={t("admin.byStatusChart")} data={vacancyStatusChartData} />
 
                 <BarChart
-                  title="Скарги"
+                  title={t("admin.reportsChart")}
                   color="#f87171"
                   data={[
-                    { label: "В очікуванні", value: stats.pendingReportsCount || 0 },
-                    { label: "Оброблено всього", value: stats.resolvedReportsCount || 0 },
+                    { label: t("admin.pendingShort"), value: stats.pendingReportsCount || 0 },
+                    { label: t("admin.resolvedTotalShort"), value: stats.resolvedReportsCount || 0 },
                   ]}
                 />
 
                 {allVacancies.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">Топ вакансій за переглядами</p>
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">{t("admin.topViewsTitle")}</p>
                     <div className="flex flex-col gap-2">
                       {[...allVacancies]
                         .sort((a, b) => (b.row?.views_count || 0) - (a.row?.views_count || 0))
@@ -702,10 +703,7 @@ export default function AdminPanel({ onBack, adminId }) {
                 )}
 
                 {!stats.activitySeries && (
-                  <p className="text-[11px] text-white/30">
-                    Для повноцінних графіків активності додай на бекенді у action=stats поля
-                    activitySeries / newUsersSeries / applicationsSeries — масиви {"{"}label, value{"}"} по днях.
-                  </p>
+                  <p className="text-[11px] text-white/30">{t("admin.noSeriesHint")}</p>
                 )}
               </div>
             )}
@@ -766,7 +764,7 @@ export default function AdminPanel({ onBack, adminId }) {
                 <input
                   value={vacancySearch}
                   onChange={(e) => setVacancySearch(e.target.value)}
-                  placeholder="Пошук по всіх вакансіях: посада, компанія, місто, опис, теги, telegram_id..."
+                  placeholder={t("admin.searchVacanciesPlaceholder")}
                   className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
                 />
                 <div className="flex flex-wrap gap-2">
@@ -780,15 +778,15 @@ export default function AdminPanel({ onBack, adminId }) {
                           : "border-base-700 text-white/60"
                       }`}
                     >
-                      {s === "all" ? `Всі (${allVacancies.length})` : `${t(`vacancy.status.${s}`)} (${vacancyStatusCounts[s] || 0})`}
+                      {s === "all" ? t("admin.allStatusFilter")(allVacancies.length) : `${t(`vacancy.status.${s}`)} (${vacancyStatusCounts[s] || 0})`}
                     </button>
                   ))}
                 </div>
 
-                <p className="text-xs text-white/40">Знайдено: {filteredVacancies.length}</p>
+                <p className="text-xs text-white/40">{t("admin.foundCount")(filteredVacancies.length)}</p>
 
                 {filteredVacancies.length === 0 && (
-                  <p className="text-sm text-white/45 py-6 text-center">Нічого не знайдено</p>
+                  <p className="text-sm text-white/45 py-6 text-center">{t("admin.nothingFound")}</p>
                 )}
 
                 {filteredVacancies.map(({ v, row }) => (
@@ -806,7 +804,7 @@ export default function AdminPanel({ onBack, adminId }) {
                       <LinkChip onClick={() => openUserById(row?.telegram_id, { telegram_username: row?.telegram_username })}>
                         {row?.telegram_username ? `@${row.telegram_username}` : `id ${row?.telegram_id ?? "—"}`}
                       </LinkChip>
-                      <span className="text-[11px] text-white/35 shrink-0">{row?.views_count || 0} переглядів</span>
+                      <span className="text-[11px] text-white/35 shrink-0">{t("admin.viewsCountShort")(row?.views_count || 0)}</span>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -820,7 +818,7 @@ export default function AdminPanel({ onBack, adminId }) {
                         disabled={deletingId === v.id}
                         className="tap shrink-0 bg-red-500/90 text-white text-xs font-semibold rounded-lg px-3 py-2 disabled:opacity-50"
                       >
-                        {deletingId === v.id ? "…" : "Видалити"}
+                        {deletingId === v.id ? "…" : t("common.delete")}
                       </button>
                     </div>
                   </div>
@@ -833,13 +831,13 @@ export default function AdminPanel({ onBack, adminId }) {
                 <input
                   value={resumeSearch}
                   onChange={(e) => setResumeSearch(e.target.value)}
-                  placeholder="Пошук по резюме: ім'я, посада, місто, навички, telegram_id..."
+                  placeholder={t("admin.searchResumesPlaceholder")}
                   className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
                 />
-                <p className="text-xs text-white/40">Знайдено: {filteredResumes.length}</p>
+                <p className="text-xs text-white/40">{t("admin.foundCount")(filteredResumes.length)}</p>
 
                 {filteredResumes.length === 0 && (
-                  <p className="text-sm text-white/45 py-6 text-center">Нічого не знайдено</p>
+                  <p className="text-sm text-white/45 py-6 text-center">{t("admin.nothingFound")}</p>
                 )}
 
                 {filteredResumes.map(({ r, row }) => (
@@ -919,7 +917,7 @@ export default function AdminPanel({ onBack, adminId }) {
                             onClick={() => openVacancyPreview(vacancyDocFromRaw(rep.vacancies), rep.vacancies, "delete")}
                             className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
                           >
-                            Переглянути вакансію
+                            {t("admin.viewVacancy")}
                           </button>
                         )}
                         {resumeSnapshot && (
@@ -927,7 +925,7 @@ export default function AdminPanel({ onBack, adminId }) {
                             onClick={() => openResumePreview(resumeSnapshot, { telegram_id: rep.target?.telegram_id, telegram_username: rep.target?.telegram_username })}
                             className="tap flex-1 bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
                           >
-                            Переглянути резюме
+                            {t("admin.viewResume")}
                           </button>
                         )}
                       </div>
@@ -980,14 +978,10 @@ export default function AdminPanel({ onBack, adminId }) {
 
             {tab === "pricing" && (
               <div className="flex flex-col gap-4">
-                <p className="text-xs text-white/45">
-                  Ціни зберігаються в окремій таблиці pricing_settings у Supabase і застосовуються одразу до всіх
-                  нових оплат. Публікація рахується за кожен тиждень показу, топ-розміщення — окрема доплата за кожен
-                  тиждень перебування вакансії у топі списку.
-                </p>
+                <p className="text-xs text-white/45">{t("admin.pricingIntro")}</p>
                 <div className="bg-base-850 border border-base-700 rounded-xl p-4 flex flex-col gap-3">
                   <label className="text-xs text-white/60">
-                    Розміщення, ⭐ за тиждень
+                    {t("admin.listingPriceLabel")}
                     <input
                       type="number"
                       min="0"
@@ -1001,7 +995,7 @@ export default function AdminPanel({ onBack, adminId }) {
                     />
                   </label>
                   <label className="text-xs text-white/60">
-                    Топ-сектор, ⭐ за тиждень
+                    {t("admin.topPriceLabel")}
                     <input
                       type="number"
                       min="0"
@@ -1016,8 +1010,7 @@ export default function AdminPanel({ onBack, adminId }) {
                   </label>
                   {pricing && (
                     <p className="text-[11px] text-white/35">
-                      Поточні збережені значення: {pricing.listingPrice} ⭐/тиждень розміщення, {pricing.topPrice} ⭐/тиждень
-                      топ-сектору.
+                      {t("admin.currentPricingValues")(pricing.listingPrice, pricing.topPrice)}
                     </p>
                   )}
                   <button
@@ -1025,7 +1018,7 @@ export default function AdminPanel({ onBack, adminId }) {
                     disabled={savingPricing}
                     className="tap bg-accent-500 text-base-950 text-xs font-semibold rounded-lg py-2.5 disabled:opacity-50"
                   >
-                    {savingPricing ? "Зберігаємо…" : pricingSaved ? "Збережено ✓" : "Зберегти ціни"}
+                    {savingPricing ? t("admin.saving") : pricingSaved ? t("admin.saved") : t("admin.savePrices")}
                   </button>
                 </div>
               </div>
@@ -1047,7 +1040,7 @@ export default function AdminPanel({ onBack, adminId }) {
                           {u.is_banned && <span className="ml-2 text-[10px] text-red-400 font-semibold">{t("admin.banned")}</span>}
                         </p>
                         <p className="text-xs text-white/40">
-                          @{u.telegram_username || "—"} · {u.telegram_id} · {uVacancyCount} вак.
+                          @{u.telegram_username || "—"} · {u.telegram_id} · {uVacancyCount} {t("admin.vacCountSuffix")}
                         </p>
                       </div>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
@@ -1066,7 +1059,7 @@ export default function AdminPanel({ onBack, adminId }) {
       {preview && (
         <Sheet onClose={() => setPreview(null)}>
           <div className="flex-1 overflow-y-auto pb-2">
-            {preview.type === "vacancy" ? <VacancyDocument vacancy={preview.data} /> : <ResumeDoc resume={preview.data} />}
+            {preview.type === "vacancy" ? <VacancyDocument vacancy={preview.data} /> : <ResumeDoc resume={preview.data} t={t} />}
           </div>
 
           {preview.row?.telegram_id && (
@@ -1078,7 +1071,7 @@ export default function AdminPanel({ onBack, adminId }) {
                   openUserById(row.telegram_id, { telegram_username: row.telegram_username });
                 }}
               >
-                Перейти до користувача {preview.row.telegram_username ? `@${preview.row.telegram_username}` : preview.row.telegram_id}
+                {t("admin.goToUser")(preview.row.telegram_username ? `@${preview.row.telegram_username}` : preview.row.telegram_id)}
               </LinkChip>
             </div>
           )}
@@ -1113,7 +1106,7 @@ export default function AdminPanel({ onBack, adminId }) {
                 disabled={deletingId === preview.data.id}
                 className="tap flex-1 bg-red-500/90 text-white text-xs font-semibold rounded-lg py-2.5 disabled:opacity-50"
               >
-                {deletingId === preview.data.id ? "…" : "Видалити вакансію"}
+                {deletingId === preview.data.id ? "…" : t("admin.deleteVacancyBtn")}
               </button>
             </div>
           )}
@@ -1147,23 +1140,23 @@ export default function AdminPanel({ onBack, adminId }) {
             </div>
 
             <div className="bg-base-850 border border-base-700 rounded-xl p-3 mb-4">
-              <Row label="Telegram ID" value={activeUser.telegram_id} />
-              <Row label="Ім'я" value={activeUser.first_name} />
-              <Row label="Прізвище" value={activeUser.last_name} />
-              <Row label="Username" value={activeUser.telegram_username && `@${activeUser.telegram_username}`} />
-              <Row label="Мова" value={activeUser.language_code} />
-              <Row label="Зареєстрований" value={fmtDate(activeUser.created_at)} />
-              <Row label="Останній візит" value={fmtDate(activeUser.last_seen_at || activeUser.updated_at)} />
-              <Row label="Статус" value={activeUser.is_banned ? "Забанений" : "Активний"} />
-              <Row label="Резюме" value={activeUser.resumes_count} />
-              <Row label="Всього зірок витрачено" value={activeUser.stars_spent} />
+              <Row label={t("admin.userFieldTelegramId")} value={activeUser.telegram_id} />
+              <Row label={t("admin.userFieldFirstName")} value={activeUser.first_name} />
+              <Row label={t("admin.userFieldLastName")} value={activeUser.last_name} />
+              <Row label={t("admin.userFieldUsername")} value={activeUser.telegram_username && `@${activeUser.telegram_username}`} />
+              <Row label={t("admin.userFieldLanguage")} value={activeUser.language_code} />
+              <Row label={t("admin.userFieldRegistered")} value={fmtDate(activeUser.created_at)} />
+              <Row label={t("admin.userFieldLastSeen")} value={fmtDate(activeUser.last_seen_at || activeUser.updated_at)} />
+              <Row label={t("admin.userFieldStatus")} value={activeUser.is_banned ? t("admin.banned") : t("admin.statusActive")} />
+              <Row label={t("admin.userFieldResumesCount")} value={activeUser.resumes_count} />
+              <Row label={t("admin.userFieldStarsSpent")} value={activeUser.stars_spent} />
             </div>
 
             <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">
-              Резюме ({activeUserResumes.length})
+              {t("admin.resumesCount")(activeUserResumes.length)}
             </p>
             <div className="flex flex-col gap-2 mb-4">
-              {activeUserResumes.length === 0 && <p className="text-xs text-white/35 mb-2">Немає збережених резюме</p>}
+              {activeUserResumes.length === 0 && <p className="text-xs text-white/35 mb-2">{t("admin.noSavedResumes")}</p>}
               {activeUserResumes.map(({ r, row }) => (
                 <button
                   key={row.id}
@@ -1186,10 +1179,10 @@ export default function AdminPanel({ onBack, adminId }) {
             </div>
 
             <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">
-              Вакансії ({activeUserVacancies.length})
+              {t("admin.vacanciesCount")(activeUserVacancies.length)}
             </p>
             <div className="flex flex-col gap-2 mb-4">
-              {activeUserVacancies.length === 0 && <p className="text-xs text-white/35 mb-2">Немає вакансій</p>}
+              {activeUserVacancies.length === 0 && <p className="text-xs text-white/35 mb-2">{t("admin.noVacanciesShort")}</p>}
               {activeUserVacancies.map(({ v, row }) => (
                 <button
                   key={v.id}
@@ -1206,10 +1199,10 @@ export default function AdminPanel({ onBack, adminId }) {
             </div>
 
             <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2">
-              Відгуки на вакансії ({activeUserApplications.length})
+              {t("admin.applicationsCount")(activeUserApplications.length)}
             </p>
             <div className="flex flex-col gap-2">
-              {activeUserApplications.length === 0 && <p className="text-xs text-white/35">Немає відгуків</p>}
+              {activeUserApplications.length === 0 && <p className="text-xs text-white/35">{t("admin.noApplicationsShort")}</p>}
               {activeUserApplications.map((a) => (
                 <div key={a.id} className="bg-base-850 border border-base-700 rounded-lg px-3 py-2.5">
                   <p className="text-xs font-medium truncate">{a.vacancies?.data?.position || "—"}</p>

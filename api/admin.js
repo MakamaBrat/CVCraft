@@ -241,10 +241,41 @@ async function handlerImpl(req, res) {
       console.warn("[admin] moderate: invalid_body", { telegramId: auth.user.id, id, decision });
       return sendJson(res, 400, { error: "invalid_body" });
     }
-    const update =
-      decision === "approve"
-        ? { status: "approved", moderated_by: auth.user.id, moderated_at: new Date().toISOString(), reject_reason: null }
-        : { status: "rejected", moderated_by: auth.user.id, moderated_at: new Date().toISOString(), reject_reason: rejectReason || null };
+
+    let update;
+    if (decision === "approve") {
+      // Якщо вакансію вже колись оплачували (is_paid) і термін показу (expires_at)
+      // ще не сплив — це повторна модерація після редагування вже активної
+      // вакансії. У такому разі оплата не потрібна: одразу повертаємо "active",
+      // без проміжного статусу "approved" (він призначений лише для
+      // першої публікації, коли ще треба заплатити).
+      // Якщо ж вакансію ще ніколи не оплачували, або оплачений період уже
+      // вийшов — це як і раніше "approved", і фронт попросить оплату.
+      const { data: existing, error: existingError } = await admin
+        .from("vacancies")
+        .select("is_paid, expires_at")
+        .eq("id", id)
+        .maybeSingle();
+      if (existingError) {
+        logDbError("admin moderate: lookup", existingError, { telegramId: auth.user.id, id });
+        return sendJson(res, 500, { error: "db_error" });
+      }
+      const stillPaidUp = Boolean(existing?.is_paid) && existing?.expires_at && new Date(existing.expires_at).getTime() > Date.now();
+      update = {
+        status: stillPaidUp ? "active" : "approved",
+        moderated_by: auth.user.id,
+        moderated_at: new Date().toISOString(),
+        reject_reason: null,
+      };
+    } else {
+      update = {
+        status: "rejected",
+        moderated_by: auth.user.id,
+        moderated_at: new Date().toISOString(),
+        reject_reason: rejectReason || null,
+      };
+    }
+
     const { error } = await admin.from("vacancies").update(update).eq("id", id);
     if (error) {
       logDbError("admin moderate POST", error, { telegramId: auth.user.id, id, decision });

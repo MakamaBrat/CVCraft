@@ -118,7 +118,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
             {r.summary && (
               <section className="mb-4">
                 <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-                  Про мене
+                  {t("resume.sections.about")}
                 </h3>
                 <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
                   {r.summary}
@@ -129,7 +129,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
             {(r.experience || []).length > 0 && (
               <section className="mb-4">
                 <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                  Досвід роботи
+                  {t("resume.sections.experience")}
                 </h3>
                 <div className="space-y-3">
                   {r.experience.map((e) => (
@@ -157,7 +157,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
             {(r.education || []).length > 0 && (
               <section className="mb-4">
                 <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                  Освіта
+                  {t("resume.sections.education")}
                 </h3>
                 <div className="space-y-2">
                   {r.education.map((e) => (
@@ -182,7 +182,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
             {(r.skills || []).length > 0 && (
               <section className="mb-4">
                 <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                  Навички
+                  {t("resume.sections.skills")}
                 </h3>
                 <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
                   {r.skills.map((s) => (
@@ -201,7 +201,7 @@ function ApplicantDetail({ applicant, onClose, t }) {
             {(r.portfolio || []).length > 0 && (
               <section>
                 <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                  Портфоліо
+                  {t("resume.sections.portfolio")}
                 </h3>
                 <div className="space-y-3">
                   {r.portfolio.map((p) => (

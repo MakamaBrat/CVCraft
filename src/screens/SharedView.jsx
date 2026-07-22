@@ -3,6 +3,7 @@ import { apiFetch } from "../lib/api.js";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -12,6 +13,7 @@ const ACCENTS = {
 };
 
 export default function SharedView({ resumeId, onOpenApp }) {
+  const { t } = useLanguage();
   const [resume, setResume] = useState(null);
   const [status, setStatus] = useState("loading");
 
@@ -36,7 +38,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
   if (status === "loading") {
     return (
       <div className="flex-1 flex flex-col bg-base-950">
-        <div className="flex-1 flex items-center justify-center text-white/40 text-sm">Завантаження резюме…</div>
+        <div className="flex-1 flex items-center justify-center text-white/40 text-sm">{t("share.loadingResume")}</div>
       </div>
     );
   }
@@ -45,9 +47,9 @@ export default function SharedView({ resumeId, onOpenApp }) {
     return (
       <div className="flex-1 flex flex-col bg-base-950">
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
-          <p className="text-sm text-white/60">Резюме не знайдено або посилання застаріло.</p>
+          <p className="text-sm text-white/60">{t("share.resumeNotFound")}</p>
           <button onClick={onOpenApp} className="tap text-sm text-accent-300 font-medium">
-            Перейти до CV DECK
+            {t("share.openApp")}
           </button>
         </div>
       </div>
@@ -89,9 +91,9 @@ export default function SharedView({ resumeId, onOpenApp }) {
           >
             <Avatar url={resume.avatarUrl} name={resume.fullName} accent={accent} theme={theme} />
             <div className="min-w-0">
-              <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || "Ваше ім'я"}</h2>
+              <h2 className="text-lg font-bold leading-tight truncate">{resume.fullName || t("resume.namePlaceholder")}</h2>
               <p className="text-sm font-medium truncate" style={{ color: accent }}>
-                {resume.role || "Посада"}
+                {resume.role || t("resume.rolePlaceholder")}
               </p>
             </div>
           </div>
@@ -108,7 +110,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
           {resume.summary && (
             <section className="mb-4">
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
-                Про мене
+                {t("resume.sections.about")}
               </h3>
               <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
                 {resume.summary}
@@ -119,7 +121,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
           {resume.experience?.length > 0 && (
             <section className="mb-4">
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                Досвід роботи
+                {t("resume.sections.experience")}
               </h3>
               <div className="space-y-3">
                 {resume.experience.map((e) => (
@@ -147,7 +149,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
           {resume.education?.length > 0 && (
             <section className="mb-4">
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                Освіта
+                {t("resume.sections.education")}
               </h3>
               <div className="space-y-2">
                 {resume.education.map((e) => (
@@ -172,7 +174,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
           {resume.skills?.length > 0 && (
             <section className="mb-4">
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                Навички
+                {t("resume.sections.skills")}
               </h3>
               <div className={`flex flex-wrap gap-1.5 ${isCenter ? "justify-center" : ""}`}>
                 {resume.skills.map((s) => (
@@ -191,7 +193,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
           {resume.portfolio?.length > 0 && (
             <section>
               <h3 className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
-                Портфоліо
+                {t("resume.sections.portfolio")}
               </h3>
               <div className="space-y-3">
                 {resume.portfolio.map((p) => (
@@ -209,7 +211,7 @@ export default function SharedView({ resumeId, onOpenApp }) {
           onClick={onOpenApp}
           className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          Створити своє резюме
+          {t("share.createOwnResume")}
         </button>
       </div>
     </div>

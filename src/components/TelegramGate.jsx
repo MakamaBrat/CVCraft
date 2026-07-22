@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useLanguage } from "../lib/i18n/index.jsx";
 
 export default function TelegramGate({ onSubmit }) {
+  const { t } = useLanguage();
   const [id, setId] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -8,7 +10,7 @@ export default function TelegramGate({ onSubmit }) {
   const submit = () => {
     const cleanId = id.trim();
     if (!cleanId) {
-      setError("Вкажіть ваш Telegram ID");
+      setError(t("gate.missingId"));
       return;
     }
     const cleanUsername = username.trim().replace(/^@/, "");
@@ -29,12 +31,10 @@ export default function TelegramGate({ onSubmit }) {
             />
           </svg>
         </div>
-        <h1 className="text-xl font-bold mb-1.5">Вхід через Telegram</h1>
-        <p className="text-sm text-white/50 mb-6">
-          Схоже, застосунок відкрито поза Telegram. Усередині Telegram Mini App ці дані підтягуються автоматично — тут введіть їх вручну для перевірки.
-        </p>
+        <h1 className="text-xl font-bold mb-1.5">{t("gate.loginTitle")}</h1>
+        <p className="text-sm text-white/50 mb-6">{t("gate.loginSubtitle")}</p>
 
-        <label className="block text-sm font-medium text-white/85 mb-1.5">Telegram ID</label>
+        <label className="block text-sm font-medium text-white/85 mb-1.5">{t("gate.idLabel")}</label>
         <input
           className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-4"
           placeholder="123456789"
@@ -47,7 +47,7 @@ export default function TelegramGate({ onSubmit }) {
         />
 
         <label className="block text-sm font-medium text-white/85 mb-1.5">
-          Нікнейм <span className="text-white/40 font-normal">(необов'язково)</span>
+          {t("gate.usernameLabel")} <span className="text-white/40 font-normal">{t("gate.usernameOptional")}</span>
         </label>
         <input
           className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-1.5"
@@ -55,9 +55,7 @@ export default function TelegramGate({ onSubmit }) {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
-        <p className="text-xs text-white/35 mb-6">
-          ID можна дізнатись у бота @userinfobot в Telegram.
-        </p>
+        <p className="text-xs text-white/35 mb-6">{t("gate.idHint")}</p>
 
         {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
@@ -65,7 +63,7 @@ export default function TelegramGate({ onSubmit }) {
           onClick={submit}
           className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          Продовжити
+          {t("gate.continueBtn")}
         </button>
       </div>
     </div>

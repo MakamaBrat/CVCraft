@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.js";
+import { useLanguage } from "../lib/i18n/index.jsx";
 
-const CATEGORIES = ["Всі", "Мінімал", "Сучасні", "Креативні"];
+const CATEGORIES = ["all", "minimal", "modern", "bold"];
 
 const TEMPLATES = [
-  { id: "minimal", name: "Мінімал", cat: "Мінімал", accent: "#9aa0a6" },
-  { id: "modern", name: "Сучасний", cat: "Сучасні", accent: "#6c5ce7" },
-  { id: "bold", name: "Виразний", cat: "Креативні", accent: "#ff7a59" },
-  { id: "classic", name: "Класичний", cat: "Мінімал", accent: "#4c9be8" },
+  { id: "minimal", catId: "minimal", accent: "#9aa0a6" },
+  { id: "modern", catId: "modern", accent: "#6c5ce7" },
+  { id: "bold", catId: "bold", accent: "#ff7a59" },
+  { id: "classic", catId: "minimal", accent: "#4c9be8" },
 ];
 
-function MiniCard({ tpl, resume, selected, onClick }) {
+function MiniCard({ tpl, resume, selected, onClick, t }) {
   return (
     <button
       onClick={onClick}
@@ -28,7 +29,7 @@ function MiniCard({ tpl, resume, selected, onClick }) {
       <div className="flex items-center gap-1.5 mb-2">
         <div className="w-5 h-5 rounded-full shrink-0" style={{ background: tpl.accent }} />
         <div className="min-w-0">
-          <p className="text-[9px] font-semibold truncate">{resume.fullName || "Іван Петренко"}</p>
+          <p className="text-[9px] font-semibold truncate">{resume.fullName || t("resume.namePlaceholder")}</p>
           <p className="text-[7px] text-black/50 truncate">{resume.role || "Unity Developer"}</p>
         </div>
       </div>
@@ -86,8 +87,9 @@ function AlignOption({ align, selected, onClick, label }) {
 }
 
 export default function Templates({ draft, setDraft, onBack, onNext }) {
-  const [cat, setCat] = useState("Всі");
-  const visible = cat === "Всі" ? TEMPLATES : TEMPLATES.filter((t) => t.cat === cat);
+  const { t, lang } = useLanguage();
+  const [cat, setCat] = useState("all");
+  const visible = cat === "all" ? TEMPLATES : TEMPLATES.filter((tpl) => tpl.catId === cat);
   const colorScheme = draft.colorScheme || DEFAULT_COLOR_THEME;
   const align = draft.align || "left";
 
@@ -100,7 +102,7 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
             <path d="M11 3L5 9l6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold">Оберіть шаблон</h1>
+        <h1 className="text-lg font-bold">{t("templates.title")}</h1>
       </div>
 
       <div className="px-6 pb-4 flex gap-2 overflow-x-auto">
@@ -114,7 +116,7 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
                 : "border-base-700 text-white/60"
             }`}
           >
-            {c}
+            {t(`templates.categories.${c}`)}
           </button>
         ))}
       </div>
@@ -128,33 +130,33 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
               resume={draft}
               selected={draft.template === tpl.id}
               onClick={() => setDraft({ ...draft, template: tpl.id })}
+              t={t}
             />
           ))}
         </div>
 
-        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Кольорова тема</p>
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{t("templates.colorTheme")}</p>
         <div className="grid grid-cols-2 gap-3">
           {COLOR_THEMES.map((theme) => (
             <ThemeCard
               key={theme.id}
               theme={theme}
-              label={theme.name.uk}
+              label={theme.name[lang]}
               selected={colorScheme === theme.id}
               onClick={() => setDraft({ ...draft, colorScheme: theme.id })}
             />
           ))}
         </div>
 
-        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Фото (аватар, можна гіф)</p>
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{t("templates.photoLabel")}</p>
         <input
           className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
-          placeholder="https://i.imgur.com/... або .gif"
+          placeholder={t("templates.photoPlaceholder")}
           value={draft.avatarUrl || ""}
           onChange={(e) => setDraft({ ...draft, avatarUrl: e.target.value.trim() })}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
-          Вставте посилання на своє фото чи гіфку — вона стане аватаром у резюме замість ініціалів. Немає, де хостити
-          фото? Завантажте його на{" "}
+          {t("templates.photoHintPre")}{" "}
           <a
             href="https://imgur.com/upload"
             target="_blank"
@@ -163,7 +165,7 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           >
             imgur.com
           </a>{" "}
-          або гіфку на{" "}
+          {t("templates.photoHintMid")}{" "}
           <a
             href="https://giphy.com"
             target="_blank"
@@ -172,20 +174,18 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           >
             giphy.com
           </a>{" "}
-          і скопіюйте пряме посилання на зображення.
+          {t("templates.photoHintPost")}
         </p>
 
-        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Фон (картинка або гіф)</p>
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{t("templates.bgLabel")}</p>
         <input
           className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
-          placeholder="https://... .jpg / .png / .gif"
+          placeholder={t("templates.bgPlaceholder")}
           value={draft.backgroundUrl || ""}
           onChange={(e) => setDraft({ ...draft, backgroundUrl: e.target.value.trim() })}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
-          Вставте посилання на зображення чи гіфку — вона стане фоном резюме (посилання виду giphy.com/gifs/...
-          теж підходить, не обов'язково пряме .gif). Залиште порожнім, щоб лишити колір теми.
-          Шукайте гіфки на{" "}
+          {t("templates.bgHintPre")}{" "}
           <a
             href="https://giphy.com"
             target="_blank"
@@ -194,16 +194,16 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           >
             giphy.com
           </a>
-          .
+          {t("templates.bgHintPost")}
         </p>
 
-        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">Вирівнювання тексту</p>
+        <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{t("templates.alignLabel")}</p>
         <div className="flex gap-3">
           {ALIGNMENTS.map((a) => (
             <AlignOption
               key={a.id}
               align={a}
-              label={a.name.uk}
+              label={a.name[lang]}
               selected={align === a.id}
               onClick={() => setDraft({ ...draft, align: a.id })}
             />
@@ -216,7 +216,7 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
           onClick={onNext}
           className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          Переглянути резюме
+          {t("templates.viewResume")}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

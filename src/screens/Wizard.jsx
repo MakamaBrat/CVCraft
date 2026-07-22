@@ -3,9 +3,9 @@ import { apiFetch } from "../lib/api.js";
 import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
 import { getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
+import { useLanguage } from "../lib/i18n/index.jsx";
 
 const TOTAL_STEPS = 6;
-const STEP_TITLES = ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"];
 
 function Field({ label, hint, children }) {
   return (
@@ -21,6 +21,7 @@ const inputCls =
   "w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 transition-colors";
 
 export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onFinishInfo }) {
+  const { t } = useLanguage();
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
   // Підставляємо юзернейм з Telegram у поле "Юзернейм у Telegram", якщо воно
@@ -62,7 +63,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
             </svg>
           </button>
           <span className="text-xs text-white/45 font-medium">
-            Крок {step + 1} з {TOTAL_STEPS}
+            {t("wizard.stepOf")(step + 1, TOTAL_STEPS)}
           </span>
           <button onClick={goHome} className="tap w-8 h-8 ml-auto flex items-center justify-center text-white/70">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -85,33 +86,33 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4 fade-up" key={step}>
-        <h1 className="text-xl font-bold mb-5">{STEP_TITLES[step]}</h1>
+        <h1 className="text-xl font-bold mb-5">{t("wizard.stepTitles")[step]}</h1>
 
         {step === 0 && (
           <>
-            <Field label="Як вас звати?">
+            <Field label={t("wizard.nameLabel")}>
               <input
                 className={inputCls}
-                placeholder="Іван Петренко"
+                placeholder={t("wizard.namePlaceholder")}
                 value={draft.fullName}
                 onChange={(e) => set({ fullName: e.target.value })}
               />
             </Field>
             <Field
-              label="Ваша посада"
-              hint="Вкажіть вашу поточну посаду або ту, на яку ви претендуєте."
+              label={t("wizard.roleLabel")}
+              hint={t("wizard.roleHint")}
             >
               <input
                 className={inputCls}
-                placeholder="Unity Developer"
+                placeholder={t("wizard.rolePlaceholder")}
                 value={draft.role}
                 onChange={(e) => set({ role: e.target.value })}
               />
             </Field>
-            <Field label="Про себе" hint="Кілька речень про ваш професійний досвід.">
+            <Field label={t("wizard.summaryLabel")} hint={t("wizard.summaryHint")}>
               <textarea
                 className={inputCls + " min-h-[110px] resize-none"}
-                placeholder="Розробник з 3-річним досвідом створення мобільних ігор на Unity..."
+                placeholder={t("wizard.summaryPlaceholder")}
                 value={draft.summary}
                 onChange={(e) => set({ summary: e.target.value })}
               />
@@ -121,18 +122,18 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
 
         {step === 1 && (
           <>
-            <Field label="Email">
+            <Field label={t("wizard.emailLabel")}>
               <input
                 className={inputCls}
-                placeholder="ivan.petrenko@gmail.com"
+                placeholder={t("wizard.emailPlaceholder")}
                 value={draft.email}
                 onChange={(e) => set({ email: e.target.value })}
               />
             </Field>
-            <Field label="Юзернейм у Telegram" hint="Роботодавці зв'язуватимуться з вами через цей юзернейм.">
+            <Field label={t("wizard.telegramLabel")} hint={t("wizard.telegramHint")}>
               <input
                 className={inputCls}
-                placeholder="@ivan_petrenko"
+                placeholder={t("wizard.telegramPlaceholder")}
                 value={draft.phone}
                 onChange={(e) => {
                   let v = e.target.value.replace(/\s/g, "");
@@ -141,10 +142,10 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
                 }}
               />
             </Field>
-            <Field label="Місто">
+            <Field label={t("wizard.cityLabel")}>
               <input
                 className={inputCls}
-                placeholder="Київ, Україна"
+                placeholder={t("wizard.cityPlaceholder")}
                 value={draft.city}
                 onChange={(e) => set({ city: e.target.value })}
               />
@@ -152,10 +153,10 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
           </>
         )}
 
-        {step === 2 && <ExperienceStep draft={draft} set={set} />}
-        {step === 3 && <EducationStep draft={draft} set={set} />}
-        {step === 4 && <SkillsStep draft={draft} set={set} />}
-        {step === 5 && <PortfolioStep draft={draft} set={set} />}
+        {step === 2 && <ExperienceStep draft={draft} set={set} t={t} />}
+        {step === 3 && <EducationStep draft={draft} set={set} t={t} />}
+        {step === 4 && <SkillsStep draft={draft} set={set} t={t} />}
+        {step === 5 && <PortfolioStep draft={draft} set={set} t={t} />}
       </div>
 
       <div className="px-6 pb-6 pt-2">
@@ -164,7 +165,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
           disabled={!canNext()}
           className="tap w-full flex items-center justify-center gap-2 bg-accent-500 disabled:bg-base-700 disabled:text-white/30 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
-          {step < TOTAL_STEPS - 1 ? "Далі" : "Обрати шаблон"}
+          {step < TOTAL_STEPS - 1 ? t("common.next") : t("wizard.chooseTemplate")}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -178,7 +179,7 @@ function listAdd(list, item) {
   return [...list, { id: crypto.randomUUID(), ...item }];
 }
 
-function ExperienceStep({ draft, set }) {
+function ExperienceStep({ draft, set, t }) {
   const [item, setItem] = useState({ company: "", position: "", period: "", description: "" });
 
   const add = () => {
@@ -198,36 +199,36 @@ function ExperienceStep({ draft, set }) {
               <p className="text-xs text-white/50">{e.company} · {e.period}</p>
             </div>
             <button onClick={() => remove(e.id)} className="tap text-white/30 hover:text-red-400 text-xs">
-              Видалити
+              {t("common.delete")}
             </button>
           </div>
         </div>
       ))}
 
-      <Field label="Компанія">
-        <input className={inputCls} placeholder="Ubisoft" value={item.company}
+      <Field label={t("vacancy.company")}>
+        <input className={inputCls} placeholder={t("wizard.companyPlaceholder")} value={item.company}
           onChange={(e) => setItem({ ...item, company: e.target.value })} />
       </Field>
-      <Field label="Посада">
-        <input className={inputCls} placeholder="Unity Developer" value={item.position}
+      <Field label={t("vacancy.position")}>
+        <input className={inputCls} placeholder={t("wizard.rolePlaceholder")} value={item.position}
           onChange={(e) => setItem({ ...item, position: e.target.value })} />
       </Field>
-      <Field label="Період">
-        <input className={inputCls} placeholder="2022 — тепер" value={item.period}
+      <Field label={t("wizard.periodLabel")}>
+        <input className={inputCls} placeholder={t("wizard.periodPlaceholderExp")} value={item.period}
           onChange={(e) => setItem({ ...item, period: e.target.value })} />
       </Field>
-      <Field label="Опис обов'язків">
-        <textarea className={inputCls + " min-h-[90px] resize-none"} placeholder="Розробка ігрової механіки, оптимізація продуктивності..."
+      <Field label={t("wizard.dutiesLabel")}>
+        <textarea className={inputCls + " min-h-[90px] resize-none"} placeholder={t("wizard.dutiesPlaceholder")}
           value={item.description} onChange={(e) => setItem({ ...item, description: e.target.value })} />
       </Field>
       <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
-        + Додати досвід
+        {t("wizard.addExperience")}
       </button>
     </div>
   );
 }
 
-function EducationStep({ draft, set }) {
+function EducationStep({ draft, set, t }) {
   const [item, setItem] = useState({ school: "", degree: "", period: "" });
 
   const add = () => {
@@ -247,26 +248,26 @@ function EducationStep({ draft, set }) {
               <p className="text-xs text-white/50">{e.degree} · {e.period}</p>
             </div>
             <button onClick={() => remove(e.id)} className="tap text-white/30 hover:text-red-400 text-xs">
-              Видалити
+              {t("common.delete")}
             </button>
           </div>
         </div>
       ))}
 
-      <Field label="Навчальний заклад">
-        <input className={inputCls} placeholder="КПІ ім. Ігоря Сікорського" value={item.school}
+      <Field label={t("wizard.schoolLabel")}>
+        <input className={inputCls} placeholder={t("wizard.schoolPlaceholder")} value={item.school}
           onChange={(e) => setItem({ ...item, school: e.target.value })} />
       </Field>
-      <Field label="Спеціальність / ступінь">
-        <input className={inputCls} placeholder="Комп'ютерні науки, бакалавр" value={item.degree}
+      <Field label={t("wizard.degreeLabel")}>
+        <input className={inputCls} placeholder={t("wizard.degreePlaceholder")} value={item.degree}
           onChange={(e) => setItem({ ...item, degree: e.target.value })} />
       </Field>
-      <Field label="Період">
-        <input className={inputCls} placeholder="2018 — 2022" value={item.period}
+      <Field label={t("wizard.periodLabel")}>
+        <input className={inputCls} placeholder={t("wizard.periodPlaceholderEdu")} value={item.period}
           onChange={(e) => setItem({ ...item, period: e.target.value })} />
       </Field>
       <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
-        + Додати освіту
+        {t("wizard.addEducation")}
       </button>
     </div>
   );
@@ -300,7 +301,7 @@ export function detectMediaType(url) {
   return "link";
 }
 
-function PortfolioStep({ draft, set }) {
+function PortfolioStep({ draft, set, t }) {
   const [item, setItem] = useState({ title: "", url: "" });
   const portfolio = draft.portfolio || [];
 
@@ -321,9 +322,9 @@ function PortfolioStep({ draft, set }) {
       {portfolio.map((p) => (
         <div key={p.id} className="bg-base-850 border border-base-700 rounded-xl p-3 mb-3">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="font-medium text-sm truncate">{p.title || "Без назви"}</p>
+            <p className="font-medium text-sm truncate">{p.title || t("wizard.untitled")}</p>
             <button onClick={() => remove(p.id)} className="tap shrink-0 text-white/30 hover:text-red-400 text-xs">
-              Видалити
+              {t("common.delete")}
             </button>
           </div>
           <p className="text-xs text-white/40 truncate mb-2">{p.url}</p>
@@ -331,27 +332,27 @@ function PortfolioStep({ draft, set }) {
         </div>
       ))}
 
-      <Field label="Назва прикладу" hint="Наприклад: демо гри, трейлер, дизайн UI.">
+      <Field label={t("wizard.portfolioTitleLabel")} hint={t("wizard.portfolioTitleHint")}>
         <input
           className={inputCls}
-          placeholder="Демо мобільної гри"
+          placeholder={t("wizard.portfolioTitlePlaceholder")}
           value={item.title}
           onChange={(e) => setItem({ ...item, title: e.target.value })}
         />
       </Field>
       <Field
-        label="Посилання на приклад"
-        hint="Відео, соцмережі, гіф, файли, застосунки, карти і т.д."
+        label={t("wizard.portfolioUrlLabel")}
+        hint={t("wizard.portfolioUrlHint")}
       >
         <input
           className={inputCls}
-          placeholder="https://youtube.com/watch?v=..."
+          placeholder={t("wizard.portfolioUrlPlaceholder")}
           value={item.url}
           onChange={(e) => setItem({ ...item, url: e.target.value })}
         />
       </Field>
       <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
-        + Додати приклад роботи
+        {t("wizard.addPortfolio")}
       </button>
     </div>
   );
@@ -452,6 +453,7 @@ const SOCIAL_STYLES = {
 };
 
 function SocialButton({ type, url, title }) {
+  const { t } = useLanguage();
   const s = SOCIAL_STYLES[type];
   if (!s) return null;
   return (
@@ -467,7 +469,7 @@ function SocialButton({ type, url, title }) {
       </svg>
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate">{title || s.label}</p>
-        <p className="text-xs opacity-80">{`Відкрити в ${s.label}`}</p>
+        <p className="text-xs opacity-80">{t("media.openIn")(s.label)}</p>
       </div>
       <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0">
         <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -476,10 +478,7 @@ function SocialButton({ type, url, title }) {
   );
 }
 
-const APP_STORE_META = {
-  googleplay: { label: "Завантажити в Google Play", bg: "#000000", fg: "#ffffff" },
-  appstore: { label: "Завантажити в App Store", bg: "#000000", fg: "#ffffff" },
-};
+const APP_STORE_META_KEYS = { googleplay: "media.googleplay", appstore: "media.appstore" };
 
 // Google Play / App Store не віддають щось зручне для одразу-embed, тому
 // показуємо картку застосунку: іконка + назва, підтягнуті з og:-тегів
@@ -487,7 +486,8 @@ const APP_STORE_META = {
 // йде запит — показуємо скелетон-прелоадер; якщо не вдалось (немає
 // мережі, застосунок видалений тощо) — падаємо назад на просту кнопку.
 function AppStoreCard({ type, url, title }) {
-  const meta = APP_STORE_META[type];
+  const { t } = useLanguage();
+  const label = t(APP_STORE_META_KEYS[type]);
   const [state, setState] = useState({ loading: true, title: null, image: null, failed: false });
 
   useEffect(() => {
@@ -525,7 +525,7 @@ function AppStoreCard({ type, url, title }) {
       target="_blank"
       rel="noreferrer"
       className="flex items-center gap-3 rounded-xl px-4 py-3 no-underline"
-      style={{ background: meta.bg, color: meta.fg }}
+      style={{ background: "#000000", color: "#ffffff" }}
     >
       {!state.failed && state.image && (
         <img
@@ -550,8 +550,8 @@ function AppStoreCard({ type, url, title }) {
         </svg>
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold truncate">{title || state.title || meta.label}</p>
-        <p className="text-xs opacity-80" data-pdf-export-hide="true">{meta.label}</p>
+        <p className="text-sm font-semibold truncate">{title || state.title || label}</p>
+        <p className="text-xs opacity-80" data-pdf-export-hide="true">{label}</p>
       </div>
       <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="ml-auto shrink-0">
         <path d="M5 3l5 4.5L5 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -614,6 +614,7 @@ function VideoPdfCard({ thumbUrl }) {
 // Статична картка-заглушка для аудіо (файл або SoundCloud) у PDF:
 // іконка ноти + назва.
 function AudioPdfCard({ title }) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-base-800 border border-base-700">
       <div className="w-11 h-11 rounded-xl bg-accent-500/15 flex items-center justify-center shrink-0">
@@ -624,7 +625,7 @@ function AudioPdfCard({ title }) {
         </svg>
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold truncate">{title || "Аудіо"}</p>
+        <p className="text-sm font-semibold truncate">{title || t("media.audio")}</p>
       </div>
     </div>
   );
@@ -961,17 +962,17 @@ export function MediaPreview({ item }) {
   return <div data-pdf-link={item.url}>{content}</div>;
 }
 
-function SkillsStep({ draft, set }) {
+function SkillsStep({ draft, set, t }) {
   return (
     <div>
-      <Field label="Навички" hint="Клікайте на теги зі списку або впишіть свій і натисніть Enter.">
+      <Field label={t("resume.sections.skills")} hint={t("wizard.skillsHint")}>
         <TagPicker
           value={draft.skills}
           onChange={(skills) => set({ skills })}
-          placeholder="Свій варіант, напр. Unity"
-          addLabel="Додати"
-          moreLabel="Показати ще"
-          lessLabel="Згорнути"
+          placeholder={t("wizard.skillsPlaceholder")}
+          addLabel={t("common.addTag")}
+          moreLabel={t("common.showMoreTags")}
+          lessLabel={t("common.showLessTags")}
         />
       </Field>
     </div>

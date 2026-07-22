@@ -310,7 +310,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
           <button
             onClick={handleShare}
             disabled={sharing}
-            title="PDF + посилання"
+            title={t("vacancy.pdfFileTitle")}
             className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
           >
             {sharing ? (
