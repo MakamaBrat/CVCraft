@@ -1,8 +1,41 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
+import { requireUser } from "./_lib/telegramAuth.js";
 
 const MAX_VACANCIES_PER_USER = 5;
 const CLIENT_WRITABLE = new Set(["data", "template"]);
+
+// Публічний список бачать і гості (без Telegram initData), тому тут не можна
+// викликати authenticate() — вона сама шле 401, коли токена немає. Натомість
+// тихо пробуємо розпізнати юзера через requireUser (нічого не відправляє
+// клієнту сама), і якщо це вдалось — повертаємо його telegram_id для
+// подальшої фільтрації заблокованих пар. Невалідний/відсутній initData тут
+// НЕ помилка — просто трактуємо як анонімного відвідувача.
+function peekUserId(req, botToken) {
+  const result = requireUser(req, botToken);
+  return result.ok ? result.user.id : null;
+}
+
+// Повертає Set telegram_id усіх, з ким у viewerId є взаємне блокування
+// (незалежно від напрямку) — щоб одним запитом відфільтрувати список,
+// замість виклику is_blocked_pair() на кожен рядок окремо.
+async function getBlockedCounterparties(admin, viewerId) {
+  if (!viewerId) return new Set();
+  const { data, error } = await admin
+    .from("blocks")
+    .select("blocker_telegram_id, blocked_telegram_id")
+    .or(`blocker_telegram_id.eq.${viewerId},blocked_telegram_id.eq.${viewerId}`);
+  if (error) {
+    logDbError("getBlockedCounterparties", error, { viewerId });
+    return new Set(); // при помилці краще не ховати нічого, ніж 500-ити весь список
+  }
+  const set = new Set();
+  for (const row of data || []) {
+    if (String(row.blocker_telegram_id) === String(viewerId)) set.add(String(row.blocked_telegram_id));
+    else set.add(String(row.blocker_telegram_id));
+  }
+  return set;
+}
 
 async function handlerImpl(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -20,8 +53,18 @@ async function handlerImpl(req, res) {
       logDbError("vacancies GET public", error);
       return sendJson(res, 500, { error: "db_error" });
     }
-    logInfo("vacancies GET public: ok", { count: data?.length });
-    return sendJson(res, 200, { vacancies: data });
+
+    // Якщо запит прийшов від розпізнаваного (авторизованого) юзера — ховаємо
+    // вакансії роботодавців, з якими є взаємне блокування в будь-яку сторону.
+    // Гостям (viewerId === null) фільтрація не потрібна й не виконується.
+    const viewerId = peekUserId(req, botToken);
+    const blockedSet = await getBlockedCounterparties(admin, viewerId);
+    const visible = blockedSet.size
+      ? (data || []).filter((v) => !blockedSet.has(String(v.telegram_id)))
+      : data;
+
+    logInfo("vacancies GET public: ok", { count: visible?.length, hiddenByBlock: (data?.length || 0) - (visible?.length || 0) });
+    return sendJson(res, 200, { vacancies: visible });
   }
 
   const user = await authenticate(req, res, botToken, admin);

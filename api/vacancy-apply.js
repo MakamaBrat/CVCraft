@@ -19,12 +19,22 @@ export default async function handler(req, res) {
 
   const { data: vacancy } = await admin
     .from("vacancies")
-    .select("id, status, data")
+    .select("id, status, data, telegram_id")
     .eq("id", vacancyId)
     .maybeSingle();
   if (!vacancy || vacancy.status !== "active") {
     return sendJson(res, 404, { error: "vacancy_not_available" });
   }
+
+  // Взаємна блокування: якщо кандидат заблокував власника вакансії або
+  // навпаки — відгук не приймаємо, навіть якщо фронт з якоїсь причини
+  // не сховав вакансію зі списку.
+  const { data: blocked, error: blockError } = await admin.rpc("is_blocked_pair", {
+    user_a: user.id,
+    user_b: vacancy.telegram_id,
+  });
+  if (blockError) return sendJson(res, 500, { error: "db_error" });
+  if (blocked) return sendJson(res, 403, { error: "blocked" });
 
   let resumeSnapshot = null;
   if (resumeId) {

@@ -28,12 +28,32 @@ export default async function handler(req, res) {
     .order("created_at", { ascending: false });
   if (error) return sendJson(res, 500, { error: "db_error" });
 
+  // Ховаємо відгуки кандидатів, з якими є взаємне блокування (в будь-яку
+  // сторону) — на рівні сервера, а не лише через hiddenIds на фронті. Без
+  // цього приховані кандидати знову з'являлись би після перезавантаження
+  // сторінки, бо hiddenIds жив тільки в оперативній пам'яті React.
+  const { data: blockRows, error: blockError } = await admin
+    .from("blocks")
+    .select("blocker_telegram_id, blocked_telegram_id")
+    .or(`blocker_telegram_id.eq.${user.id},blocked_telegram_id.eq.${user.id}`);
+  if (blockError) return sendJson(res, 500, { error: "db_error" });
+
+  const blockedSet = new Set(
+    (blockRows || []).map((r) =>
+      String(r.blocker_telegram_id) === String(user.id)
+        ? String(r.blocked_telegram_id)
+        : String(r.blocker_telegram_id)
+    )
+  );
+
   // Розгортаємо вкладений об'єкт users(...) у пласке поле telegram_username,
   // щоб фронтенду не треба було знати про структуру джойну.
-  const applicants = (data || []).map(({ users, ...rest }) => ({
-    ...rest,
-    telegram_username: users?.telegram_username || null,
-  }));
+  const applicants = (data || [])
+    .filter((row) => !blockedSet.has(String(row.telegram_id)))
+    .map(({ users, ...rest }) => ({
+      ...rest,
+      telegram_username: users?.telegram_username || null,
+    }));
 
   sendJson(res, 200, { applicants });
 }
