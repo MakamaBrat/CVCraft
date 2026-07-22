@@ -110,7 +110,7 @@ export function VacancyDocument({ vacancy }) {
   );
 }
 
-export default function VacancyPreview({ vacancy, onBack, onSendToModeration, onSave, onPaid }) {
+export default function VacancyPreview({ vacancy, onBack, onSendToModeration, onSave, onPaid, onClose }) {
   const { t } = useLanguage();
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
@@ -471,14 +471,27 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
             відкрили просто щоб переглянути чи оплатити, не можна: людина
             тисне "Зберегти" без жодних правок — і вакансія зникає назад у
             модерацію. Тому для draft/rejected це звичайне "зберегти
-            чернетку", а для вже публічних статусів кнопки тут просто немає —
-            редагування доступне окремо, через список вакансій. */}
+            чернетку". */}
         {(status === VACANCY_STATUS.DRAFT || status === VACANCY_STATUS.REJECTED) && (
           <button
             onClick={onSave}
             className="tap flex-1 flex items-center justify-center gap-2 bg-base-800 border border-base-700 text-white font-semibold text-sm rounded-xl py-3.5"
           >
             {t("common.save")}
+          </button>
+        )}
+        {/* Для вже публічних/на розгляді вакансій (pending_review, active,
+            paused) дані вже збережені — тут не треба нічого "зберігати",
+            просто дати вийти назад до списку вакансій. Раніше для цих
+            статусів кнопки виходу не було взагалі, і єдиною дією лишалось
+            "Поділитися". Виняток — approved (needsPayment), де вакансію
+            ще треба оплатити, щоб опублікувати. */}
+        {!needsPayment && status !== VACANCY_STATUS.DRAFT && status !== VACANCY_STATUS.REJECTED && (
+          <button
+            onClick={onClose}
+            className="tap flex-1 flex items-center justify-center gap-2 bg-base-800 border border-base-700 text-white font-semibold text-sm rounded-xl py-3.5"
+          >
+            {t("common.close")}
           </button>
         )}
       </div>

@@ -700,6 +700,7 @@ export default function App() {
           onBack={route.back === "vacancies" ? goVacancyList : goVacancyTemplates}
           onSave={() => saveVacancyEdit(vacancyDraft)}
           onSendToModeration={() => sendVacancyToModeration(vacancyDraft)}
+          onClose={goVacancyList}
           onPaid={async (id) => {
             if (!backendEnabled) return;
             try {
