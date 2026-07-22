@@ -51,7 +51,15 @@ export function LanguageProvider({ children }) {
     const fallback = dictionaries.en;
     return (path, ...args) => {
       const value = get(dict, path) ?? get(fallback, path);
-      if (typeof value === "function") return value(...args);
+      if (typeof value === "function") {
+        // Дві прийняті в коді форми виклику форматера:
+        //   t("x.y", arg1, arg2)   — аргументи одразу тут
+        //   t("x.y")(arg1, arg2)   — отримати функцію і викликати окремо
+        // Якщо аргументів у t() нема, повертаємо саму функцію не викликаючи —
+        // інакше вона одразу виконається без параметрів і поверне рядок,
+        // який потім спробують викликати як функцію (t("x")(a) → крах).
+        return args.length > 0 ? value(...args) : value;
+      }
       if (value == null) return path;
       return value;
     };
