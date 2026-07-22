@@ -28,12 +28,15 @@ export function getTelegramInitData() {
 }
 
 export function confirmDialog(message) {
+  console.log("[DEBUG] confirmDialog called");
   return new Promise((resolve) => {
     const tg = getTelegramWebApp();
+    console.log("[DEBUG] tg present?", Boolean(tg), "showPopup?", Boolean(tg?.showPopup), "showConfirm?", Boolean(tg?.showConfirm));
     let settled = false;
     const settle = (value) => {
       if (settled) return;
       settled = true;
+      console.log("[DEBUG] confirmDialog settling with:", value);
       clearTimeout(timer);
       resolve(value);
     };
@@ -51,6 +54,7 @@ export function confirmDialog(message) {
     // блокується без будь-якого видимого діалогу — тоді кнопка виглядає
     // так, ніби натискання не дало жодного ефекту.
     if (tg?.showPopup) {
+      console.log("[DEBUG] taking showPopup branch");
       try {
         tg.showPopup(
           {
@@ -62,17 +66,27 @@ export function confirmDialog(message) {
               { id: "ok", type: "ok" },
             ],
           },
-          (buttonId) => settle(buttonId === "ok")
+          (buttonId) => {
+            console.log("[DEBUG] showPopup callback fired, buttonId=", buttonId);
+            settle(buttonId === "ok");
+          }
         );
-      } catch {
+        console.log("[DEBUG] showPopup call returned (sync), waiting for callback...");
+      } catch (err) {
+        console.log("[DEBUG] showPopup threw synchronously:", err);
         // Будь-яка неочікувана помилка нативного API не має "з'їдати"
         // натискання кнопки мовчки — пробуємо наступний доступний варіант.
         if (tg?.showConfirm) tg.showConfirm(message, (ok) => settle(Boolean(ok)));
         else settle(true);
       }
     } else if (tg?.showConfirm) {
-      tg.showConfirm(message, (ok) => settle(Boolean(ok)));
+      console.log("[DEBUG] taking showConfirm branch");
+      tg.showConfirm(message, (ok) => {
+        console.log("[DEBUG] showConfirm callback fired, ok=", ok);
+        settle(Boolean(ok));
+      });
     } else if (tg) {
+      console.log("[DEBUG] taking legacy-telegram-no-dialog branch, auto-settling true");
       // Ми точно в Telegram, але клієнт зовсім старий і не підтримує
       // жодного нативного діалогу підтвердження. window.confirm тут
       // ненадійний (може мовчки нічого не показати), тож краще пропустити
