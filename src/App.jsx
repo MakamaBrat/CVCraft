@@ -455,14 +455,30 @@ export default function App() {
   };
 
   const commitVacancyDraft = async (updated) => {
-    const next = { ...updated, updatedAt: Date.now() };
-    const previous = vacancies.find((v) => v.id === next.id) || null;
+    const previous = vacancies.find((v) => v.id === updated.id) || null;
     const isNew = !previous;
 
     if (isNew && vacancies.length >= MAX_VACANCIES_PER_USER) {
       goVacancyList();
       return;
     }
+
+    // Якщо вакансія на момент старту редагування вже була публічною
+    // (approved/active/paused) — щойно приходить ПЕРША ж зміна (навіть ще
+    // на кроці "Шаблони", задовго до фінального "Зберегти" в Preview),
+    // одразу знімаємо її з публіки й повертаємо на модерацію. Раніше цей
+    // перехід статусу відбувався лише в saveVacancyEdit (фінальне
+    // "Зберегти"), а всі проміжні автозбереження встигали піти в live-запис
+    // ще до модерації — вакансія виглядала так, ніби зміни вже застосувались
+    // без жодної повторної перевірки.
+    const wasLive =
+      previous && [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(previous.status);
+
+    const next = {
+      ...updated,
+      updatedAt: Date.now(),
+      ...(wasLive ? { status: VACANCY_STATUS.PENDING_REVIEW, rejectReason: null } : {}),
+    };
 
     setVacancyDraft(next);
     setVacancies((prev) => {
@@ -473,7 +489,10 @@ export default function App() {
     if (backendEnabled) {
       const { id, updatedAt, status, rejectReason, expiresAt, topUntil, isPaid, listingPrice, topPrice, template, ...data } = next;
       try {
-        await apiFetch("/api/vacancies", { method: "POST", body: { id, data, template } });
+        await apiFetch("/api/vacancies", {
+          method: "POST",
+          body: { id, data, template, ...(wasLive ? { status: VACANCY_STATUS.PENDING_REVIEW } : {}) },
+        });
       } catch (err) {
         console.error("vacancy save failed:", err.status, err.payload || err.message);
         // Відкат: повертаємо попередню версію вакансії (якщо вона вже існувала)
@@ -486,28 +505,18 @@ export default function App() {
         if (previous) setVacancyDraft(previous);
         const reason = err?.payload?.error === "not_editable" ? t("vacancy.editLocked") : t("vacancy.saveFailed");
         await alertDialog(reason);
+        return previous;
       }
     }
+    return next;
   };
 
   // Фінальне збереження зі "Перегляду вакансії" (кнопка "Зберегти").
-  // Якщо вакансія на момент початку редагування вже була публічною
-  // (approved/active/paused) — бекенд сам поверне її статус на
-  // pending_review в тому ж запиті збереження (/api/vacancies), тому тут
-  // достатньо лише віддзеркалити це в локальному стані.
+  // Перехід на pending_review тепер відбувається вже всередині
+  // commitVacancyDraft (з першої ж зміни), тому тут просто довіряємо
+  // тому, що вона повертає, і йдемо додому.
   const saveVacancyEdit = async (vacancy) => {
-    const original = vacancies.find((v) => v.id === vacancy.id);
-    const wasLive =
-      original && [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(original.status);
-
     await commitVacancyDraft(vacancy);
-
-    if (wasLive) {
-      const next = { ...vacancy, status: VACANCY_STATUS.PENDING_REVIEW, rejectReason: null, updatedAt: Date.now() };
-      setVacancyDraft(next);
-      setVacancies((prev) => prev.map((v) => (v.id === next.id ? next : v)));
-    }
-
     goVacancyList();
   };
 
