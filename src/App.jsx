@@ -446,7 +446,7 @@ export default function App() {
     const v = vacancies.find((x) => x.id === id);
     if (v) {
       setVacancyDraft(v);
-      setRoute({ screen: "vacancyPreview" });
+      setRoute({ screen: "vacancyPreview", back: "vacancies" });
     }
   };
 

@@ -34,16 +34,25 @@ export function confirmDialog(message) {
     // блокується без будь-якого видимого діалогу — тоді кнопка виглядає
     // так, ніби натискання не дало жодного ефекту.
     if (tg?.showPopup) {
-      tg.showPopup(
-        {
-          message,
-          buttons: [
-            { id: "cancel", type: "cancel" },
-            { id: "ok", type: "ok", text: "OK" },
-          ],
-        },
-        (buttonId) => resolve(buttonId === "ok")
-      );
+      try {
+        tg.showPopup(
+          {
+            message,
+            buttons: [
+              { id: "cancel", type: "cancel" },
+              // type "ok"/"cancel" мають фіксований підпис — Telegram
+              // відхиляє (кидає виняток) спробу передати їм свій "text".
+              { id: "ok", type: "ok" },
+            ],
+          },
+          (buttonId) => resolve(buttonId === "ok")
+        );
+      } catch {
+        // Будь-яка неочікувана помилка нативного API не має "з'їдати"
+        // натискання кнопки мовчки — пробуємо наступний доступний варіант.
+        if (tg?.showConfirm) tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+        else resolve(true);
+      }
     } else if (tg?.showConfirm) {
       tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
     } else if (tg) {
