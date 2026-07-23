@@ -35,6 +35,7 @@ const emptyResume = () => ({
   email: "",
   phone: "",
   city: "",
+  birthDate: "",
   summary: "",
   experience: [],
   education: [],

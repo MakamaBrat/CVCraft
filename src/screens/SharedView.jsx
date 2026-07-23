@@ -4,6 +4,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { calcAge, formatAge } from "../lib/age.js";
 import { getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
@@ -99,6 +100,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
   const theme = getColorTheme(resume.colorScheme);
   const align = getAlign(resume.align);
   const isCenter = align === "center";
+  const age = calcAge(resume.birthDate);
 
   // Якщо посилання відкрив сам власник резюме (той самий Telegram-акаунт),
   // t.me/<його власний username> відкриє не чат із самим собою, а "Збережені
@@ -156,6 +158,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
             {resume.email && <span>{resume.email}</span>}
             {resume.phone && <span>{resume.phone}</span>}
             {resume.city && <span>{resume.city}</span>}
+            {age != null && <span>{formatAge(age, lang)}</span>}
           </div>
 
           {resume.summary && (

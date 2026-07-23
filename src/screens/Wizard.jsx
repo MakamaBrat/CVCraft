@@ -208,6 +208,15 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
                 />
               )}
             </Field>
+            <Field label={t("wizard.birthDateLabel")} hint={t("wizard.birthDateHint")}>
+              <input
+                type="date"
+                className={inputCls}
+                value={draft.birthDate || ""}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => set({ birthDate: e.target.value })}
+              />
+            </Field>
           </>
         )}
 

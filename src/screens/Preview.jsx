@@ -8,6 +8,7 @@ import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { calcAge, formatAge } from "../lib/age.js";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -16,11 +17,12 @@ const ACCENTS = {
   classic: "#2f6fb0",
 };
 
-function ResumeDocument({ resume, t }) {
+function ResumeDocument({ resume, t, lang }) {
   const accent = ACCENTS[resume.template] || ACCENTS.minimal;
   const theme = getColorTheme(resume.colorScheme);
   const align = getAlign(resume.align);
   const isCenter = align === "center";
+  const age = calcAge(resume.birthDate);
   return (
     <div
       id="resume-doc"
@@ -55,6 +57,7 @@ function ResumeDocument({ resume, t }) {
         {resume.email && <span>{resume.email}</span>}
         {resume.phone && <span>{resume.phone}</span>}
         {resume.city && <span>{resume.city}</span>}
+        {age != null && <span>{formatAge(age, lang)}</span>}
       </div>
 
       {resume.summary && (
@@ -163,7 +166,7 @@ export default function Preview({ resume, onBack, onDone }) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
   const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
 
@@ -228,7 +231,7 @@ export default function Preview({ resume, onBack, onDone }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
-        <ResumeDocument resume={resume} t={t} />
+        <ResumeDocument resume={resume} t={t} lang={lang} />
       </div>
 
       {(resume.portfolio || []).length > 0 && (

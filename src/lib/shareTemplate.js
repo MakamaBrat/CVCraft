@@ -1,5 +1,6 @@
 import { buildAppHomeLink } from "./config.js";
 import { getColorTheme } from "./docTheme.js";
+import { calcAge, formatAge } from "./age.js";
 
 // Окремий, самодостатній HTML-шаблон для файлів, які людина скачує/шерить/
 // отримує від бота (на відміну від #resume-doc/#vacancy-doc, які — це живий
@@ -18,6 +19,7 @@ const ACCENTS = {
 const LABELS = {
   uk: {
     contacts: "КОНТАКТИ",
+    age: "Вік",
     city: "Місто",
     telegram: "Telegram",
     email: "Email",
@@ -38,6 +40,7 @@ const LABELS = {
   },
   ru: {
     contacts: "КОНТАКТЫ",
+    age: "Возраст",
     city: "Город",
     telegram: "Telegram",
     email: "Email",
@@ -58,6 +61,7 @@ const LABELS = {
   },
   en: {
     contacts: "CONTACTS",
+    age: "Age",
     city: "City",
     telegram: "Telegram",
     email: "Email",
@@ -197,7 +201,10 @@ export function buildResumeShareHtml(resume, { shareUrl } = {}) {
       ${role ? `<p>${escapeHtml(role)}</p>` : ""}
     </div>`;
 
+  const age = calcAge(resume?.birthDate);
+
   const contactLines = [];
+  if (age != null) contactLines.push(`<p class="line">${escapeHtml(t.age)}: ${escapeHtml(formatAge(age, "uk"))}</p>`);
   if (resume?.city) contactLines.push(`<p class="line">${escapeHtml(t.city)}: ${escapeHtml(resume.city)}</p>`);
   if (resume?.phone) {
     const label = resume.phone.trim().startsWith("@") ? t.telegram : t.phone;
