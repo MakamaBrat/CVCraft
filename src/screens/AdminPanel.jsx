@@ -40,6 +40,37 @@ function fmtDate(ts) {
   }
 }
 
+// A user counts as "active today" if their last_active_at falls on today's
+// calendar date (client-side, same definition the stats.activeToday card
+// implies — the backend only sends the count, not who they are).
+function isActiveToday(u) {
+  if (!u?.last_active_at) return false;
+  const last = new Date(u.last_active_at);
+  if (Number.isNaN(last.getTime())) return false;
+  return last.toDateString() === new Date().toDateString();
+}
+
+// Buckets an array of rows by calendar day (using getDate(row) as the
+// timestamp) and returns a [{label, value}] series sorted oldest → newest,
+// same shape TrendChart already expects for activitySeries etc. Keeps at
+// most the most recent `maxDays` days so the chart stays readable.
+function buildDailySeries(rows, getDate, maxDays = 30) {
+  const counts = new Map();
+  (rows || []).forEach((row) => {
+    const raw = getDate(row);
+    if (!raw) return;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return;
+    const key = d.toISOString().slice(0, 10);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const days = [...counts.keys()].sort().slice(-maxDays);
+  return days.map((key) => ({
+    label: new Date(key).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit" }),
+    value: counts.get(key) || 0,
+  }));
+}
+
 function vacancyDocFromRaw(raw) {
   if (!raw) return null;
   try {
@@ -60,12 +91,19 @@ function resumeDocFromRaw(raw) {
 
 // ---------- Small building blocks ----------
 
-function StatCard({ label, value, accent }) {
+function StatCard({ label, value, accent, onClick, hint }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className="bg-base-850 border border-base-700 rounded-xl p-4">
+    <Tag
+      onClick={onClick}
+      className={`bg-base-850 border border-base-700 rounded-xl p-4 text-left w-full ${
+        onClick ? "tap active:scale-[0.98] transition-transform" : ""
+      }`}
+    >
       <p className={`text-2xl font-bold ${accent || ""}`}>{value ?? 0}</p>
       <p className="text-xs text-white/50 mt-1">{label}</p>
-    </div>
+      {hint && <p className="text-[10px] text-accent-300 mt-1.5">{hint}</p>}
+    </Tag>
   );
 }
 
@@ -337,6 +375,8 @@ export default function AdminPanel({ onBack, adminId }) {
   const [vacancyStatusFilter, setVacancyStatusFilter] = useState("all");
   const [deletingId, setDeletingId] = useState(null);
   const [activeUser, setActiveUser] = useState(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [showActiveUsers, setShowActiveUsers] = useState(false);
 
   const loadAll = async () => {
     setLoading(true);
@@ -576,6 +616,28 @@ export default function AdminPanel({ onBack, adminId }) {
     });
   }, [allResumes, resumeSearch]);
 
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => {
+      const haystack = [u.first_name, u.last_name, u.telegram_username, u.telegram_id, u.language_code]
+        .filter(Boolean)
+        .join(" \n ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [users, userSearch]);
+
+  const activeUsersToday = useMemo(() => users.filter(isActiveToday), [users]);
+
+  // Client-side day-by-day publication count, built from every loaded vacancy
+  // row's created_at — mirrors the shape of the backend's activitySeries so
+  // it renders with the same TrendChart component.
+  const vacancyPublishedSeries = useMemo(
+    () => buildDailySeries(allVacancies.map(({ row }) => row), (row) => row?.created_at),
+    [allVacancies]
+  );
+
   const vacancyStatusChartData = useMemo(
     () =>
       Object.values(VACANCY_STATUS).map((s) => ({
@@ -638,7 +700,13 @@ export default function AdminPanel({ onBack, adminId }) {
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
                   <StatCard label={t("admin.usersToday")} value={stats.usersToday} />
-                  <StatCard label={t("admin.activeToday")} value={stats.activeToday} accent="text-emerald-400" />
+                  <StatCard
+                    label={t("admin.activeToday")}
+                    value={stats.activeToday}
+                    accent="text-emerald-400"
+                    onClick={() => setShowActiveUsers(true)}
+                    hint={t("admin.tapToViewList")}
+                  />
                   <StatCard label={t("admin.totalUsers")} value={stats.totalUsers} />
                   <StatCard label={t("admin.bannedCount")} value={users.filter((u) => u.is_banned).length} accent="text-red-400" />
                 </div>
@@ -666,6 +734,10 @@ export default function AdminPanel({ onBack, adminId }) {
                 )}
 
                 <BarChart title={t("admin.byStatusChart")} data={vacancyStatusChartData} />
+
+                {vacancyPublishedSeries.length > 1 && (
+                  <TrendChart title={t("admin.vacanciesPublishedChart")} points={vacancyPublishedSeries} color="#a78bfa" />
+                )}
 
                 <BarChart
                   title={t("admin.reportsChart")}
@@ -1025,8 +1097,20 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "users" && (
-              <div className="flex flex-col gap-2">
-                {users.map((u) => {
+              <div className="flex flex-col gap-3">
+                <input
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder={t("admin.searchUsersPlaceholder")}
+                  className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+                />
+                <p className="text-xs text-white/40">{t("admin.foundCount")(filteredUsers.length)}</p>
+
+                {filteredUsers.length === 0 && (
+                  <p className="text-sm text-white/45 py-6 text-center">{t("admin.nothingFound")}</p>
+                )}
+
+                {filteredUsers.map((u) => {
                   const uVacancyCount = allVacancies.filter(({ row }) => String(row?.telegram_id) === String(u.telegram_id)).length;
                   return (
                     <button
@@ -1116,6 +1200,58 @@ export default function AdminPanel({ onBack, adminId }) {
 
           <button
             onClick={() => setPreview(null)}
+            className="tap w-full mt-2 text-center text-sm font-medium text-white/50 py-2 shrink-0"
+          >
+            {t("common.close")}
+          </button>
+        </Sheet>
+      )}
+
+      {/* Active-users-today sheet — opened from the "Active today" stat card */}
+      {showActiveUsers && (
+        <Sheet onClose={() => setShowActiveUsers(false)} wide>
+          <div className="flex-1 overflow-y-auto pb-2">
+            <p className="text-sm font-semibold mb-3">{t("admin.activeUsersListTitle")(activeUsersToday.length)}</p>
+
+            {activeUsersToday.length === 0 && (
+              <p className="text-sm text-white/45 py-6 text-center">{t("admin.noActiveUsers")}</p>
+            )}
+
+            <div className="flex flex-col gap-2">
+              {activeUsersToday.map((u) => (
+                <button
+                  key={u.telegram_id}
+                  onClick={() => {
+                    setShowActiveUsers(false);
+                    setActiveUser(u);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
+                >
+                  <div className="w-9 h-9 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-300 font-semibold text-xs shrink-0">
+                    {(u.first_name || u.telegram_username || "?").slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">
+                      {u.first_name || u.telegram_username || u.telegram_id}
+                      {u.is_banned && <span className="ml-2 text-[10px] text-red-400 font-semibold">{t("admin.banned")}</span>}
+                    </p>
+                    <p className="text-xs text-white/40 truncate">
+                      @{u.telegram_username || "—"} · {u.telegram_id}
+                    </p>
+                    <p className="text-xs text-white/30">
+                      {t("admin.userFieldLastSeen")}: {fmtDate(u.last_active_at)}
+                    </p>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
+                    <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowActiveUsers(false)}
             className="tap w-full mt-2 text-center text-sm font-medium text-white/50 py-2 shrink-0"
           >
             {t("common.close")}
