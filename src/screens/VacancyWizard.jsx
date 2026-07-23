@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import TagPicker from "../components/TagPicker.jsx";
 import { MediaPreview, detectMediaType } from "./Wizard.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
-import { confirmDialog, getTelegramUser } from "../lib/telegram.js";
+import { confirmDialog } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 4;
 
@@ -22,15 +22,6 @@ const inputCls =
 export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHome, onFinishInfo }) {
   const { lang } = useLanguage();
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
-
-  // Підставляємо юзернейм з Telegram у поле контакту, якщо воно ще не заповнене
-  // (наприклад, чернетка вже містить збережене значення — його не чіпаємо).
-  useEffect(() => {
-    if (draft.contact?.trim()) return;
-    const tgUser = getTelegramUser();
-    if (tgUser?.username) set({ contact: "@" + tgUser.username });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const titles = {
     uk: ["Посада", "Деталі", "Опис", "Контакт і медіа"],
