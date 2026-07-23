@@ -9,11 +9,18 @@ export const MAX_VACANCIES_PER_USER = 5;
 export const VACANCY_LISTING_PRICE_STARS = 500;
 export const VACANCY_PRICE_PER_SHOW_STARS = 1;
 
-// Публічний demo-ключ Giphy (ліміт: 42 запити/год, 1000/добу — саме для
-// такого невеликого демо-використання, "рандомна гіфка по кліку", цього
-// вистачає). Для продакшн-навантаження отримайте свій безкоштовний ключ на
-// https://developers.giphy.com/dashboard/ і підставте його сюди.
-export const GIPHY_API_KEY = "sWYfL33XhhxrgxzKGDbgOKTj6FXJTHWL";
+// Два ключі Giphy — спочатку пробуємо ваш власний, і лише якщо він
+// впав (ліміт вичерпано, ключ ще не активний тощо) — падаємо на публічний
+// demo-ключ Giphy як запасний варіант, щоб кнопка "рандомна гіфка" не
+// зламалась користувачу просто тому, що особистий ліміт скінчився.
+//
+// Вставте свій ключ з https://developers.giphy.com/dashboard/ сюди:
+export const GIPHY_API_KEY = "ваш_ключ_сюди";
+
+// Публічний demo-ключ Giphy — залишений як fallback навмисно, міняти не
+// обов'язково (він спільний і теж обмежений, але це краще, ніж зовсім
+// нічого не показати користувачу).
+export const GIPHY_API_KEY_FALLBACK = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65";
 
 // Примітка: список адмінів більше НЕ читається на клієнті. Раніше тут був
 // VITE_ADMIN_TELEGRAM_IDS + isAdmin() — але VITE_-змінні потрапляють у
