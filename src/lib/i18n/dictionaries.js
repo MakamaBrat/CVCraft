@@ -353,6 +353,8 @@ export const uk = {
     bgHintPost: ".",
     alignLabel: "Вирівнювання тексту",
     viewResume: "Переглянути резюме",
+    diceGifLabel: "Випадкова гіфка з Giphy",
+    gifLoadError: "Не вдалось завантажити гіфку, спробуйте ще раз.",
   },
   wizard: {
     stepTitles: ["Основне", "Контакти", "Досвід", "Освіта", "Навички", "Портфоліо"],
@@ -759,6 +761,8 @@ export const ru = {
     bgHintPost: ".",
     alignLabel: "Выравнивание текста",
     viewResume: "Просмотреть резюме",
+    diceGifLabel: "Случайный гиф из Giphy",
+    gifLoadError: "Не удалось загрузить гиф, попробуйте ещё раз.",
   },
   wizard: {
     stepTitles: ["Основное", "Контакты", "Опыт", "Образование", "Навыки", "Портфолио"],
@@ -1164,6 +1168,8 @@ export const en = {
     bgHintPost: ".",
     alignLabel: "Text alignment",
     viewResume: "Preview resume",
+    diceGifLabel: "Random GIF from Giphy",
+    gifLoadError: "Couldn't load a GIF, please try again.",
   },
   wizard: {
     stepTitles: ["Basics", "Contacts", "Experience", "Education", "Skills", "Portfolio"],

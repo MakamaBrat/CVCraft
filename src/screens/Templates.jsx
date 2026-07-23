@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import GifUrlField from "../components/GifUrlField.jsx";
 
 const CATEGORIES = ["all", "minimal", "modern", "bold"];
 
@@ -149,11 +150,13 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
         </div>
 
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{t("templates.photoLabel")}</p>
-        <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+        <GifUrlField
+          value={draft.avatarUrl}
+          onChange={(url) => setDraft({ ...draft, avatarUrl: url })}
           placeholder={t("templates.photoPlaceholder")}
-          value={draft.avatarUrl || ""}
-          onChange={(e) => setDraft({ ...draft, avatarUrl: e.target.value.trim() })}
+          tag="avatar portrait"
+          diceLabel={t("templates.diceGifLabel")}
+          errorLabel={t("templates.gifLoadError")}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
           {t("templates.photoHintPre")}{" "}
@@ -178,11 +181,13 @@ export default function Templates({ draft, setDraft, onBack, onNext }) {
         </p>
 
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{t("templates.bgLabel")}</p>
-        <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+        <GifUrlField
+          value={draft.backgroundUrl}
+          onChange={(url) => setDraft({ ...draft, backgroundUrl: url })}
           placeholder={t("templates.bgPlaceholder")}
-          value={draft.backgroundUrl || ""}
-          onChange={(e) => setDraft({ ...draft, backgroundUrl: e.target.value.trim() })}
+          tag="background texture"
+          diceLabel={t("templates.diceGifLabel")}
+          errorLabel={t("templates.gifLoadError")}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
           {t("templates.bgHintPre")}{" "}

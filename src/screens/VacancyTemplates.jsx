@@ -1,5 +1,6 @@
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.js";
+import GifUrlField from "../components/GifUrlField.jsx";
 
 const SECTION_LABELS = {
   theme: { uk: "Кольорова тема", ru: "Цветовая тема", en: "Color theme" },
@@ -20,6 +21,16 @@ const SECTION_LABELS = {
     uk: "Вставте посилання на зображення чи гіфку (підійде і giphy.com/gifs/..., не обов'язково пряме .gif) — вона стане фоном вакансії. Залиште порожнім, щоб лишити колір теми. Шукайте гіфки на",
     ru: "Вставьте ссылку на изображение или гиф (подойдёт и giphy.com/gifs/..., не обязательно прямая .gif) — она станет фоном вакансии. Оставьте пустым, чтобы оставить цвет темы. Ищите гифки на",
     en: "Paste a link to an image or GIF (a giphy.com/gifs/... page link works too, not just a direct .gif) — it becomes the job post's background. Leave empty to keep the theme color. Find GIFs on",
+  },
+  diceGifLabel: {
+    uk: "Випадкова гіфка з Giphy",
+    ru: "Случайный гиф из Giphy",
+    en: "Random GIF from Giphy",
+  },
+  gifLoadError: {
+    uk: "Не вдалось завантажити гіфку, спробуйте ще раз.",
+    ru: "Не удалось загрузить гиф, попробуйте ещё раз.",
+    en: "Couldn't load a GIF, please try again.",
   },
 };
 
@@ -157,11 +168,13 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
         </div>
 
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.avatar[lang]}</p>
-        <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+        <GifUrlField
+          value={draft.avatarUrl}
+          onChange={(url) => setDraft({ ...draft, avatarUrl: url })}
           placeholder="https://i.imgur.com/..."
-          value={draft.avatarUrl || ""}
-          onChange={(e) => setDraft({ ...draft, avatarUrl: e.target.value.trim() })}
+          tag="company logo"
+          diceLabel={SECTION_LABELS.diceGifLabel[lang]}
+          errorLabel={SECTION_LABELS.gifLoadError[lang]}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
           {SECTION_LABELS.avatarHint[lang]}{" "}
@@ -186,11 +199,13 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
         </p>
 
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.background[lang]}</p>
-        <input
-          className="w-full bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500"
+        <GifUrlField
+          value={draft.backgroundUrl}
+          onChange={(url) => setDraft({ ...draft, backgroundUrl: url })}
           placeholder="https://... .jpg / .png / .gif"
-          value={draft.backgroundUrl || ""}
-          onChange={(e) => setDraft({ ...draft, backgroundUrl: e.target.value.trim() })}
+          tag="background texture"
+          diceLabel={SECTION_LABELS.diceGifLabel[lang]}
+          errorLabel={SECTION_LABELS.gifLoadError[lang]}
         />
         <p className="text-xs text-white/40 mt-1.5 mb-6">
           {SECTION_LABELS.backgroundHint[lang]}{" "}
