@@ -290,13 +290,11 @@ export default function App() {
     // та emptyVacancy оголошені/імпортовані вище — їх можна викликати тут.
     const goBrowseFromShare = () => {
       closeShared();
-      loadPublicVacancies();
-      setRoute({ screen: "browseVacancies" });
+      setRoute({ screen: "home" });
     };
     const goCreateFromShare = () => {
       closeShared();
-      setVacancyDraft(emptyVacancy());
-      setRoute({ screen: "vacancyWizard", step: 0 });
+      setRoute({ screen: "home" });
     };
     return (
       <div className="phone-shell">
