@@ -91,31 +91,19 @@ function collectLinkRects(root) {
 // завантажене, браузер малює його синтетично (подвоєним/зсунутим
 // контуром), що і виглядає як "роздвоєний" текст на PDF.
 async function warmUpFonts(root) {
-  // КРИТИЧНО: беремо document і window САМЕ того вузла, який знімаємо,
-  // а не глобальний document. Для HTML-рядка (renderHtmlStringToPdf) root —
-  // це <body> прихованого iframe зі своїм власним <head>/@font-face
-  // (Manrope підключається через <link> усередині srcdoc). Якщо тут
-  // звертатись до глобального document.fonts, ми запитуємо/чекаємо шрифт
-  // у РЕЄСТРІ БАТЬКІВСЬКОЇ сторінки, де Manrope взагалі не задекларований
-  // — виклики нічого не роблять, html2canvas знімає картку до того, як
-  // iframe встигає довантажити Manrope, і в PDF попадає системний
-  // фолбек-шрифт замість Manrope (саме це виглядало як "інший шрифт/розмітка").
-  const ownerDocument = root.ownerDocument || document;
-  const ownerWindow = ownerDocument.defaultView || window;
-
-  if (!("fonts" in ownerDocument)) return;
+  if (!("fonts" in document)) return;
 
   const seen = new Set();
   const nodes = [root, ...root.querySelectorAll("*")];
 
   const loads = [];
   nodes.forEach((el) => {
-    const cs = ownerWindow.getComputedStyle(el);
+    const cs = window.getComputedStyle(el);
     const key = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     if (seen.has(key)) return;
     seen.add(key);
     loads.push(
-      ownerDocument.fonts.load(key).catch(() => {
+      document.fonts.load(key).catch(() => {
         // окремий шрифт міг не знайтись/не завантажитись — це не критично,
         // просто пропускаємо конкретну комбінацію
       })
@@ -124,7 +112,7 @@ async function warmUpFonts(root) {
 
   await Promise.all(loads);
   try {
-    await ownerDocument.fonts.ready;
+    await document.fonts.ready;
   } catch {
     // ігноруємо — на деяких платформах document.fonts.ready ненадійний
   }
@@ -178,26 +166,16 @@ async function renderElementToPdf(element, fileNameBase) {
     restore();
   }
 
-  // Картка — суцільний блок (не багатосторінковий документ), тож розмір
-  // PDF рахуємо під фактичну висоту вмісту, а не форсуємо фіксовану A4:
-  // інакше невеликий "хвіст" контенту, що трохи не влазить в одну A4-
-  // сторінку, забирав під себе цілу другу сторінку, майже повністю порожню.
-  // Обмежуємо знизу/зверху лише розумними межами, щоб не зламати друк на
-  // випадок аномально короткого/довгого вмісту.
-  const A4_WIDTH_PT = 595.28;
-  const A4_HEIGHT_PT = 841.89;
-  const MAX_SINGLE_PAGE_HEIGHT_PT = A4_HEIGHT_PT * 4; // страховка від нескінченного контенту
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
-  const pageWidth = A4_WIDTH_PT;
+  // Однаковий коефіцієнт переводить і "CSS-пікселі контейнера", і
+  // "пікселі canvas" у pt сторінки — тому позиції посилань і сам знімок
+  // завжди лишаються синхронізованими, незалежно від scale вище.
   const ratio = pageWidth / docWidthPx; // CSS px -> pt
-  const contentHeightPt = (canvas.height / canvas.width) * pageWidth;
-
-  const singlePage = contentHeightPt <= MAX_SINGLE_PAGE_HEIGHT_PT;
-  const pageHeight = singlePage ? contentHeightPt : A4_HEIGHT_PT;
-  const totalHeightPt = contentHeightPt;
-  const pageCount = singlePage ? 1 : Math.max(1, Math.ceil(totalHeightPt / pageHeight));
-
-  const doc = new jsPDF({ unit: "pt", format: [pageWidth, pageHeight] });
+  const totalHeightPt = (canvas.height / canvas.width) * pageWidth;
+  const pageCount = Math.max(1, Math.ceil(totalHeightPt / pageHeight));
 
   const linkRectsPt = linkRects.map((r) => ({
     url: r.url,
