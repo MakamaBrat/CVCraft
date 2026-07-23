@@ -181,8 +181,10 @@ function shell({ accent, theme, docTitle, headerHtml, bodyHtml, footerHtml }) {
 </html>`;
 }
 
-export function buildResumeShareHtml(resume, { shareUrl, lang = "uk" } = {}) {
-  const t = LABELS[lang] || LABELS.uk;
+export function buildResumeShareHtml(resume, { shareUrl } = {}) {
+  // Формат експорту — фіксований бренд-шаблон, завжди українською,
+  // незалежно від поточної мови інтерфейсу застосунку.
+  const t = LABELS.uk;
   const accent = ACCENTS[resume?.template] || ACCENTS.minimal;
   const theme = getColorTheme(resume?.colorScheme);
   const fullName = resume?.fullName || "";
@@ -257,8 +259,10 @@ export function buildResumeShareHtml(resume, { shareUrl, lang = "uk" } = {}) {
   return { html, fileName: `${sanitizeFileName(fullName || "Resume")}.html` };
 }
 
-export function buildVacancyShareHtml(vacancy, { shareUrl, lang = "uk" } = {}) {
-  const t = LABELS[lang] || LABELS.uk;
+export function buildVacancyShareHtml(vacancy, { shareUrl } = {}) {
+  // Формат експорту — фіксований бренд-шаблон, завжди українською,
+  // незалежно від поточної мови інтерфейсу застосунку.
+  const t = LABELS.uk;
   const accent = ACCENTS[vacancy?.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy?.colorScheme);
   const company = vacancy?.company || "";
