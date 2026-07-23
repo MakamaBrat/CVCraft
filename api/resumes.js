@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
+import { isAdminId } from "./_lib/telegramAuth.js";
 
 const MAX_RESUMES_PER_USER = 2;
 
@@ -30,18 +31,22 @@ async function handlerImpl(req, res) {
       return sendJson(res, 400, { error: "invalid_body" });
     }
 
-    const { count, error: countError } = await admin
-      .from("resumes")
-      .select("id", { count: "exact", head: true })
-      .eq("telegram_id", user.id)
-      .neq("id", id);
-    if (countError) {
-      logDbError("resumes POST: count", countError, { telegramId: user.id, id });
-      return sendJson(res, 500, { error: "db_error" });
-    }
-    if ((count || 0) >= MAX_RESUMES_PER_USER) {
-      console.warn("[resumes] save: limit_reached", { telegramId: user.id, count });
-      return sendJson(res, 409, { error: "resume_limit_reached" });
+    // Адмінам (ADMIN_TELEGRAM_IDS) ліміт резюме не застосовується —
+    // так само, як і для вакансій у vacancies.js.
+    if (!isAdminId(user.id)) {
+      const { count, error: countError } = await admin
+        .from("resumes")
+        .select("id", { count: "exact", head: true })
+        .eq("telegram_id", user.id)
+        .neq("id", id);
+      if (countError) {
+        logDbError("resumes POST: count", countError, { telegramId: user.id, id });
+        return sendJson(res, 500, { error: "db_error" });
+      }
+      if ((count || 0) >= MAX_RESUMES_PER_USER) {
+        console.warn("[resumes] save: limit_reached", { telegramId: user.id, count });
+        return sendJson(res, 409, { error: "resume_limit_reached" });
+      }
     }
 
     const { error } = await admin.from("resumes").upsert({
