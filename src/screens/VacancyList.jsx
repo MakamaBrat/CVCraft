@@ -6,6 +6,15 @@ import { buildVacancyShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
+import Avatar from "../components/Avatar.jsx";
+import { getColorTheme } from "../lib/docTheme.js";
+
+const TEMPLATE_ACCENTS = {
+  minimal: "#4b5563",
+  modern: "#6c5ce7",
+  bold: "#ff7a59",
+  classic: "#2f6fb0",
+};
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -127,6 +136,13 @@ export default function VacancyList({
             {vacancies.map((v) => (
               <div key={v.id} className="group bg-base-850 border border-base-700 rounded-xl px-3.5 py-3">
                 <button onClick={() => setActiveVacancy(v)} className="tap flex items-center gap-3 w-full text-left">
+                  <Avatar
+                    url={v.avatarUrl}
+                    name={v.company || v.position}
+                    accent={TEMPLATE_ACCENTS[v.template] || TEMPLATE_ACCENTS.minimal}
+                    theme={getColorTheme(v.colorScheme)}
+                    size={10}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">{v.position || "—"}</p>
                     <p className="text-xs text-white/45 truncate">{v.company}</p>

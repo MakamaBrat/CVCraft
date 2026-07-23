@@ -5,18 +5,19 @@ import { buildShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
+import Avatar from "../components/Avatar.jsx";
+import { getColorTheme } from "../lib/docTheme.js";
 import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
 
-const DRAFT_BADGE = { uk: "Чернетка", ru: "Черновик", en: "Draft" };
+const TEMPLATE_ACCENTS = {
+  minimal: "#4b5563",
+  modern: "#6c5ce7",
+  bold: "#ff7a59",
+  classic: "#2f6fb0",
+};
 
-const initials = (name) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("") || "?";
+const DRAFT_BADGE = { uk: "Чернетка", ru: "Черновик", en: "Draft" };
 
 export default function Home({
   resumes,
@@ -220,9 +221,13 @@ export default function Home({
                   onClick={() => setActiveResume(r)}
                   className="tap group flex items-center gap-3 bg-black/50 backdrop-blur-sm border border-amber-500/20 rounded-2xl px-3.5 py-3 text-left"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-black font-semibold text-sm flex items-center justify-center shrink-0">
-                    {initials(r.fullName || t("home.newResume"))}
-                  </div>
+                  <Avatar
+                    url={r.avatarUrl}
+                    name={r.fullName || t("home.newResume")}
+                    accent={TEMPLATE_ACCENTS[r.template] || TEMPLATE_ACCENTS.minimal}
+                    theme={getColorTheme(r.colorScheme)}
+                    size={10}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="font-medium text-sm truncate text-amber-50">
