@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SUGGESTED_TAGS } from "../lib/tags.js";
+import { useLanguage } from "../lib/i18n/index.jsx";
 
 const INITIAL_VISIBLE = 12;
 
@@ -9,8 +10,10 @@ const INITIAL_VISIBLE = 12;
  * onChange: (nextTags: string[]) => void
  */
 export default function TagPicker({ value = [], onChange, placeholder, addLabel, moreLabel, lessLabel }) {
+  const { lang } = useLanguage();
   const [val, setVal] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const tagOptions = SUGGESTED_TAGS[lang] || SUGGESTED_TAGS.en;
 
   const add = (tag) => {
     const v = tag.trim();
@@ -25,7 +28,7 @@ export default function TagPicker({ value = [], onChange, placeholder, addLabel,
     setVal("");
   };
 
-  const available = SUGGESTED_TAGS.filter((tg) => !value.includes(tg));
+  const available = tagOptions.filter((tg) => !value.includes(tg));
   const visible = expanded ? available : available.slice(0, INITIAL_VISIBLE);
 
   return (
