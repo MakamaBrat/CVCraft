@@ -3,7 +3,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { generateVacancyPdf } from "../lib/pdf.js";
-import { getTelegramWebApp } from "../lib/telegram.js";
+import { getTelegramWebApp, alertDialog } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -15,6 +15,15 @@ const ACCENTS = {
   bold: "#ff7a59",
   classic: "#2f6fb0",
 };
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 export function VacancyDocument({ vacancy }) {
   const { t } = useLanguage();
@@ -251,6 +260,28 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     // будує з url клікабельну картку — лишаємо посилання явно в тексті,
     // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
     const caption = [title, "", t("share.vacancyClickHint"), shareUrl].join("\n");
+
+    // Усередині Telegram — надсилаємо файл напряму через бота (sendDocument
+    // у ЛС), як і для резюме. Підпис містить приховане посилання саме на
+    // цю вакансію (startapp=v_<id>) — його ми контролюємо повністю, на
+    // відміну від стандартної кнопки "Відкрити в Telegram" на прев'ю файлу
+    // поза застосунком, яку малює сам Telegram.
+    const tgApp = getTelegramWebApp();
+    if (tgApp) {
+      try {
+        const fileBase64 = await blobToBase64(blob);
+        await apiFetch("/api/vacancy-send", {
+          method: "POST",
+          body: { fileBase64, fileName, mimeType: "application/pdf", shareUrl, caption, title },
+        });
+        await alertDialog(t("share.sentToBot"));
+        setSharing(false);
+        return;
+      } catch (err) {
+        console.error("[VacancyPreview] bot send failed, falling back", err);
+        // падаємо в старий флоу нижче (Web Share / завантаження)
+      }
+    }
 
     // Web Share API з файлом. PDF уже готовий (blob), тож якщо сам крок
     // "поділитися" впаде (буває в деяких мобільних вебв'ю навіть коли

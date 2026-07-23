@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
-import { requireUser } from "./_lib/telegramAuth.js";
+import { requireUser, isAdminId } from "./_lib/telegramAuth.js";
 
 const MAX_VACANCIES_PER_USER = 5;
 const CLIENT_WRITABLE = new Set(["data", "template"]);
@@ -141,17 +141,22 @@ async function handlerImpl(req, res) {
     let resubmitForReview = false;
 
     if (!existing) {
-      const { count, error: countError } = await admin
-        .from("vacancies")
-        .select("id", { count: "exact", head: true })
-        .eq("telegram_id", user.id);
-      if (countError) {
-        logDbError("vacancies POST save: count", countError, { telegramId: user.id });
-        return sendJson(res, 500, { error: "db_error" });
-      }
-      if ((count || 0) >= MAX_VACANCIES_PER_USER) {
-        console.warn("[vacancies] save: limit_reached", { telegramId: user.id, count });
-        return sendJson(res, 409, { error: "vacancy_limit_reached" });
+      // Адмінам (ADMIN_TELEGRAM_IDS) ліміт вакансій не застосовується —
+      // без цього рано чи пізно комусь з адмінів заблокує створення нової
+      // тестової/службової вакансії просто через власний ліміт у 5 штук.
+      if (!isAdminId(user.id)) {
+        const { count, error: countError } = await admin
+          .from("vacancies")
+          .select("id", { count: "exact", head: true })
+          .eq("telegram_id", user.id);
+        if (countError) {
+          logDbError("vacancies POST save: count", countError, { telegramId: user.id });
+          return sendJson(res, 500, { error: "db_error" });
+        }
+        if ((count || 0) >= MAX_VACANCIES_PER_USER) {
+          console.warn("[vacancies] save: limit_reached", { telegramId: user.id, count });
+          return sendJson(res, 409, { error: "vacancy_limit_reached" });
+        }
       }
     } else if (["approved", "active", "paused"].includes(existing.status)) {
       // Вакансія вже публічна — дозволяємо редагувати, але правки не мають

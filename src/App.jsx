@@ -446,7 +446,9 @@ export default function App() {
     }
   };
 
-  const canCreateMoreVacancies = vacancies.length < MAX_VACANCIES_PER_USER;
+  // Адмінам ліміт вакансій не показуємо і не застосовуємо на клієнті —
+  // бекенд (api/vacancies.js) теж пропускає перевірку для isAdminId().
+  const canCreateMoreVacancies = isUserAdmin || vacancies.length < MAX_VACANCIES_PER_USER;
 
   const goVacancyList = () => setRoute({ screen: "vacancies" });
   const goVacancyTemplates = () => setRoute({ screen: "vacancyTemplates" });
@@ -503,7 +505,7 @@ export default function App() {
     const previous = vacancies.find((v) => v.id === updated.id) || null;
     const isNew = !previous;
 
-    if (isNew && vacancies.length >= MAX_VACANCIES_PER_USER) {
+    if (isNew && !isUserAdmin && vacancies.length >= MAX_VACANCIES_PER_USER) {
       goVacancyList();
       return;
     }
@@ -750,7 +752,7 @@ export default function App() {
           onPay={payVacancy}
           onSendToModeration={sendVacancyToModeration}
           canCreateMore={canCreateMoreVacancies}
-          maxVacancies={MAX_VACANCIES_PER_USER}
+          maxVacancies={isUserAdmin ? "∞" : MAX_VACANCIES_PER_USER}
         />
       )}
 

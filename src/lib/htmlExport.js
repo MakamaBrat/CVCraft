@@ -301,7 +301,15 @@ export async function generateResumeHtml(resume) {
   return renderElementToHtml(element, resume?.fullName || "Resume", title);
 }
 
-// поки лишаємо стару заглушку — вакансії ще не мігровані
-export async function generateVacancyPdf() {
-  throw new Error("Vacancy export is not migrated yet.");
+// Той самий підхід, що й для резюме (renderElementToHtml): знімаємо DOM
+// #vacancy-doc, інлайнимо всі computed-стилі й картинки, отримуємо
+// самодостатній HTML-файл, який виглядає так само, як картка вакансії в
+// застосунку.
+export async function generateVacancyHtml(vacancy) {
+  const element = document.getElementById("vacancy-doc");
+  if (!element) {
+    throw new Error("Не знайдено елемент вакансії для експорту (#vacancy-doc)");
+  }
+  const title = [vacancy?.position, vacancy?.company].filter(Boolean).join(" — ") || "Вакансія";
+  return renderElementToHtml(element, [vacancy?.position, vacancy?.company].filter(Boolean).join(" ") || "Vacancy", title);
 }

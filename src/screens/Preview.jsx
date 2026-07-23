@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { backendEnabled } from "../lib/api.js";
+import { apiFetch, backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
 import { generateResumeHtml } from "../lib/htmlExport.js";
-import { getTelegramWebApp } from "../lib/telegram.js";
+import { getTelegramWebApp, alertDialog } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
@@ -14,6 +14,15 @@ const ACCENTS = {
   bold: "#ff7a59",
   classic: "#2f6fb0",
 };
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 function ResumeDocument({ resume, t }) {
   const accent = ACCENTS[resume.template] || ACCENTS.minimal;
@@ -196,6 +205,29 @@ export default function Preview({ resume, onBack, onDone }) {
     // будує з url клікабельну картку — лишаємо посилання явно в тексті,
     // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
     const caption = [title, "", t("share.resumeClickHint"), shareUrl].join("\n");
+
+    // Усередині Telegram — надсилаємо файл напряму через бота (sendDocument
+    // у ЛС). Це головний шлях: підпис до документа містить приховане
+    // посилання саме на це резюме (startapp=<id>), яке ми повністю
+    // контролюємо — на відміну від стандартної кнопки "Відкрити в Telegram",
+    // яку сам Telegram малює на прев'ю файлу поза застосунком і чий URL ми
+    // підмінити не можемо.
+    const tgApp = getTelegramWebApp();
+    if (tgApp) {
+      try {
+        const fileBase64 = await blobToBase64(blob);
+        await apiFetch("/api/resume-send", {
+          method: "POST",
+          body: { htmlBase64: fileBase64, fileName, shareUrl, caption, title },
+        });
+        await alertDialog(t("share.sentToBot"));
+        setSharing(false);
+        return;
+      } catch (err) {
+        console.error("[Preview] bot send failed, falling back", err);
+        // падаємо в старий флоу нижче (Web Share / завантаження)
+      }
+    }
 
     // Web Share API з файлом — одна дія одразу шерить і HTML-файл, і
     // посилання з підписом. Файл уже готовий (blob), тож якщо сам крок

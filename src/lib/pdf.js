@@ -245,7 +245,11 @@ export async function generateResumePdf(resume) {
   return renderElementToPdf(element, resume?.fullName || "Resume");
 }
 
-// пока оставляем старую вакансию
-export async function generateVacancyPdf() {
-  throw new Error("Vacancy PDF is not migrated yet.");
+export async function generateVacancyPdf(vacancy) {
+  const element = document.getElementById("vacancy-doc");
+  if (!element) {
+    throw new Error("Не знайдено елемент вакансії для експорту (#vacancy-doc)");
+  }
+  const fileNameBase = [vacancy?.position, vacancy?.company].filter(Boolean).join(" ") || "Vacancy";
+  return renderElementToPdf(element, fileNameBase);
 }
