@@ -112,7 +112,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
             <Field label={{ uk: "Назва посади", ru: "Название должности", en: "Job title" }[lang]}>
               <input
                 className={inputCls}
-                placeholder="Unity Developer"
+                placeholder={{ uk: "Наприклад, Менеджер з продажу", ru: "Например, Менеджер по продажам", en: "e.g. Sales Manager" }[lang]}
                 value={draft.position}
                 onChange={(e) => set({ position: e.target.value })}
               />
@@ -120,7 +120,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
             <Field label={{ uk: "Компанія", ru: "Компания", en: "Company" }[lang]}>
               <input
                 className={inputCls}
-                placeholder="Ubisoft"
+                placeholder={{ uk: "Назва компанії", ru: "Название компании", en: "Company name" }[lang]}
                 value={draft.company}
                 onChange={(e) => set({ company: e.target.value })}
               />
@@ -165,7 +165,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
               <TagPicker
                 value={draft.tags || []}
                 onChange={(tags) => set({ tags })}
-                placeholder={{ uk: "Свій тег, напр. Unity", ru: "Свой тег, напр. Unity", en: "Custom tag, e.g. Unity" }[lang]}
+                placeholder={{ uk: "Свій тег", ru: "Свой тег", en: "Custom tag" }[lang]}
                 addLabel={{ uk: "Додати", ru: "Добавить", en: "Add" }[lang]}
                 moreLabel={{ uk: "Показати ще", ru: "Показать ещё", en: "Show more" }[lang]}
                 lessLabel={{ uk: "Згорнути", ru: "Свернуть", en: "Show less" }[lang]}
@@ -223,7 +223,11 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
             <Field label={{ uk: "Вимоги", ru: "Требования", en: "Requirements" }[lang]}>
               <textarea
                 className={inputCls + " min-h-[100px] resize-none"}
-                placeholder="Unity, C#, 2+ years..."
+                placeholder={{
+                  uk: "Навички, досвід, освіта...",
+                  ru: "Навыки, опыт, образование...",
+                  en: "Skills, experience, education...",
+                }[lang]}
                 value={draft.requirements}
                 onChange={(e) => set({ requirements: e.target.value })}
               />
