@@ -151,6 +151,7 @@ export const uk = {
     createVacancy: "Створити вакансію",
     forwardButton: "Поділитися",
   },
+  admin: {
     title: "Адмін-панель",
     stats: "Статистика",
     usersToday: "Нових користувачів сьогодні",
