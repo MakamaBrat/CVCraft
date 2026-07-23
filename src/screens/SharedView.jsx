@@ -4,7 +4,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
-import { getTelegramWebApp } from "../lib/telegram.js";
+import { getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = {
@@ -89,6 +89,16 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
   const theme = getColorTheme(resume.colorScheme);
   const align = getAlign(resume.align);
   const isCenter = align === "center";
+
+  // Якщо посилання відкрив сам власник резюме (той самий Telegram-акаунт),
+  // t.me/<його власний username> відкриє не чат із самим собою, а "Збережені
+  // повідомлення" — так влаштований сам Telegram для посилань на себе.
+  // Щоб не плутати це з нібито поламаною кнопкою, ховаємо її в цьому випадку.
+  const viewer = getTelegramUser();
+  const isOwnResume = Boolean(
+    ownerUsername && viewer?.username && viewer.username.toLowerCase() === ownerUsername.toLowerCase()
+  );
+  const showMessageButton = Boolean(ownerUsername) && !isOwnResume;
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -236,7 +246,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
           )}
         </div>
 
-        {ownerUsername && (
+        {showMessageButton && (
           <button
             onClick={() => openTelegramUser(ownerUsername)}
             className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-[#2AABEE] text-white font-semibold text-sm rounded-xl py-3.5"
@@ -249,7 +259,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
         <button
           onClick={onOpenApp}
           className={`tap w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 ${
-            ownerUsername ? "mt-2.5" : "mt-5"
+            showMessageButton ? "mt-2.5" : "mt-5"
           }`}
         >
           {t("share.createOwnResume")}
