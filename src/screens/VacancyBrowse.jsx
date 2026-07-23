@@ -8,15 +8,8 @@ const ACCENTS = { minimal: "#9aa0a6", modern: "#6c5ce7", bold: "#ff7a59", classi
 
 export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
   const { t } = useLanguage();
-  const [activeTags, setActiveTags] = useState([]);
   const [activeCity, setActiveCity] = useState("");
   const [query, setQuery] = useState("");
-
-  const allTags = useMemo(() => {
-    const set = new Set();
-    vacancies.forEach((v) => (v.tags || []).forEach((tg) => set.add(tg)));
-    return [...set];
-  }, [vacancies]);
 
   const allCities = useMemo(() => {
     const set = new Set();
@@ -26,21 +19,34 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [vacancies]);
 
-  const toggleTag = (tg) =>
-    setActiveTags((prev) => (prev.includes(tg) ? prev.filter((x) => x !== tg) : [...prev, tg]));
-
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const terms = query
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
     return vacancies.filter((v) => {
-      const matchesTags = activeTags.length === 0 || (v.tags || []).some((tg) => activeTags.includes(tg));
       const matchesCity = !activeCity || (v.city || "").trim() === activeCity;
-      const matchesQuery =
-        !q ||
-        (v.position || "").toLowerCase().includes(q) ||
-        (v.company || "").toLowerCase().includes(q);
-      return matchesTags && matchesCity && matchesQuery;
+      if (!matchesCity) return false;
+      if (terms.length === 0) return true;
+
+      const haystack = [
+        v.position,
+        v.company,
+        v.city,
+        v.salary,
+        v.employmentType,
+        v.description,
+        v.requirements,
+        ...(v.tags || []),
+      ]
+        .filter(Boolean)
+        .join(" \u2022 ")
+        .toLowerCase();
+
+      return terms.every((term) => haystack.includes(term));
     });
-  }, [vacancies, activeTags, activeCity, query]);
+  }, [vacancies, activeCity, query]);
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -100,30 +106,6 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
               </option>
             ))}
           </select>
-        </div>
-      )}
-
-      {allTags.length > 0 && (
-        <div className="px-6 pb-3">
-          <p className="text-xs text-white/40 font-medium mb-2">{t("vacancy.filterByTags")}</p>
-          <div className="flex flex-wrap gap-2">
-            {allTags.map((tg) => (
-              <button
-                key={tg}
-                onClick={() => toggleTag(tg)}
-                className={`tap text-xs font-medium rounded-full px-3 py-1.5 border ${
-                  activeTags.includes(tg) ? "bg-accent-500 border-accent-500 text-base-950" : "border-base-700 text-white/60"
-                }`}
-              >
-                {tg}
-              </button>
-            ))}
-            {activeTags.length > 0 && (
-              <button onClick={() => setActiveTags([])} className="tap text-xs font-medium rounded-full px-3 py-1.5 text-accent-300">
-                {t("vacancy.filterAll")}
-              </button>
-            )}
-          </div>
         </div>
       )}
 
