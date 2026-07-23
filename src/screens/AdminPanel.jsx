@@ -371,6 +371,9 @@ export default function AdminPanel({ onBack, adminId }) {
   const [pricingForm, setPricingForm] = useState({ listingPrice: "", topPrice: "" });
   const [savingPricing, setSavingPricing] = useState(false);
   const [pricingSaved, setPricingSaved] = useState(false);
+  const [autoApproveForm, setAutoApproveForm] = useState({ enabled: false, afterMinutes: "" });
+  const [savingAutoApprove, setSavingAutoApprove] = useState(false);
+  const [autoApproveSaved, setAutoApproveSaved] = useState(false);
   const [vacancySearch, setVacancySearch] = useState("");
   const [vacancyStatusFilter, setVacancyStatusFilter] = useState("all");
   const [deletingId, setDeletingId] = useState(null);
@@ -417,6 +420,10 @@ export default function AdminPanel({ onBack, adminId }) {
       setPricingForm({
         listingPrice: String(pricingRes?.listingPrice ?? ""),
         topPrice: String(pricingRes?.topPrice ?? ""),
+      });
+      setAutoApproveForm({
+        enabled: Boolean(pricingRes?.autoApproveEnabled),
+        afterMinutes: String(pricingRes?.autoApproveAfterMinutes ?? "60"),
       });
     } catch {
       // сервер сам відхилить не-адмінів (403) — тут просто лишаємо порожній стан
@@ -529,6 +536,31 @@ export default function AdminPanel({ onBack, adminId }) {
       setActionError(t("admin.errPricingSave")(err?.payload?.error || err.message));
     }
     setSavingPricing(false);
+  };
+
+  const saveAutoApprove = async () => {
+    setActionError(null);
+    setAutoApproveSaved(false);
+    const minutes = Number(autoApproveForm.afterMinutes);
+    if (!Number.isInteger(minutes) || minutes <= 0) {
+      setActionError(t("admin.autoApproveInvalid"));
+      return;
+    }
+    setSavingAutoApprove(true);
+    try {
+      const res = await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "setAutoApprove", enabled: autoApproveForm.enabled, afterMinutes: minutes },
+      });
+      setAutoApproveForm({
+        enabled: Boolean(res.autoApproveEnabled),
+        afterMinutes: String(res.autoApproveAfterMinutes),
+      });
+      setAutoApproveSaved(true);
+    } catch (err) {
+      setActionError(t("admin.errAutoApproveSave")(err?.payload?.error || err.message));
+    }
+    setSavingAutoApprove(false);
   };
 
   // ---------- Navigation helpers ----------
@@ -1091,6 +1123,64 @@ export default function AdminPanel({ onBack, adminId }) {
                     className="tap bg-accent-500 text-base-950 text-xs font-semibold rounded-lg py-2.5 disabled:opacity-50"
                   >
                     {savingPricing ? t("admin.saving") : pricingSaved ? t("admin.saved") : t("admin.savePrices")}
+                  </button>
+                </div>
+
+                <div className="bg-base-850 border border-base-700 rounded-xl p-4 flex flex-col gap-3">
+                  <p className="text-xs font-semibold text-white/85">{t("admin.autoApproveTitle")}</p>
+                  <p className="text-[11px] text-white/45">{t("admin.autoApproveHint")}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAutoApproveSaved(false);
+                      setAutoApproveForm((f) => ({ ...f, enabled: !f.enabled }));
+                    }}
+                    className="tap flex items-center gap-2.5 text-xs font-medium text-white/85"
+                  >
+                    <span
+                      className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${
+                        autoApproveForm.enabled ? "bg-accent-500" : "bg-base-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                          autoApproveForm.enabled ? "left-4" : "left-0.5"
+                        }`}
+                      />
+                    </span>
+                    {t("admin.autoApproveEnableLabel")}
+                  </button>
+
+                  {autoApproveForm.enabled && (
+                    <label className="text-xs text-white/60">
+                      {t("admin.autoApproveMinutesLabel")}
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={autoApproveForm.afterMinutes}
+                        onChange={(e) => {
+                          setAutoApproveSaved(false);
+                          setAutoApproveForm((f) => ({ ...f, afterMinutes: e.target.value }));
+                        }}
+                        className="mt-1 w-full bg-base-900 border border-base-700 rounded-lg px-3 py-2 text-sm text-white"
+                      />
+                    </label>
+                  )}
+
+                  {pricing && (
+                    <p className="text-[11px] text-white/35">
+                      {t("admin.currentAutoApproveValues")(autoApproveForm.enabled, Number(autoApproveForm.afterMinutes) || 0)}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={saveAutoApprove}
+                    disabled={savingAutoApprove}
+                    className="tap bg-accent-500 text-base-950 text-xs font-semibold rounded-lg py-2.5 disabled:opacity-50"
+                  >
+                    {savingAutoApprove ? t("admin.saving") : autoApproveSaved ? t("admin.saved") : t("admin.saveAutoApprove")}
                   </button>
                 </div>
               </div>

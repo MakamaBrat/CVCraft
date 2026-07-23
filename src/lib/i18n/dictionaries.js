@@ -227,6 +227,18 @@ export const uk = {
     saved: "Збережено ✓",
     savePrices: "Зберегти ціни",
     pricingInvalid: "Ціни мають бути цілими невід'ємними числами.",
+    autoApproveTitle: "Автоапрув вакансій",
+    autoApproveHint:
+      "Якщо увімкнено, вакансія, що чекає на модерацію довше вказаного часу, автоматично переходить у статус \"Схвалено\" без участі модератора.",
+    autoApproveEnableLabel: "Автоматично схвалювати вакансії",
+    autoApproveMinutesLabel: "Через скільки хвилин очікування",
+    autoApproveInvalid: "Час очікування має бути цілим числом хвилин, більшим за 0.",
+    currentAutoApproveValues: (enabled, minutes) =>
+      enabled
+        ? `Зараз увімкнено: автоапрув через ${minutes} хв очікування.`
+        : "Зараз вимкнено — усі вакансії чекають на ручне рішення модератора.",
+    saveAutoApprove: "Зберегти налаштування автоапруву",
+    errAutoApproveSave: (msg) => `Помилка збереження автоапруву: ${msg}`,
     vacCountSuffix: "вак.",
     goToUser: (label) => `Перейти до користувача ${label}`,
     deleteVacancyBtn: "Видалити вакансію",
@@ -621,6 +633,18 @@ export const ru = {
     saved: "Сохранено ✓",
     savePrices: "Сохранить цены",
     pricingInvalid: "Цены должны быть целыми неотрицательными числами.",
+    autoApproveTitle: "Автоапрув вакансий",
+    autoApproveHint:
+      "Если включено, вакансия, ожидающая модерации дольше указанного времени, автоматически переходит в статус \"Одобрено\" без участия модератора.",
+    autoApproveEnableLabel: "Автоматически одобрять вакансии",
+    autoApproveMinutesLabel: "Через сколько минут ожидания",
+    autoApproveInvalid: "Время ожидания должно быть целым числом минут, больше 0.",
+    currentAutoApproveValues: (enabled, minutes) =>
+      enabled
+        ? `Сейчас включено: автоапрув через ${minutes} мин ожидания.`
+        : "Сейчас выключено — все вакансии ждут ручного решения модератора.",
+    saveAutoApprove: "Сохранить настройки автоапрува",
+    errAutoApproveSave: (msg) => `Ошибка сохранения автоапрува: ${msg}`,
     vacCountSuffix: "вак.",
     goToUser: (label) => `Перейти к пользователю ${label}`,
     deleteVacancyBtn: "Удалить вакансию",
@@ -1015,6 +1039,18 @@ export const en = {
     saved: "Saved ✓",
     savePrices: "Save prices",
     pricingInvalid: "Prices must be non-negative whole numbers.",
+    autoApproveTitle: "Auto-approve job posts",
+    autoApproveHint:
+      "When enabled, a job post waiting for review longer than the specified time is automatically switched to \"Approved\" without a moderator.",
+    autoApproveEnableLabel: "Auto-approve job posts",
+    autoApproveMinutesLabel: "After how many minutes of waiting",
+    autoApproveInvalid: "Wait time must be a whole number of minutes greater than 0.",
+    currentAutoApproveValues: (enabled, minutes) =>
+      enabled
+        ? `Currently on: auto-approve after ${minutes} min of waiting.`
+        : "Currently off — every job post waits for a manual moderator decision.",
+    saveAutoApprove: "Save auto-approve settings",
+    errAutoApproveSave: (msg) => `Error saving auto-approve settings: ${msg}`,
     vacCountSuffix: "posts",
     goToUser: (label) => `Go to user ${label}`,
     deleteVacancyBtn: "Delete job post",
