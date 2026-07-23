@@ -12,9 +12,13 @@ export default async function handler(req, res) {
   if (!id) return sendJson(res, 400, { error: "missing_id" });
 
   const admin = supabaseAdmin();
-  const { data, error } = await admin.from("resumes").select("data").eq("id", id).maybeSingle();
+  const { data, error } = await admin
+    .from("resumes")
+    .select("data, telegram_id, users(telegram_username)")
+    .eq("id", id)
+    .maybeSingle();
   if (error) return sendJson(res, 500, { error: "db_error" });
   if (!data) return sendJson(res, 404, { error: "not_found" });
 
-  sendJson(res, 200, { data: data.data });
+  sendJson(res, 200, { data: data.data, telegramUsername: data.users?.telegram_username || null });
 }
