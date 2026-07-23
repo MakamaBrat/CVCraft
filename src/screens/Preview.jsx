@@ -3,7 +3,6 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { apiFetch, backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
-import { generateResumeHtml } from "../lib/htmlExport.js";
 import { getTelegramWebApp, alertDialog } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -14,15 +13,6 @@ const ACCENTS = {
   bold: "#ff7a59",
   classic: "#2f6fb0",
 };
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
 
 function ResumeDocument({ resume, t }) {
   const accent = ACCENTS[resume.template] || ACCENTS.minimal;
@@ -170,15 +160,13 @@ function ResumeDocument({ resume, t }) {
 export default function Preview({ resume, onBack, onDone }) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
 
-  const handleShareLink = () => {
-    const title = `${resume.fullName || t("resume.untitled")}${resume.role ? " — " + resume.role : ""}`;
-    // url передаємо окремим параметром — Telegram сам зробить з нього
-    // клікабельну картку-прев'ю під текстом, тому саме посилання в text
-    // дублювати не треба.
+  // Відкриває нативне вікно шерингу Telegram (t.me/share/url) — фолбек
+  // для випадків поза Telegram або якщо надсилання через бота не вдалося.
+  const openTelegramShareSheet = (title) => {
     const text = `${t("share.resumeClickHint")}\n\n${title}`;
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     const tg = getTelegramWebApp();
@@ -187,94 +175,35 @@ export default function Preview({ resume, onBack, onDone }) {
     else window.open(telegramShareUrl, "_blank");
   };
 
-  const handleShare = async () => {
+  const handleShareLink = async () => {
     setShareError(null);
-    setSharing(true);
-    let blob, fileName;
-    try {
-      ({ blob, fileName } = await generateResumeHtml(resume, { shareUrl, lang }));
-    } catch (err) {
-      console.error("[Preview] html generation failed", err);
-      setShareError(t("preview.htmlGenFailed")(err?.message || t("preview.unknownError")));
-      setSharing(false);
-      return;
-    }
-
     const title = `${resume.fullName || t("resume.untitled")}${resume.role ? " — " + resume.role : ""}`;
-    // Тут файл (HTML) іде окремо від "url", тож Web Share API не завжди
-    // будує з url клікабельну картку — лишаємо посилання явно в тексті,
-    // але за локалізованою підказкою замість голого "Відкрийте застосунок…".
-    const caption = [title, "", t("share.resumeClickHint"), shareUrl].join("\n");
 
-    // Усередині Telegram — надсилаємо файл напряму через бота (sendDocument
-    // у ЛС). Це головний шлях: підпис до документа містить приховане
-    // посилання саме на це резюме (startapp=<id>), яке ми повністю
-    // контролюємо — на відміну від стандартної кнопки "Відкрити в Telegram",
-    // яку сам Telegram малює на прев'ю файлу поза застосунком і чий URL ми
-    // підмінити не можемо.
+    // Усередині Telegram — надсилаємо повідомлення напряму через бота
+    // (sendMessage у ЛС). Текст містить приховане у форматі Telegram HTML
+    // гіперпосилання саме на це резюме (startapp=<id>), яке ми повністю
+    // контролюємо — на відміну від стандартної кнопки "Відкрити в
+    // Telegram", яку сам Telegram малює на прев'ю поза застосунком і чий
+    // URL ми підмінити не можемо.
     const tgApp = getTelegramWebApp();
     if (tgApp) {
+      setSharing(true);
       try {
-        const fileBase64 = await blobToBase64(blob);
         await apiFetch("/api/resume-send", {
           method: "POST",
-          body: { htmlBase64: fileBase64, fileName, shareUrl, caption, title },
+          body: { shareUrl, title, linkText: t("share.resumeClickHint") },
         });
         await alertDialog(t("share.sentToBot"));
         setSharing(false);
         return;
       } catch (err) {
         console.error("[Preview] bot send failed, falling back", err);
-        // падаємо в старий флоу нижче (Web Share / завантаження)
-      }
-    }
-
-    // Web Share API з файлом — одна дія одразу шерить і HTML-файл, і
-    // посилання з підписом. Файл уже готовий (blob), тож якщо сам крок
-    // "поділитися" впаде (буває в деяких мобільних вебв'ю навіть коли
-    // canShare сказав "можна") — не показуємо жорстку помилку, а падаємо
-    // назад на завантаження файлу + відкриття Telegram-шерингу окремо.
-    try {
-      const file = new File([blob], fileName, { type: "text/html" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], text: caption, title: fileName });
         setSharing(false);
-        return;
+        // падаємо в фолбек нижче — відкриваємо стандартний Telegram-шеринг
       }
-    } catch (err) {
-      if (err?.name === "AbortError") {
-        setSharing(false);
-        return; // користувач сам закрив системне вікно шерингу
-      }
-      console.error("[Preview] navigator.share failed, falling back to download", err);
     }
 
-    try {
-      // Фолбек: качаємо HTML-файл і одразу відкриваємо Telegram-шеринг.
-      // Тут url іде окремим параметром, тому в text лишаємо тільки
-      // локалізовану підказку — Telegram сам покаже посилання як
-      // клікабельну картку.
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
-
-      const shareText = `${t("share.resumeClickHint")}\n\n${title}`;
-      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
-      const tg = getTelegramWebApp();
-      if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
-      else if (tg?.openLink) tg.openLink(telegramShareUrl);
-      else window.open(telegramShareUrl, "_blank");
-    } catch (err) {
-      console.error("[Preview] download fallback failed", err);
-      setShareError(t("preview.shareFailed")(err?.message || t("preview.unknownError")));
-    } finally {
-      setSharing(false);
-    }
+    openTelegramShareSheet(title);
   };
 
   return (
@@ -287,25 +216,6 @@ export default function Preview({ resume, onBack, onDone }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold flex-1">{t("preview.title")}</h1>
-          <button
-            onClick={handleShare}
-            disabled={sharing}
-            title={t("preview.htmlFileTitle")}
-            className="tap w-9 h-9 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-lg disabled:opacity-50"
-          >
-            {sharing ? (
-              <span className="text-[10px]">…</span>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M4 2h8v3H4zM3 6h10a1 1 0 011 1v4a1 1 0 01-1 1h-1v2H4v-2H3a1 1 0 01-1-1V7a1 1 0 011-1z"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
 
@@ -330,7 +240,8 @@ export default function Preview({ resume, onBack, onDone }) {
       <div className="px-6 pb-6 print:hidden flex gap-3">
         <button
           onClick={handleShareLink}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+          disabled={sharing}
+          className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60"
         >
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
@@ -338,7 +249,7 @@ export default function Preview({ resume, onBack, onDone }) {
             <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
             <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
           </svg>
-          {t("common.share")}
+          {sharing ? t("share.sending") : t("common.share")}
         </button>
         <button
           onClick={onDone}

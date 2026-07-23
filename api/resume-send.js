@@ -1,16 +1,12 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logInfo } from "./_lib/respond.js";
 
-// POST /api/resume-send — приймає вже згенерований на клієнті HTML-файл
-// (base64) і пересилає його користувачу в особисті повідомлення через бота
-// (sendDocument), замість того щоб примушувати завантажувати файл у браузері.
+// POST /api/resume-send — надсилає користувачу в особисті повідомлення
+// через бота (sendMessage) текст з прихованим у форматі Telegram HTML
+// гіперпосиланням на повний перегляд резюме всередині застосунку.
 // Це навмисно НЕ публічний ендпоінт: chat_id береться з перевіреного
 // initData (authenticate), а не з тіла запиту — інакше будь-хто міг би
 // змусити бота писати довільним telegram_id.
-//
-// Підпис до документа містить приховане у форматі Telegram HTML
-// гіперпосилання на повний перегляд резюме (з усіма файлами — відео/гіфки,
-// які в сам HTML-файл не потрапляють, якщо він відкривається без інтернету).
 
 function escapeHtml(str) {
   return String(str || "")
@@ -29,32 +25,22 @@ export default async function handler(req, res) {
   const user = await authenticate(req, res, botToken, admin);
   if (!user) return;
 
-  const { htmlBase64, fileName, shareUrl, caption: rawCaption, title } = req.body || {};
-  if (!htmlBase64 || !fileName || !shareUrl) {
+  const { shareUrl, title, linkText } = req.body || {};
+  if (!shareUrl) {
     return sendJson(res, 400, { error: "missing_fields" });
   }
-  // ~5MB зверху — з запасом (Telegram Bot API дозволяє до 50MB для
-  // sendDocument, але наші HTML-файли ніколи не мають бути такими важкими;
-  // це просто запобіжник від помилково величезного payload).
-  if (htmlBase64.length > 7_000_000) {
-    return sendJson(res, 400, { error: "file_too_large" });
-  }
 
-  const linkText = "Натисніть, щоб побачити резюме з усіма файлами";
-  const hiddenLink = `<a href="${escapeHtml(shareUrl)}">${escapeHtml(linkText)}</a>`;
-  const caption = [escapeHtml(rawCaption || title || ""), "", hiddenLink].filter(Boolean).join("\n").slice(0, 1024);
-
-  const buffer = Buffer.from(htmlBase64, "base64");
+  const hiddenLink = `<a href="${escapeHtml(shareUrl)}">${escapeHtml(linkText || "")}</a>`;
+  const text = [escapeHtml(title || ""), "", hiddenLink].filter(Boolean).join("\n").slice(0, 4096);
 
   const form = new FormData();
   form.append("chat_id", String(user.id));
-  form.append("caption", caption);
+  form.append("text", text);
   form.append("parse_mode", "HTML");
-  form.append("document", new Blob([buffer], { type: "text/html" }), fileName);
 
   let tgRes;
   try {
-    tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
+    tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       body: form,
     });
@@ -82,6 +68,6 @@ export default async function handler(req, res) {
     });
   }
 
-  logInfo("resume-send: sent", { telegramId: user.id, fileName });
+  logInfo("resume-send: sent", { telegramId: user.id });
   sendJson(res, 200, { ok: true });
 }
