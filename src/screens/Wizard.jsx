@@ -51,6 +51,15 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
   const { t } = useLanguage();
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
+  // Кроки з формою "додати запис" (досвід/освіта/портфоліо) реєструють тут
+  // функцію, яка на переході "Далі" автоматично додає введену, але не
+  // підтверджену кнопкою "Додати" запис — щоб дані не губилися, якщо юзер
+  // просто натиснув "Далі", забувши натиснути "Додати".
+  const pendingFlushRef = useRef(null);
+  const registerFlush = (fn) => {
+    pendingFlushRef.current = fn;
+  };
+
   // Запам'ятовуємо введене місто, щоб повернути його, якщо галочку Remote
   // зняли — сам вибір "Remote" зберігається прямо в draft.city.
   const prevCityRef = useRef("");
@@ -79,10 +88,14 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
   };
 
   const next = () => {
+    pendingFlushRef.current?.();
+    pendingFlushRef.current = null;
     if (step < TOTAL_STEPS - 1) setStep(step + 1);
     else onFinishInfo();
   };
   const back = () => {
+    pendingFlushRef.current?.();
+    pendingFlushRef.current = null;
     if (step === 0) onBackHome();
     else setStep(step - 1);
   };
@@ -198,10 +211,10 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
           </>
         )}
 
-        {step === 2 && <ExperienceStep draft={draft} set={set} t={t} />}
-        {step === 3 && <EducationStep draft={draft} set={set} t={t} />}
+        {step === 2 && <ExperienceStep draft={draft} set={set} t={t} registerFlush={registerFlush} />}
+        {step === 3 && <EducationStep draft={draft} set={set} t={t} registerFlush={registerFlush} />}
         {step === 4 && <SkillsStep draft={draft} set={set} t={t} />}
-        {step === 5 && <PortfolioStep draft={draft} set={set} t={t} />}
+        {step === 5 && <PortfolioStep draft={draft} set={set} t={t} registerFlush={registerFlush} />}
       </div>
 
       <div className="px-6 pb-6 pt-2">
@@ -224,7 +237,7 @@ function listAdd(list, item) {
   return [...list, { id: crypto.randomUUID(), ...item }];
 }
 
-function ExperienceStep({ draft, set, t }) {
+function ExperienceStep({ draft, set, t, registerFlush }) {
   const [item, setItem] = useState({ company: "", position: "", period: "", description: "" });
 
   const add = () => {
@@ -233,6 +246,14 @@ function ExperienceStep({ draft, set, t }) {
     setItem({ company: "", position: "", period: "", description: "" });
   };
   const remove = (id) => set({ experience: draft.experience.filter((x) => x.id !== id) });
+
+  // Реєструємо для батька функцію, яка на "Далі"/"Назад" сама додасть цей
+  // запис, якщо юзер заповнив обов'язкові поля, але забув натиснути "Додати".
+  useEffect(() => {
+    registerFlush?.(() => {
+      if (item.company.trim() && item.position.trim()) add();
+    });
+  });
 
   return (
     <div>
@@ -273,7 +294,7 @@ function ExperienceStep({ draft, set, t }) {
   );
 }
 
-function EducationStep({ draft, set, t }) {
+function EducationStep({ draft, set, t, registerFlush }) {
   const [item, setItem] = useState({ school: "", degree: "", period: "" });
 
   const add = () => {
@@ -282,6 +303,12 @@ function EducationStep({ draft, set, t }) {
     setItem({ school: "", degree: "", period: "" });
   };
   const remove = (id) => set({ education: draft.education.filter((x) => x.id !== id) });
+
+  useEffect(() => {
+    registerFlush?.(() => {
+      if (item.school.trim()) add();
+    });
+  });
 
   return (
     <div>
@@ -346,7 +373,7 @@ export function detectMediaType(url) {
   return "link";
 }
 
-function PortfolioStep({ draft, set, t }) {
+function PortfolioStep({ draft, set, t, registerFlush }) {
   const [item, setItem] = useState({ title: "", url: "" });
   const portfolio = draft.portfolio || [];
 
@@ -361,6 +388,12 @@ function PortfolioStep({ draft, set, t }) {
     setItem({ title: "", url: "" });
   };
   const remove = (id) => set({ portfolio: portfolio.filter((x) => x.id !== id) });
+
+  useEffect(() => {
+    registerFlush?.(() => {
+      if (item.url.trim()) add();
+    });
+  });
 
   return (
     <div>

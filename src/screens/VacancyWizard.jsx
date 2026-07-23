@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import TagPicker from "../components/TagPicker.jsx";
 import { MediaPreview, detectMediaType } from "./Wizard.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
@@ -51,6 +51,14 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
   const { lang } = useLanguage();
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
+  // ContactMediaStep реєструє тут функцію, яка на переході "Далі"/"Назад"
+  // автоматично додасть введену, але не підтверджену кнопкою "Додати медіа"
+  // картку — щоб дані не губилися, якщо юзер просто натиснув "Далі".
+  const pendingFlushRef = useRef(null);
+  const registerFlush = (fn) => {
+    pendingFlushRef.current = fn;
+  };
+
   // Запам'ятовуємо введене місто, щоб повернути його, якщо галочку Remote
   // зняли — сам вибір "Remote" зберігається прямо в draft.city.
   const prevCityRef = useRef("");
@@ -86,10 +94,14 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
   };
 
   const next = () => {
+    pendingFlushRef.current?.();
+    pendingFlushRef.current = null;
     if (step < TOTAL_STEPS - 1) setStep(step + 1);
     else onFinishInfo();
   };
   const back = () => {
+    pendingFlushRef.current?.();
+    pendingFlushRef.current = null;
     if (step === 0) onBackHome();
     else setStep(step - 1);
   };
@@ -114,6 +126,8 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
   }[lang];
 
   const goHome = async () => {
+    pendingFlushRef.current?.();
+    pendingFlushRef.current = null;
     if (isDirty() && !(await confirmDialog(exitConfirmText))) return;
     onBackHome();
   };
@@ -301,7 +315,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
           </>
         )}
 
-        {step === 3 && <ContactMediaStep draft={draft} set={set} lang={lang} />}
+        {step === 3 && <ContactMediaStep draft={draft} set={set} lang={lang} registerFlush={registerFlush} />}
       </div>
 
       <div className="px-6 pb-6 pt-2">
@@ -320,7 +334,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
   );
 }
 
-function ContactMediaStep({ draft, set, lang }) {
+function ContactMediaStep({ draft, set, lang, registerFlush }) {
   const [item, setItem] = useState({ title: "", url: "" });
   const media = draft.media || [];
 
@@ -335,6 +349,12 @@ function ContactMediaStep({ draft, set, lang }) {
     setItem({ title: "", url: "" });
   };
   const remove = (id) => set({ media: media.filter((x) => x.id !== id) });
+
+  useEffect(() => {
+    registerFlush?.(() => {
+      if (item.url.trim()) add();
+    });
+  });
 
   return (
     <div>

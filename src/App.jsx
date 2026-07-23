@@ -302,6 +302,11 @@ export default function App() {
           <SharedVacancyView
             vacancyId={sharedId.slice(2)}
             onOpenApp={closeShared}
+            onApply={(v) => {
+              closeShared();
+              setOpenVacancy(v);
+              setRoute({ screen: "vacancyDetail", back: "browseVacancies" });
+            }}
             onBrowseVacancies={goBrowseFromShare}
             onCreateVacancy={goCreateFromShare}
           />

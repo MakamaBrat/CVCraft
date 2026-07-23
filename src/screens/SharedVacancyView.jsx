@@ -17,6 +17,7 @@ const MESSAGES = {
     en: "This job post is no longer active.",
   },
   openApp: { uk: "Перейти до CV DECK", ru: "Перейти в CV DECK", en: "Open CV DECK" },
+  apply: { uk: "Відгукнутися", ru: "Откликнуться", en: "Apply" },
   browseMore: {
     uk: "Переглянути всі вакансії",
     ru: "Смотреть все вакансии",
@@ -37,7 +38,7 @@ const MESSAGES = {
 // Публічний перегляд вакансії за посланням-запрошенням (startapp=v_<id>),
 // без авторизації — аналог SharedView.jsx для резюме. Дані тягне з
 // /api/vacancy-share, який віддає тільки active/paused вакансії.
-export default function SharedVacancyView({ vacancyId, onOpenApp, onBrowseVacancies, onCreateVacancy }) {
+export default function SharedVacancyView({ vacancyId, onOpenApp, onApply, onBrowseVacancies, onCreateVacancy }) {
   const { lang } = useLanguage();
   const [vacancy, setVacancy] = useState(null);
   const [status, setStatus] = useState("loading");
@@ -100,9 +101,20 @@ export default function SharedVacancyView({ vacancyId, onOpenApp, onBrowseVacanc
       <div className="flex-1 overflow-y-auto px-6 pb-8 fade-up">
         <VacancyDocument vacancy={vacancy} />
 
+        {onApply && (
+          <button
+            onClick={() => onApply({ ...vacancy, id: vacancy.id || vacancyId })}
+            className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+          >
+            {MESSAGES.apply[lang]}
+          </button>
+        )}
+
         <button
           onClick={onOpenApp}
-          className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+          className={`tap w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-base-900 border border-base-700 text-white/80 font-semibold text-sm rounded-xl py-3.5 ${
+            onApply ? "mt-2.5" : "mt-5"
+          }`}
         >
           {MESSAGES.openApp[lang]}
         </button>

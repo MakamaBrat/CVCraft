@@ -4,6 +4,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = {
@@ -13,9 +14,34 @@ const ACCENTS = {
   classic: "#2f6fb0",
 };
 
+const MESSAGE_LABEL = { uk: "Написати", ru: "Написать", en: "Message" };
+
+function TelegramIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M21.5 3.5L2.7 11.1c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14c.3-1.2-.5-1.7-1.3-1.4z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function openTelegramUser(username) {
+  const tg = getTelegramWebApp();
+  const url = `https://t.me/${username}`;
+  if (tg?.openTelegramLink) tg.openTelegramLink(url);
+  else if (tg?.openLink) tg.openLink(url);
+  else window.open(url, "_blank");
+}
+
 export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onCreateVacancy }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [resume, setResume] = useState(null);
+  // Юзернейм власника резюме — окреме поле у відповіді /api/resume-share
+  // (НЕ частина resume.data), бекенд має підтягувати його з таблиці
+  // користувачів по owner_telegram_id власника резюме.
+  const [ownerUsername, setOwnerUsername] = useState(null);
   const [status, setStatus] = useState("loading");
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -26,6 +52,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
         const res = await apiFetch(`/api/resume-share?id=${encodeURIComponent(resumeId)}`);
         if (cancelled) return;
         setResume(res.data);
+        setOwnerUsername(res.telegramUsername || null);
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("not-found");
@@ -209,9 +236,21 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
           )}
         </div>
 
+        {ownerUsername && (
+          <button
+            onClick={() => openTelegramUser(ownerUsername)}
+            className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-[#2AABEE] text-white font-semibold text-sm rounded-xl py-3.5"
+          >
+            <TelegramIcon />
+            {MESSAGE_LABEL[lang]}
+          </button>
+        )}
+
         <button
           onClick={onOpenApp}
-          className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+          className={`tap w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 ${
+            ownerUsername ? "mt-2.5" : "mt-5"
+          }`}
         >
           {t("share.createOwnResume")}
         </button>
