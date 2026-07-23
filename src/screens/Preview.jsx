@@ -4,6 +4,7 @@ import Avatar from "../components/Avatar.jsx";
 import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
+import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -161,6 +162,7 @@ function ResumeDocument({ resume, t }) {
 export default function Preview({ resume, onBack, onDone }) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
+  const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
   const { t } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
@@ -176,16 +178,18 @@ export default function Preview({ resume, onBack, onDone }) {
     else window.open(telegramShareUrl, "_blank");
   };
 
-  const handleShareLink = async () => {
-    setShareError(null);
-    const title = `${resume.fullName || t("resume.untitled")}${resume.role ? " — " + resume.role : ""}`;
+  const shareTitle = () => `${resume.fullName || t("resume.untitled")}${resume.role ? " — " + resume.role : ""}`;
 
-    // Усередині Telegram — надсилаємо повідомлення напряму через бота
-    // (sendMessage у ЛС). Текст містить приховане у форматі Telegram HTML
-    // гіперпосилання саме на це резюме (startapp=<id>), яке ми повністю
-    // контролюємо — на відміну від стандартної кнопки "Відкрити в
-    // Telegram", яку сам Telegram малює на прев'ю поза застосунком і чий
-    // URL ми підмінити не можемо.
+  // Варіант "У бот" уточнюючого меню: надсилаємо повідомлення напряму
+  // через бота (sendMessage у ЛС). Текст містить приховане у форматі
+  // Telegram HTML гіперпосилання саме на це резюме (startapp=<id>), яке ми
+  // повністю контролюємо — на відміну від стандартної кнопки "Відкрити в
+  // Telegram", яку сам Telegram малює на прев'ю поза застосунком і чий URL
+  // ми підмінити не можемо.
+  const handleShareViaBot = async () => {
+    setShareError(null);
+    const title = shareTitle();
+
     const tgApp = getTelegramWebApp();
     if (tgApp) {
       setSharing(true);
@@ -198,12 +202,16 @@ export default function Preview({ resume, onBack, onDone }) {
         t,
       });
       setSharing(false);
-      if (result !== "fallback") return;
+      if (result !== "fallback") {
+        setShareChoiceOpen(false);
+        return;
+      }
       // "fallback" — помилка не пов'язана з блокуванням бота (мережа,
       // сервер тощо): падаємо у стандартний Telegram-шеринг нижче.
     }
 
     openTelegramShareSheet(title);
+    setShareChoiceOpen(false);
   };
 
   return (
@@ -239,7 +247,7 @@ export default function Preview({ resume, onBack, onDone }) {
 
       <div className="px-6 pb-6 print:hidden flex gap-3">
         <button
-          onClick={handleShareLink}
+          onClick={() => setShareChoiceOpen(true)}
           disabled={sharing}
           className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60"
         >
@@ -258,6 +266,17 @@ export default function Preview({ resume, onBack, onDone }) {
           {t("common.save")}
         </button>
       </div>
+
+      <ShareChoiceSheet
+        open={shareChoiceOpen}
+        sharing={sharing}
+        onClose={() => setShareChoiceOpen(false)}
+        onChooseBot={handleShareViaBot}
+        onChooseShare={() => {
+          openTelegramShareSheet(shareTitle());
+          setShareChoiceOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { buildVacancyShareLink } from "../lib/config.js";
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
+import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -114,6 +115,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   const { t } = useLanguage();
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
+  const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
   const shareUrl = buildVacancyShareLink(vacancy.id);
   const status = vacancy.status || VACANCY_STATUS.DRAFT;
 
@@ -232,9 +234,11 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     else window.open(telegramShareUrl, "_blank");
   };
 
-  const handleShareLink = async () => {
+  const shareTitle = () => [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+
+  const handleShareViaBot = async () => {
     setShareError(null);
-    const title = [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+    const title = shareTitle();
 
     // Усередині Telegram — надсилаємо повідомлення напряму через бота
     // (sendMessage у ЛС), як і для резюме. Текст містить приховане у
@@ -254,12 +258,16 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
         t,
       });
       setSharing(false);
-      if (result !== "fallback") return;
+      if (result !== "fallback") {
+        setShareChoiceOpen(false);
+        return;
+      }
       // "fallback" — помилка не пов'язана з блокуванням бота (мережа,
       // сервер тощо): падаємо у стандартний Telegram-шеринг нижче.
     }
 
     openTelegramShareSheet(title);
+    setShareChoiceOpen(false);
   };
 
   return (
@@ -399,7 +407,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
 
       <div className="px-6 pb-3 pt-0 flex gap-3 print:hidden">
         <button
-          onClick={handleShareLink}
+          onClick={() => setShareChoiceOpen(true)}
           disabled={sharing}
           className={`tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60`}
         >
@@ -453,6 +461,17 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
           </button>
         </div>
       )}
+
+      <ShareChoiceSheet
+        open={shareChoiceOpen}
+        sharing={sharing}
+        onClose={() => setShareChoiceOpen(false)}
+        onChooseBot={handleShareViaBot}
+        onChooseShare={() => {
+          openTelegramShareSheet(shareTitle());
+          setShareChoiceOpen(false);
+        }}
+      />
     </div>
   );
 }

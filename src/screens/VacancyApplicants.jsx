@@ -7,6 +7,7 @@ import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.
 import { getTelegramWebApp } from "../lib/telegram.js";
 import { buildShareLink } from "../lib/config.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
+import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const ACCENTS = {
@@ -77,6 +78,7 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
   const [reporting, setReporting] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
 
   // Той самий сценарій "Поділитися", що й у звичайному перегляді резюме
   // (Preview.jsx): усередині Telegram надсилаємо собі в ЛС через бота
@@ -93,9 +95,11 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
     else window.open(telegramShareUrl, "_blank");
   };
 
-  const handleShareLink = async () => {
+  const shareTitle = () => `${r?.fullName || ""}${r?.role ? " — " + r.role : ""}`;
+
+  const handleShareViaBot = async () => {
     const shareUrl = buildShareLink(applicant.resume_id);
-    const title = `${r?.fullName || ""}${r?.role ? " — " + r.role : ""}`;
+    const title = shareTitle();
 
     const tgApp = getTelegramWebApp();
     if (tgApp) {
@@ -109,10 +113,14 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
         t,
       });
       setSharing(false);
-      if (result !== "fallback") return;
+      if (result !== "fallback") {
+        setShareChoiceOpen(false);
+        return;
+      }
     }
 
     openTelegramShareSheet(title);
+    setShareChoiceOpen(false);
   };
 
   return (
@@ -322,7 +330,7 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
         {r && applicant.resume_id && (
           <div className="mx-auto pb-4" style={{ maxWidth: 400 }}>
             <button
-              onClick={handleShareLink}
+              onClick={() => setShareChoiceOpen(true)}
               disabled={sharing}
               className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60"
             >
@@ -332,6 +340,17 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
           </div>
         )}
       </div>
+
+      <ShareChoiceSheet
+        open={shareChoiceOpen}
+        sharing={sharing}
+        onClose={() => setShareChoiceOpen(false)}
+        onChooseBot={handleShareViaBot}
+        onChooseShare={() => {
+          openTelegramShareSheet(shareTitle());
+          setShareChoiceOpen(false);
+        }}
+      />
 
       {reporting && (
         <ReportModal targetType="applicant" applicationId={applicant.id} onClose={() => setReporting(false)} />

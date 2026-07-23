@@ -8,6 +8,7 @@ import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.
 import { confirmDialog, getTelegramWebApp } from "../lib/telegram.js";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
+import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 
 const ACCENTS = { minimal: "#4b5563", modern: "#6c5ce7", bold: "#ff7a59", classic: "#2f6fb0" };
 
@@ -27,6 +28,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
   const [reporting, setReporting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy.colorScheme);
   const align = getAlign(vacancy.align);
@@ -58,8 +60,10 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
     else window.open(telegramShareUrl, "_blank");
   };
 
-  const handleShareLink = async () => {
-    const title = [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+  const shareTitle = () => [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+
+  const handleShareViaBot = async () => {
+    const title = shareTitle();
 
     const tgApp = getTelegramWebApp();
     if (tgApp) {
@@ -73,10 +77,14 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
         t,
       });
       setSharing(false);
-      if (result !== "fallback") return;
+      if (result !== "fallback") {
+        setShareChoiceOpen(false);
+        return;
+      }
     }
 
     openTelegramShareSheet(title);
+    setShareChoiceOpen(false);
   };
 
   const withdraw = async () => {
@@ -98,7 +106,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
         </button>
         <h1 className="text-lg font-bold flex-1">{t("vacancy.title")}</h1>
         <button
-          onClick={handleShareLink}
+          onClick={() => setShareChoiceOpen(true)}
           disabled={sharing}
           className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 disabled:text-white/30 bg-base-850 border border-base-700 rounded-full"
           aria-label={t("common.share")}
@@ -252,6 +260,17 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
       {reporting && (
         <ReportModal targetType="vacancy" vacancyId={vacancy.id} onClose={() => setReporting(false)} />
       )}
+
+      <ShareChoiceSheet
+        open={shareChoiceOpen}
+        sharing={sharing}
+        onClose={() => setShareChoiceOpen(false)}
+        onChooseBot={handleShareViaBot}
+        onChooseShare={() => {
+          openTelegramShareSheet(shareTitle());
+          setShareChoiceOpen(false);
+        }}
+      />
     </div>
   );
 }

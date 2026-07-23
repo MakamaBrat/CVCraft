@@ -5,6 +5,7 @@ import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
+import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -32,6 +33,7 @@ export default function VacancyList({
   const { t } = useLanguage();
   const [activeVacancy, setActiveVacancy] = useState(null);
   const [sharing, setSharing] = useState(false);
+  const [shareChoiceTarget, setShareChoiceTarget] = useState(null);
 
   const canPay =
     activeVacancy &&
@@ -74,13 +76,13 @@ export default function VacancyList({
       });
       setSharing(false);
       if (result !== "fallback") {
-        setActiveVacancy(null);
+        setShareChoiceTarget(null);
         return;
       }
     }
 
     openTelegramShareSheet(v);
-    setActiveVacancy(null);
+    setShareChoiceTarget(null);
   };
 
   return (
@@ -169,11 +171,13 @@ export default function VacancyList({
 
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => shareVacancy(activeVacancy)}
-                disabled={sharing}
-                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90 disabled:opacity-60"
+                onClick={() => {
+                  setShareChoiceTarget(activeVacancy);
+                  setActiveVacancy(null);
+                }}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
               >
-                <span className="text-base leading-none">🔗</span> {sharing ? t("share.sending") : t("common.share")}
+                <span className="text-base leading-none">🔗</span> {t("common.share")}
               </button>
               {onView && (
                 <button
@@ -239,6 +243,17 @@ export default function VacancyList({
           </div>
         </div>
       )}
+
+      <ShareChoiceSheet
+        open={!!shareChoiceTarget}
+        sharing={sharing}
+        onClose={() => setShareChoiceTarget(null)}
+        onChooseBot={() => shareVacancy(shareChoiceTarget)}
+        onChooseShare={() => {
+          openTelegramShareSheet(shareChoiceTarget);
+          setShareChoiceTarget(null);
+        }}
+      />
     </div>
   );
 }

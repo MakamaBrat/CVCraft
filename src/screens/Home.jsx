@@ -4,6 +4,7 @@ import { timeAgo } from "../lib/timeAgo.js";
 import { buildShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
+import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
 
@@ -37,6 +38,9 @@ export default function Home({
   const { lang, t } = useLanguage();
   const [activeResume, setActiveResume] = useState(null);
   const [sharing, setSharing] = useState(false);
+  // Ціль для уточнюючого меню "У бот" / "Поділитися", яке з'являється
+  // після натискання кнопки "Поділитися" в меню дій резюме.
+  const [shareChoiceTarget, setShareChoiceTarget] = useState(null);
 
   // Той самий сценарій "Поділитися", що й у Preview.jsx: усередині Telegram
   // надсилаємо посилання собі в ЛС через бота (sendMessage), поза Telegram
@@ -71,13 +75,13 @@ export default function Home({
       });
       setSharing(false);
       if (result !== "fallback") {
-        setActiveResume(null);
+        setShareChoiceTarget(null);
         return;
       }
     }
 
     openTelegramShareSheet(r);
-    setActiveResume(null);
+    setShareChoiceTarget(null);
   };
 
   return (
@@ -266,11 +270,13 @@ export default function Home({
 
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => shareResume(activeResume)}
-                disabled={sharing}
-                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90 disabled:opacity-60"
+                onClick={() => {
+                  setShareChoiceTarget(activeResume);
+                  setActiveResume(null);
+                }}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
               >
-                <span className="text-base leading-none">🔗</span> {sharing ? t("share.sending") : t("common.share")}
+                <span className="text-base leading-none">🔗</span> {t("common.share")}
               </button>
               {onView && (
                 <button
@@ -313,6 +319,17 @@ export default function Home({
           </div>
         </div>
       )}
+
+      <ShareChoiceSheet
+        open={!!shareChoiceTarget}
+        sharing={sharing}
+        onClose={() => setShareChoiceTarget(null)}
+        onChooseBot={() => shareResume(shareChoiceTarget)}
+        onChooseShare={() => {
+          openTelegramShareSheet(shareChoiceTarget);
+          setShareChoiceTarget(null);
+        }}
+      />
     </div>
   );
 }
