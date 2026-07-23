@@ -69,6 +69,7 @@ export default function VacancyList({
         shareUrl,
         title,
         linkText: t("share.vacancyClickHint"),
+        forwardLabel: t("share.forwardButton"),
         t,
       });
       setSharing(false);

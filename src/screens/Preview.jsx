@@ -194,6 +194,7 @@ export default function Preview({ resume, onBack, onDone }) {
         shareUrl,
         title,
         linkText: t("share.resumeClickHint"),
+        forwardLabel: t("share.forwardButton"),
         t,
       });
       setSharing(false);

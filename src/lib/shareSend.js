@@ -19,11 +19,11 @@ import { alertDialog } from "./telegram.js";
 // t.me/share/url.
 //
 // Повертає "sent" | "blocked" | "fallback".
-export async function sendLinkViaBot({ endpoint, shareUrl, title, linkText, t }) {
+export async function sendLinkViaBot({ endpoint, shareUrl, title, linkText, forwardLabel, t }) {
   try {
     await apiFetch(endpoint, {
       method: "POST",
-      body: { shareUrl, title, linkText },
+      body: { shareUrl, title, linkText, forwardLabel },
     });
     await alertDialog(t("share.sentToBot"));
     return "sent";

@@ -149,8 +149,8 @@ export const uk = {
     createOwnResume: "Створити своє резюме",
     browseVacancies: "Переглянути вакансії",
     createVacancy: "Створити вакансію",
+    forwardButton: "Поділитися",
   },
-  admin: {
     title: "Адмін-панель",
     stats: "Статистика",
     usersToday: "Нових користувачів сьогодні",
@@ -534,6 +534,7 @@ export const ru = {
     createOwnResume: "Создать своё резюме",
     browseVacancies: "Смотреть вакансии",
     createVacancy: "Создать вакансию",
+    forwardButton: "Поделиться",
   },
   admin: {
     title: "Админ-панель",
@@ -919,6 +920,7 @@ export const en = {
     createOwnResume: "Create your own resume",
     browseVacancies: "Browse jobs",
     createVacancy: "Create job post",
+    forwardButton: "Share",
   },
   admin: {
     title: "Admin panel",

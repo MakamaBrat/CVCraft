@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   const user = await authenticate(req, res, botToken, admin);
   if (!user) return;
 
-  const { shareUrl, title, linkText } = req.body || {};
+  const { shareUrl, title, linkText, forwardLabel } = req.body || {};
   if (!shareUrl) {
     return sendJson(res, 400, { error: "missing_fields" });
   }
@@ -33,10 +33,19 @@ export default async function handler(req, res) {
   const hiddenLink = `<a href="${escapeHtml(shareUrl)}">${escapeHtml(linkText || "")}</a>`;
   const text = [escapeHtml(title || ""), "", hiddenLink].filter(Boolean).join("\n").slice(0, 4096);
 
+  // Кнопка "Поділитися" під повідомленням — відкриває стандартне вікно
+  // пересилання Telegram (t.me/share/url) для цього ж посилання, тією
+  // самою мовою застосунку, якою користувач ділився оригіналом.
+  const forwardShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(title || "")}`;
+  const replyMarkup = {
+    inline_keyboard: [[{ text: forwardLabel || "Share", url: forwardShareUrl }]],
+  };
+
   const form = new FormData();
   form.append("chat_id", String(user.id));
   form.append("text", text);
   form.append("parse_mode", "HTML");
+  form.append("reply_markup", JSON.stringify(replyMarkup));
 
   let tgRes;
   try {

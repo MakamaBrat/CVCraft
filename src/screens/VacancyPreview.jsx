@@ -250,6 +250,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
         shareUrl,
         title,
         linkText: t("share.vacancyClickHint"),
+        forwardLabel: t("share.forwardButton"),
         t,
       });
       setSharing(false);
