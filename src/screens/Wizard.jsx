@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../lib/api.js";
 import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
@@ -6,14 +6,41 @@ import { getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 
 const TOTAL_STEPS = 6;
+const REMOTE_VALUE = "Remote";
 
-function Field({ label, hint, children }) {
+function Field({ label, hint, children, aside }) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-white/85 mb-1.5">{label}</label>
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <label className="block text-sm font-medium text-white/85">{label}</label>
+        {aside}
+      </div>
       {children}
       {hint && <p className="text-xs text-white/40 mt-1.5">{hint}</p>}
     </div>
+  );
+}
+
+function InlineCheckbox({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className="tap shrink-0 flex items-center gap-1.5 text-xs font-medium text-white/60"
+    >
+      <span
+        className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+          checked ? "bg-accent-500 border-accent-500" : "border-base-600"
+        }`}
+      >
+        {checked && (
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      {label}
+    </button>
   );
 }
 
@@ -23,6 +50,19 @@ const inputCls =
 export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onFinishInfo }) {
   const { t } = useLanguage();
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
+
+  // Запам'ятовуємо введене місто, щоб повернути його, якщо галочку Remote
+  // зняли — сам вибір "Remote" зберігається прямо в draft.city.
+  const prevCityRef = useRef("");
+  const isRemote = (draft.city || "").trim() === REMOTE_VALUE;
+  const toggleRemote = () => {
+    if (isRemote) {
+      set({ city: prevCityRef.current || "" });
+    } else {
+      prevCityRef.current = draft.city || "";
+      set({ city: REMOTE_VALUE });
+    }
+  };
 
   // Підставляємо юзернейм з Telegram у поле "Юзернейм у Telegram", якщо воно
   // ще не заповнене (наприклад, чернетка вже містить збережене значення).
@@ -142,13 +182,18 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
                 }}
               />
             </Field>
-            <Field label={t("wizard.cityLabel")}>
-              <input
-                className={inputCls}
-                placeholder={t("wizard.cityPlaceholder")}
-                value={draft.city}
-                onChange={(e) => set({ city: e.target.value })}
-              />
+            <Field
+              label={t("wizard.cityLabel")}
+              aside={<InlineCheckbox checked={isRemote} onChange={toggleRemote} label={t("wizard.remoteLabel")} />}
+            >
+              {!isRemote && (
+                <input
+                  className={inputCls}
+                  placeholder={t("wizard.cityPlaceholder")}
+                  value={draft.city}
+                  onChange={(e) => set({ city: e.target.value })}
+                />
+              )}
             </Field>
           </>
         )}

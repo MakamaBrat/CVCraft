@@ -1,18 +1,46 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import TagPicker from "../components/TagPicker.jsx";
 import { MediaPreview, detectMediaType } from "./Wizard.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { confirmDialog } from "../lib/telegram.js";
 
 const TOTAL_STEPS = 4;
+const REMOTE_VALUE = "Remote";
+const USDT_TAG = "USDT";
 
-function Field({ label, hint, children }) {
+function Field({ label, hint, children, aside }) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-white/85 mb-1.5">{label}</label>
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <label className="block text-sm font-medium text-white/85">{label}</label>
+        {aside}
+      </div>
       {children}
       {hint && <p className="text-xs text-white/40 mt-1.5">{hint}</p>}
     </div>
+  );
+}
+
+function InlineCheckbox({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className="tap shrink-0 flex items-center gap-1.5 text-xs font-medium text-white/60"
+    >
+      <span
+        className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+          checked ? "bg-accent-500 border-accent-500" : "border-base-600"
+        }`}
+      >
+        {checked && (
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      {label}
+    </button>
   );
 }
 
@@ -22,6 +50,25 @@ const inputCls =
 export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHome, onFinishInfo }) {
   const { lang } = useLanguage();
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
+
+  // Запам'ятовуємо введене місто, щоб повернути його, якщо галочку Remote
+  // зняли — сам вибір "Remote" зберігається прямо в draft.city.
+  const prevCityRef = useRef("");
+  const isRemote = (draft.city || "").trim() === REMOTE_VALUE;
+  const toggleRemote = () => {
+    if (isRemote) {
+      set({ city: prevCityRef.current || "" });
+    } else {
+      prevCityRef.current = draft.city || "";
+      set({ city: REMOTE_VALUE });
+    }
+  };
+
+  const isUsdt = (draft.tags || []).includes(USDT_TAG);
+  const toggleUsdt = () => {
+    const tags = draft.tags || [];
+    set({ tags: isUsdt ? tags.filter((tg) => tg !== USDT_TAG) : [...tags, USDT_TAG] });
+  };
 
   const titles = {
     uk: ["Посада", "Деталі", "Опис", "Контакт і медіа"],
@@ -130,7 +177,15 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
 
         {step === 1 && (
           <>
-            <Field label={{ uk: "Зарплата", ru: "Зарплата", en: "Salary" }[lang]}>
+            <Field
+              label={{ uk: "Зарплата", ru: "Зарплата", en: "Salary" }[lang]}
+              hint={{
+                uk: "Суму можна не вказувати — просто позначте USDT.",
+                ru: "Сумму можно не указывать — просто отметьте USDT.",
+                en: "You can leave the amount empty — just mark USDT.",
+              }[lang]}
+              aside={<InlineCheckbox checked={isUsdt} onChange={toggleUsdt} label="USDT" />}
+            >
               <input
                 className={inputCls}
                 placeholder="$1500–2500"
@@ -138,13 +193,24 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
                 onChange={(e) => set({ salary: e.target.value })}
               />
             </Field>
-            <Field label={{ uk: "Місто", ru: "Город", en: "City" }[lang]}>
-              <input
-                className={inputCls}
-                placeholder="Київ / Remote"
-                value={draft.city}
-                onChange={(e) => set({ city: e.target.value })}
-              />
+            <Field
+              label={{ uk: "Місто", ru: "Город", en: "City" }[lang]}
+              aside={
+                <InlineCheckbox
+                  checked={isRemote}
+                  onChange={toggleRemote}
+                  label={{ uk: "Remote", ru: "Remote", en: "Remote" }[lang]}
+                />
+              }
+            >
+              {!isRemote && (
+                <input
+                  className={inputCls}
+                  placeholder="Київ"
+                  value={draft.city}
+                  onChange={(e) => set({ city: e.target.value })}
+                />
+              )}
             </Field>
             <Field label={{ uk: "Тип зайнятості", ru: "Тип занятости", en: "Employment type" }[lang]}>
               <input
