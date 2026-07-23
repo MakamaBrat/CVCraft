@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { apiFetch, backendEnabled } from "../lib/api.js";
+import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
-import { getTelegramWebApp, alertDialog } from "../lib/telegram.js";
+import { sendLinkViaBot } from "../lib/shareSend.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 
@@ -188,19 +189,17 @@ export default function Preview({ resume, onBack, onDone }) {
     const tgApp = getTelegramWebApp();
     if (tgApp) {
       setSharing(true);
-      try {
-        await apiFetch("/api/resume-send", {
-          method: "POST",
-          body: { shareUrl, title, linkText: t("share.resumeClickHint") },
-        });
-        await alertDialog(t("share.sentToBot"));
-        setSharing(false);
-        return;
-      } catch (err) {
-        console.error("[Preview] bot send failed, falling back", err);
-        setSharing(false);
-        // падаємо в фолбек нижче — відкриваємо стандартний Telegram-шеринг
-      }
+      const result = await sendLinkViaBot({
+        endpoint: "/api/resume-send",
+        shareUrl,
+        title,
+        linkText: t("share.resumeClickHint"),
+        t,
+      });
+      setSharing(false);
+      if (result !== "fallback") return;
+      // "fallback" — помилка не пов'язана з блокуванням бота (мережа,
+      // сервер тощо): падаємо у стандартний Telegram-шеринг нижче.
     }
 
     openTelegramShareSheet(title);

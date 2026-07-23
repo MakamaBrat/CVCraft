@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
-import { getTelegramWebApp, alertDialog } from "../lib/telegram.js";
+import { getTelegramWebApp } from "../lib/telegram.js";
 import { apiFetch } from "../lib/api.js";
+import { sendLinkViaBot } from "../lib/shareSend.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
@@ -244,19 +245,17 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     const tgApp = getTelegramWebApp();
     if (tgApp) {
       setSharing(true);
-      try {
-        await apiFetch("/api/vacancy-send", {
-          method: "POST",
-          body: { shareUrl, title, linkText: t("share.vacancyClickHint") },
-        });
-        await alertDialog(t("share.sentToBot"));
-        setSharing(false);
-        return;
-      } catch (err) {
-        console.error("[VacancyPreview] bot send failed, falling back", err);
-        setSharing(false);
-        // падаємо в фолбек нижче — відкриваємо стандартний Telegram-шеринг
-      }
+      const result = await sendLinkViaBot({
+        endpoint: "/api/vacancy-send",
+        shareUrl,
+        title,
+        linkText: t("share.vacancyClickHint"),
+        t,
+      });
+      setSharing(false);
+      if (result !== "fallback") return;
+      // "fallback" — помилка не пов'язана з блокуванням бота (мережа,
+      // сервер тощо): падаємо у стандартний Telegram-шеринг нижче.
     }
 
     openTelegramShareSheet(title);
