@@ -13,7 +13,7 @@ export const VACANCY_PRICE_PER_SHOW_STARS = 1;
 // такого невеликого демо-використання, "рандомна гіфка по кліку", цього
 // вистачає). Для продакшн-навантаження отримайте свій безкоштовний ключ на
 // https://developers.giphy.com/dashboard/ і підставте його сюди.
-export const GIPHY_API_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65";
+export const GIPHY_API_KEY = "sWYfL33XhhxrgxzKGDbgOKTj6FXJTHWL";
 
 // Примітка: список адмінів більше НЕ читається на клієнті. Раніше тут був
 // VITE_ADMIN_TELEGRAM_IDS + isAdmin() — але VITE_-змінні потрапляють у
