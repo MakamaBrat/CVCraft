@@ -1,5 +1,6 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { buildResumeShareHtml, buildVacancyShareHtml } from "./shareTemplate.js";
 
 function sanitizeFileName(name) {
   return (name || "document")
@@ -237,19 +238,39 @@ async function renderElementToPdf(element, fileNameBase) {
   };
 }
 
-export async function generateResumePdf(resume) {
-  const element = document.getElementById("resume-doc");
-  if (!element) {
-    throw new Error("Не знайдено елемент резюме для експорту (#resume-doc)");
+// Рендерить готовий HTML-рядок (з shareTemplate.js) у прихований iframe і
+// знімає його html2canvas'ом через renderElementToPdf — так PDF виглядає
+// точнісінько як відповідний HTML-файл (той самий шаблон, ті самі стилі),
+// без дублювання розмітки в окремому DOM-дереві застосунку.
+async function renderHtmlStringToPdf(html, fileNameBase) {
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:460px;height:1200px;border:0;visibility:hidden;";
+  document.body.appendChild(iframe);
+
+  try {
+    await new Promise((resolve) => {
+      iframe.addEventListener("load", resolve, { once: true });
+      iframe.srcdoc = html;
+    });
+    const doc = iframe.contentDocument;
+    await doc.fonts?.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    // Розтягуємо iframe під фактичну висоту вмісту, інакше html2canvas
+    // обріже знімок по початкових 1200px.
+    iframe.style.height = `${doc.body.scrollHeight}px`;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return await renderElementToPdf(doc.body, fileNameBase);
+  } finally {
+    iframe.remove();
   }
-  return renderElementToPdf(element, resume?.fullName || "Resume");
 }
 
-export async function generateVacancyPdf(vacancy) {
-  const element = document.getElementById("vacancy-doc");
-  if (!element) {
-    throw new Error("Не знайдено елемент вакансії для експорту (#vacancy-doc)");
-  }
-  const fileNameBase = [vacancy?.position, vacancy?.company].filter(Boolean).join(" ") || "Vacancy";
-  return renderElementToPdf(element, fileNameBase);
+export async function generateResumePdf(resume, { shareUrl, lang } = {}) {
+  const { html, fileName } = buildResumeShareHtml(resume, { shareUrl, lang });
+  return renderHtmlStringToPdf(html, fileName.replace(/\.html$/, ""));
+}
+
+export async function generateVacancyPdf(vacancy, { shareUrl, lang } = {}) {
+  const { html, fileName } = buildVacancyShareHtml(vacancy, { shareUrl, lang });
+  return renderHtmlStringToPdf(html, fileName.replace(/\.html$/, ""));
 }

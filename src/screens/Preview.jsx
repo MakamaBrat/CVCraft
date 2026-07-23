@@ -170,7 +170,7 @@ function ResumeDocument({ resume, t }) {
 export default function Preview({ resume, onBack, onDone }) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
 
@@ -192,7 +192,7 @@ export default function Preview({ resume, onBack, onDone }) {
     setSharing(true);
     let blob, fileName;
     try {
-      ({ blob, fileName } = await generateResumeHtml(resume));
+      ({ blob, fileName } = await generateResumeHtml(resume, { shareUrl, lang }));
     } catch (err) {
       console.error("[Preview] html generation failed", err);
       setShareError(t("preview.htmlGenFailed")(err?.message || t("preview.unknownError")));

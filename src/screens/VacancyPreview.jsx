@@ -120,7 +120,7 @@ export function VacancyDocument({ vacancy }) {
 }
 
 export default function VacancyPreview({ vacancy, onBack, onSendToModeration, onSave, onPaid, onClose }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
   const shareUrl = buildVacancyShareLink(vacancy.id);
@@ -247,7 +247,7 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
     setSharing(true);
     let blob, fileName;
     try {
-      ({ blob, fileName } = await generateVacancyPdf(vacancy));
+      ({ blob, fileName } = await generateVacancyPdf(vacancy, { shareUrl, lang }));
     } catch (err) {
       console.error("[VacancyPreview] pdf generation failed", err);
       setShareError(`${t("vacancy.shareFailed")} (${err?.message || "?"})`);

@@ -17,6 +17,10 @@ export const VACANCY_PRICE_PER_SHOW_STARS = 1;
 // у /api/admin.js за ADMIN_TELEGRAM_IDS (без VITE_ префікса), і клієнт
 // дізнається isAdmin: true/false у відповіді /api/auth-sync.
 
+export function buildAppHomeLink() {
+  return `https://t.me/${TELEGRAM_BOT_USERNAME}/${TELEGRAM_MINI_APP_NAME}`;
+}
+
 export function buildShareLink(resumeId) {
   return `https://t.me/${TELEGRAM_BOT_USERNAME}/${TELEGRAM_MINI_APP_NAME}?startapp=${resumeId}`;
 }
