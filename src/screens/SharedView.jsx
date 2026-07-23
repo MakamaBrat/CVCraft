@@ -27,6 +27,16 @@ function TelegramIcon({ size = 15 }) {
   );
 }
 
+// Поле "Юзернейм у Telegram" у самому резюме (draft.phone у Wizard.jsx,
+// завжди зберігається з "@") — це те, що людина сама вписала як контакт, і
+// воно має пріоритет над юзернеймом акаунту, яким резюме було створене в
+// базі (він міг змінитись або належати іншому акаунту, якщо резюме
+// заповнювали не з того ж Telegram, під яким зараз залогінені).
+function extractTelegramHandle(value) {
+  const m = String(value || "").trim().match(/^@([a-zA-Z0-9_]{5,32})$/);
+  return m ? m[1] : null;
+}
+
 function openTelegramUser(username) {
   const tg = getTelegramWebApp();
   const url = `https://t.me/${username}`;
@@ -94,11 +104,13 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
   // t.me/<його власний username> відкриє не чат із самим собою, а "Збережені
   // повідомлення" — так влаштований сам Telegram для посилань на себе.
   // Щоб не плутати це з нібито поламаною кнопкою, ховаємо її в цьому випадку.
+  const resumeHandle = extractTelegramHandle(resume.phone);
+  const messageTarget = resumeHandle || ownerUsername;
   const viewer = getTelegramUser();
   const isOwnResume = Boolean(
-    ownerUsername && viewer?.username && viewer.username.toLowerCase() === ownerUsername.toLowerCase()
+    messageTarget && viewer?.username && viewer.username.toLowerCase() === messageTarget.toLowerCase()
   );
-  const showMessageButton = Boolean(ownerUsername) && !isOwnResume;
+  const showMessageButton = Boolean(messageTarget) && !isOwnResume;
 
   return (
     <div className="flex-1 flex flex-col bg-base-950">
@@ -248,7 +260,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
 
         {showMessageButton && (
           <button
-            onClick={() => openTelegramUser(ownerUsername)}
+            onClick={() => openTelegramUser(messageTarget)}
             className="tap mt-5 w-full max-w-[400px] mx-auto flex items-center justify-center gap-2 bg-[#2AABEE] text-white font-semibold text-sm rounded-xl py-3.5"
           >
             <TelegramIcon />
