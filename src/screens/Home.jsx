@@ -3,6 +3,7 @@ import { useLanguage } from "../lib/i18n/index.jsx";
 import { timeAgo } from "../lib/timeAgo.js";
 import { buildShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
+import { sendLinkViaBot } from "../lib/shareSend.js";
 import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
 
@@ -35,15 +36,46 @@ export default function Home({
 }) {
   const { lang, t } = useLanguage();
   const [activeResume, setActiveResume] = useState(null);
+  const [sharing, setSharing] = useState(false);
 
-  const shareResume = (r) => {
+  // Той самий сценарій "Поділитися", що й у Preview.jsx: усередині Telegram
+  // надсилаємо посилання собі в ЛС через бота (sendMessage), поза Telegram
+  // (або якщо надсилання через бота не вдалося з причини, не пов'язаної з
+  // блокуванням бота) — відкриваємо стандартне вікно шерингу Telegram
+  // (t.me/share/url).
+  const openTelegramShareSheet = (r) => {
     const shareUrl = buildShareLink(r.id);
-    const text = [r.fullName, r.role].filter(Boolean).join(" — ");
+    const title = [r.fullName, r.role].filter(Boolean).join(" — ");
+    const text = `${t("share.resumeClickHint")}\n\n${title}`;
     const tg = getTelegramWebApp();
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
     else if (tg?.openLink) tg.openLink(telegramShareUrl);
     else window.open(telegramShareUrl, "_blank");
+  };
+
+  const shareResume = async (r) => {
+    const shareUrl = buildShareLink(r.id);
+    const title = [r.fullName, r.role].filter(Boolean).join(" — ");
+
+    const tgApp = getTelegramWebApp();
+    if (tgApp) {
+      setSharing(true);
+      const result = await sendLinkViaBot({
+        endpoint: "/api/resume-send",
+        shareUrl,
+        title,
+        linkText: t("share.resumeClickHint"),
+        t,
+      });
+      setSharing(false);
+      if (result !== "fallback") {
+        setActiveResume(null);
+        return;
+      }
+    }
+
+    openTelegramShareSheet(r);
     setActiveResume(null);
   };
 
@@ -234,9 +266,10 @@ export default function Home({
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => shareResume(activeResume)}
-                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                disabled={sharing}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90 disabled:opacity-60"
               >
-                <span className="text-base leading-none">🔗</span> {t("common.share")}
+                <span className="text-base leading-none">🔗</span> {sharing ? t("share.sending") : t("common.share")}
               </button>
               {onView && (
                 <button

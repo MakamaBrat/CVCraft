@@ -5,7 +5,9 @@ import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { timeAgo } from "../lib/timeAgo.js";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
-import { confirmDialog } from "../lib/telegram.js";
+import { confirmDialog, getTelegramWebApp } from "../lib/telegram.js";
+import { buildVacancyShareLink } from "../lib/config.js";
+import { sendLinkViaBot } from "../lib/shareSend.js";
 
 const ACCENTS = { minimal: "#4b5563", modern: "#6c5ce7", bold: "#ff7a59", classic: "#2f6fb0" };
 
@@ -24,6 +26,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
   const [sent, setSent] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy.colorScheme);
   const align = getAlign(vacancy.align);
@@ -37,6 +40,42 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
     if (!canSubmit) return;
     const ok = await onApply(message, resumeId || null);
     if (ok) setSent(true);
+  };
+
+  // Той самий сценарій "Поділитися", що й у VacancyPreview.jsx: усередині
+  // Telegram надсилаємо посилання собі в ЛС через бота (sendMessage), поза
+  // Telegram (або якщо надсилання через бота не вдалося з причини, не
+  // пов'язаної з блокуванням бота) — відкриваємо стандартне вікно шерингу
+  // Telegram (t.me/share/url).
+  const shareUrl = buildVacancyShareLink(vacancy.id);
+
+  const openTelegramShareSheet = (title) => {
+    const text = `${t("share.vacancyClickHint")}\n\n${title}`;
+    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
+    const tg = getTelegramWebApp();
+    if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
+    else if (tg?.openLink) tg.openLink(telegramShareUrl);
+    else window.open(telegramShareUrl, "_blank");
+  };
+
+  const handleShareLink = async () => {
+    const title = [vacancy.position, vacancy.company].filter(Boolean).join(" — ");
+
+    const tgApp = getTelegramWebApp();
+    if (tgApp) {
+      setSharing(true);
+      const result = await sendLinkViaBot({
+        endpoint: "/api/vacancy-send",
+        shareUrl,
+        title,
+        linkText: t("share.vacancyClickHint"),
+        t,
+      });
+      setSharing(false);
+      if (result !== "fallback") return;
+    }
+
+    openTelegramShareSheet(title);
   };
 
   const withdraw = async () => {
@@ -57,6 +96,19 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
           </svg>
         </button>
         <h1 className="text-lg font-bold flex-1">{t("vacancy.title")}</h1>
+        <button
+          onClick={handleShareLink}
+          disabled={sharing}
+          className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 disabled:text-white/30 bg-base-850 border border-base-700 rounded-full"
+          aria-label={t("common.share")}
+        >
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+            <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+            <circle cx="3.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+            <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        </button>
         <button
           onClick={() => setReporting(true)}
           className="tap shrink-0 text-xs font-medium text-white/45 border border-base-700 rounded-full px-3 py-1.5"

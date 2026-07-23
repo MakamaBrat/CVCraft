@@ -4,6 +4,7 @@ import { timeAgo } from "../lib/timeAgo.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
+import { sendLinkViaBot } from "../lib/shareSend.js";
 
 const STATUS_COLOR = {
   [VACANCY_STATUS.DRAFT]: "text-white/45",
@@ -30,6 +31,7 @@ export default function VacancyList({
 }) {
   const { t } = useLanguage();
   const [activeVacancy, setActiveVacancy] = useState(null);
+  const [sharing, setSharing] = useState(false);
 
   const canPay =
     activeVacancy &&
@@ -39,14 +41,44 @@ export default function VacancyList({
     activeVacancy &&
     [VACANCY_STATUS.DRAFT, VACANCY_STATUS.REJECTED].includes(activeVacancy.status);
 
-  const shareVacancy = (v) => {
+  // Той самий сценарій "Поділитися", що й у VacancyPreview.jsx: усередині
+  // Telegram надсилаємо посилання собі в ЛС через бота (sendMessage), поза
+  // Telegram (або якщо надсилання через бота не вдалося з причини, не
+  // пов'язаної з блокуванням бота) — відкриваємо стандартне вікно шерингу
+  // Telegram (t.me/share/url).
+  const openTelegramShareSheet = (v) => {
     const shareUrl = buildVacancyShareLink(v.id);
-    const text = [v.position, v.company].filter(Boolean).join(" — ");
+    const title = [v.position, v.company].filter(Boolean).join(" — ");
+    const text = `${t("share.vacancyClickHint")}\n\n${title}`;
     const tg = getTelegramWebApp();
     const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
     if (tg?.openTelegramLink) tg.openTelegramLink(telegramShareUrl);
     else if (tg?.openLink) tg.openLink(telegramShareUrl);
     else window.open(telegramShareUrl, "_blank");
+  };
+
+  const shareVacancy = async (v) => {
+    const shareUrl = buildVacancyShareLink(v.id);
+    const title = [v.position, v.company].filter(Boolean).join(" — ");
+
+    const tgApp = getTelegramWebApp();
+    if (tgApp) {
+      setSharing(true);
+      const result = await sendLinkViaBot({
+        endpoint: "/api/vacancy-send",
+        shareUrl,
+        title,
+        linkText: t("share.vacancyClickHint"),
+        t,
+      });
+      setSharing(false);
+      if (result !== "fallback") {
+        setActiveVacancy(null);
+        return;
+      }
+    }
+
+    openTelegramShareSheet(v);
     setActiveVacancy(null);
   };
 
@@ -137,9 +169,10 @@ export default function VacancyList({
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => shareVacancy(activeVacancy)}
-                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                disabled={sharing}
+                className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90 disabled:opacity-60"
               >
-                <span className="text-base leading-none">🔗</span> {t("common.share")}
+                <span className="text-base leading-none">🔗</span> {sharing ? t("share.sending") : t("common.share")}
               </button>
               {onView && (
                 <button
