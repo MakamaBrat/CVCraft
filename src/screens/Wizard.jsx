@@ -118,7 +118,16 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
           <span className="text-xs text-white/45 font-medium">
             {t("wizard.stepOf")(step + 1, TOTAL_STEPS)}
           </span>
-          <button onClick={goHome} className="tap w-8 h-8 ml-auto flex items-center justify-center text-white/70">
+          <button
+            onClick={next}
+            disabled={!canNext()}
+            className="tap w-8 h-8 ml-auto flex items-center justify-center text-white/70 disabled:text-white/20"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M7 3l6 6-6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button onClick={goHome} className="tap w-8 h-8 flex items-center justify-center text-white/70">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path
                 d="M2.5 8L9 2.5 15.5 8M4 6.8V15h10V6.8"

@@ -36,7 +36,7 @@ export default function Home({
   onOpenBlockedUsers,
   isAdmin,
 }) {
-  const { lang, t } = useLanguage();
+  const { lang, t, setLang, supported } = useLanguage();
   const [activeResume, setActiveResume] = useState(null);
   const [sharing, setSharing] = useState(false);
   // Ціль для уточнюючого меню "У бот" / "Поділитися", яке з'являється
@@ -108,23 +108,18 @@ export default function Home({
 
       {/* content */}
       <div className="relative z-10 flex-1 flex flex-col">
-        <div className="px-6 pt-4 pb-1 flex flex-col items-center text-center">
-          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
-        </div>
-
-        <div className="px-6 pt-3 pb-5">
+        <div className="px-6 pt-4 pb-1 relative flex flex-col items-center text-center">
           <button
-            onClick={onCreate}
-            disabled={!canCreateMore}
-            className="tap relative flex items-center justify-center gap-2 w-full bg-gradient-to-b from-amber-300 to-amber-500 text-black font-semibold text-sm rounded-full py-3.5 shadow-[0_4px_20px_rgba(245,180,60,0.35)] hover:brightness-105 disabled:from-white/30 disabled:to-white/20 disabled:text-black/50 disabled:shadow-none"
+            onClick={() => {
+              const list = supported;
+              const idx = list.indexOf(lang);
+              setLang(list[(idx + 1) % list.length]);
+            }}
+            className="tap absolute left-6 top-4 w-8 h-8 flex items-center justify-center text-[11px] font-semibold uppercase text-amber-100/85 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-full"
           >
-            <span className="text-lg leading-none">+</span> {t("home.createNew")}
+            {lang}
           </button>
-          {!canCreateMore && (
-            <p className="text-xs text-white/60 text-center mt-2">
-              {t("home.limitReached", maxResumes)}
-            </p>
-          )}
+          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
         </div>
 
         <div className="px-6 pb-5 grid grid-cols-3 gap-2.5">
@@ -161,6 +156,21 @@ export default function Home({
               {t("home.myVacancies")}
             </span>
           </button>
+        </div>
+
+        <div className="px-6 pb-5">
+          <button
+            onClick={onCreate}
+            disabled={!canCreateMore}
+            className="tap relative flex items-center justify-center gap-2 w-full bg-gradient-to-b from-amber-300 to-amber-500 text-black font-semibold text-sm rounded-full py-3.5 shadow-[0_4px_20px_rgba(245,180,60,0.35)] hover:brightness-105 disabled:from-white/30 disabled:to-white/20 disabled:text-black/50 disabled:shadow-none"
+          >
+            <span className="text-lg leading-none">+</span> {t("home.createNew")}
+          </button>
+          {!canCreateMore && (
+            <p className="text-xs text-white/60 text-center mt-2">
+              {t("home.limitReached", maxResumes)}
+            </p>
+          )}
         </div>
 
         {onOpenMyApplications && (
