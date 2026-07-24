@@ -101,6 +101,22 @@ export async function scanSite(admin, site) {
   let created = 0;
   let updated = 0;
 
+  if (links.length === 0) {
+    // Посилання на сторінці БУЛИ (інакше впали б раніше на
+    // no_links_in_raw_html), але Gemini жодне з них не визнав вакансією.
+    // Показуємо це явно в last_scan_error, щоб не виглядало як "нічого
+    // не сталося" — і додаємо приклад посилань для діагностики.
+    const sample = listLinks.slice(0, 5).map((l) => l.href).join(", ");
+    return {
+      found: 0,
+      created: 0,
+      updated: 0,
+      expired: 0,
+      error: `gemini_filtered_all_links: на сторінці знайдено ${listLinks.length} посилань, але жодне не визначено як вакансія. Приклади: ${sample}`,
+    };
+  }
+
+  const failures = [];
   for (const link of links) {
     if (!link?.url) continue;
     foundUrls.add(link.url);
@@ -110,6 +126,7 @@ export async function scanSite(admin, site) {
       pageText = await fetchPageText(link.url);
     } catch (err) {
       console.warn("[surferScan] page fetch failed", link.url, err.message);
+      failures.push(`${link.url}: fetch_failed(${err.message})`);
       continue;
     }
 
@@ -118,9 +135,13 @@ export async function scanSite(admin, site) {
       fields = await extractVacancyFields(link.url, pageText);
     } catch (err) {
       console.warn("[surferScan] page extract failed", link.url, err.message);
+      failures.push(`${link.url}: extract_failed(${err.message})`);
       continue;
     }
-    if (!fields?.position) continue;
+    if (!fields?.position) {
+      failures.push(`${link.url}: no_position_field`);
+      continue;
+    }
 
     const { data: existing } = await admin
       .from("parsed_vacancies")
@@ -199,5 +220,14 @@ export async function scanSite(admin, site) {
     }
   }
 
-  return { found: links.length, created, updated, expired, error: null };
+  return {
+    found: links.length,
+    created,
+    updated,
+    expired,
+    error:
+      created === 0 && updated === 0 && failures.length > 0
+        ? `all_links_failed: ${failures.slice(0, 5).join(" | ")}`
+        : null,
+  };
 }
