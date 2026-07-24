@@ -78,8 +78,6 @@ const VACANCY_BATCH_SCHEMA = {
       position: { type: "string" },
       company: { type: "string", nullable: true },
       location: { type: "string", nullable: true },
-      description: { type: "string", nullable: true, maxLength: 20 },
-      requirements: { type: "string", nullable: true },
       contactTelegram: { type: "string", nullable: true },
       contactEmail: { type: "string", nullable: true },
       tags: { type: "array", items: { type: "string" }, nullable: true },
@@ -115,7 +113,9 @@ ${linksBlock}`;
 // до Gemini (посилання + пачка даних) незалежно від кількості вакансій.
 export async function extractVacancyFieldsBatch(pages) {
   if (!pages.length) return [];
-  const PER_PAGE_CHARS = 3000;
+  // Без опису/вимог для полів достатньо початку сторінки (заголовок,
+  // шапка вакансії, теги) — решта тексту все одно не використовується.
+  const PER_PAGE_CHARS = 1200;
   const body = pages
     .map((p) => `=== URL: ${p.url} ===\n${p.text.slice(0, PER_PAGE_CHARS)}`)
     .join("\n\n");
@@ -124,10 +124,9 @@ export async function extractVacancyFieldsBatch(pages) {
 url (та сама адреса, ТОЧНО як у заголовку блоку, нічого не змінюй),
 position (назва посади), company (назва компанії, якщо є),
 location (локація/формат роботи, напр. "Remote" або "Ukraine"),
-description (ДУЖЕ КОРОТКИЙ тизер, максимум 20 символів, буквально пара слів
-по суті ролі — НЕ повний опис і НЕ обов'язки, повний опис користувач
-подивиться за посиланням external_url на оригінальну сторінку),
-requirements (вимоги до кандидата, звичайний текст),
+НЕ витягуй опис ролі, обов'язки чи вимоги — цих полів більше немає,
+повний опис користувач подивиться за посиланням external_url на
+оригінальну сторінку,
 contactTelegram (нікнейм у телеграмі без @, якщо вказаний),
 contactEmail (email, якщо вказаний),
 tags (масив 3-6 коротких ключових слів по вакансії — стек технологій, навички

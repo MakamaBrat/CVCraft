@@ -45,7 +45,7 @@ export default function ParsedVacancyBrowse({ onBack, onOpen }) {
 
     return vacancies.filter((v) => {
       const d = v.data || {};
-      const haystack = [d.position, d.company, d.location, d.description, d.requirements]
+      const haystack = [d.position, d.company, d.location, ...(d.tags || [])]
         .filter(Boolean)
         .join(" \u2022 ")
         .toLowerCase();

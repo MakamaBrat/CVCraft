@@ -114,20 +114,6 @@ export default function ParsedVacancyDetail({ vacancyId, onBack, onNavPrev, onNa
                 </div>
               )}
 
-              {d.description && (
-                <div>
-                  <p className="text-xs text-white/40 font-medium mb-1">{t("vacancy.descriptionLabel")}</p>
-                  <p className="text-sm text-white/80 whitespace-pre-wrap">{d.description}</p>
-                </div>
-              )}
-
-              {d.requirements && (
-                <div>
-                  <p className="text-xs text-white/40 font-medium mb-1">{t("vacancy.requirementsLabel")}</p>
-                  <p className="text-sm text-white/80 whitespace-pre-wrap">{d.requirements}</p>
-                </div>
-              )}
-
               {vacancy.external_url && (
                 <a
                   href={vacancy.external_url}
