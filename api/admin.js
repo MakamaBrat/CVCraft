@@ -407,6 +407,43 @@ async function handlerImpl(req, res) {
     return sendJson(res, 200, { ok: !result.error, ...result });
   }
 
+  if (req.method === "GET" && action === "parsedVacancies") {
+    const { data, error } = await admin
+      .from("parsed_vacancies")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      logDbError("admin parsedVacancies GET", error, { telegramId: auth.user.id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { vacancies: data });
+  }
+
+  if (req.method === "POST" && action === "deleteParsedVacancy") {
+    const { id } = req.body || {};
+    if (!id) return sendJson(res, 400, { error: "missing_id" });
+    const { error } = await admin.from("parsed_vacancies").delete().eq("id", id);
+    if (error) {
+      logDbError("admin deleteParsedVacancy POST", error, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("admin deleteParsedVacancy POST: ok", { telegramId: auth.user.id, id });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && action === "deleteParsedVacanciesBySite") {
+    const { id } = req.body || {};
+    if (!id) return sendJson(res, 400, { error: "missing_id" });
+    const { data, error } = await admin.from("parsed_vacancies").delete().eq("source_site_id", id).select("id");
+    if (error) {
+      logDbError("admin deleteParsedVacanciesBySite POST", error, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    const count = data?.length || 0;
+    logInfo("admin deleteParsedVacanciesBySite POST: ok", { telegramId: auth.user.id, id, count });
+    return sendJson(res, 200, { ok: true, count });
+  }
+
   console.warn("[admin] no matching route", { method: req.method, action });
   return methodNotAllowed(res, ["GET", "POST"]);
 }

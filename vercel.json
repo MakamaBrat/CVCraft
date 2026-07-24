@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "api/admin.js": { "maxDuration": 60 },
+    "api/surfer-scan.js": { "maxDuration": 60 }
+  },
   "crons": [
     {
       "path": "/api/cron-auto-approve",

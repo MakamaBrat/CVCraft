@@ -389,6 +389,10 @@ export default function AdminPanel({ onBack, adminId }) {
   const [newSiteCompany, setNewSiteCompany] = useState("");
   const [addingSite, setAddingSite] = useState(false);
   const [scanningId, setScanningId] = useState(null);
+  const [surferSubTab, setSurferSubTab] = useState("sites");
+  const [parsedVacancies, setParsedVacancies] = useState([]);
+  const [loadingParsedVacancies, setLoadingParsedVacancies] = useState(false);
+  const [deletingParsedId, setDeletingParsedId] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -487,7 +491,11 @@ export default function AdminPanel({ onBack, adminId }) {
     setActionError(null);
     setScanningId(id);
     try {
-      await apiFetch("/api/admin", { method: "POST", body: { action: "scanSurferSite", id } });
+      await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "scanSurferSite", id },
+        timeoutMs: 65000,
+      });
       await loadSurferSites();
     } catch (err) {
       setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "scan_failed"));
@@ -517,6 +525,53 @@ export default function AdminPanel({ onBack, adminId }) {
     } catch (err) {
       setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "delete_failed"));
     }
+  };
+
+  const loadParsedVacancies = async () => {
+    setLoadingParsedVacancies(true);
+    try {
+      const res = await apiFetch("/api/admin?action=parsedVacancies");
+      setParsedVacancies(res?.vacancies || []);
+    } catch (err) {
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "load_failed"));
+    }
+    setLoadingParsedVacancies(false);
+  };
+
+  useEffect(() => {
+    if (tab === "surfer" && surferSubTab === "vacancies" && parsedVacancies.length === 0 && !loadingParsedVacancies) {
+      loadParsedVacancies();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, surferSubTab]);
+
+  const deleteParsedVacancy = async (id) => {
+    if (!(await confirmDialog(t("admin.confirmDeleteParsedVacancy")))) return;
+    setActionError(null);
+    setDeletingParsedId(id);
+    try {
+      await apiFetch("/api/admin", { method: "POST", body: { action: "deleteParsedVacancy", id } });
+      setParsedVacancies((prev) => prev.filter((v) => v.id !== id));
+    } catch (err) {
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "delete_failed"));
+    }
+    setDeletingParsedId(null);
+  };
+
+  const deleteAllParsedVacanciesForSite = async (site) => {
+    if (!(await confirmDialog(t("admin.confirmDeleteAllParsedVacancies")(site.company_name || site.url)))) return;
+    setActionError(null);
+    setDeletingParsedId(`site:${site.id}`);
+    try {
+      await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "deleteParsedVacanciesBySite", id: site.id },
+      });
+      setParsedVacancies((prev) => prev.filter((v) => v.source_site_id !== site.id));
+    } catch (err) {
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "delete_failed"));
+    }
+    setDeletingParsedId(null);
   };
 
   const approve = async (id) => {
@@ -1044,6 +1099,90 @@ export default function AdminPanel({ onBack, adminId }) {
 
             {tab === "surfer" && (
               <div className="flex flex-col gap-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSurferSubTab("sites")}
+                    className={`tap flex-1 text-xs font-semibold rounded-lg py-2 border ${
+                      surferSubTab === "sites"
+                        ? "bg-accent-500 border-accent-500 text-base-950"
+                        : "border-base-700 text-white/60"
+                    }`}
+                  >
+                    {t("admin.surferSubTabSites")}
+                  </button>
+                  <button
+                    onClick={() => setSurferSubTab("vacancies")}
+                    className={`tap flex-1 text-xs font-semibold rounded-lg py-2 border ${
+                      surferSubTab === "vacancies"
+                        ? "bg-accent-500 border-accent-500 text-base-950"
+                        : "border-base-700 text-white/60"
+                    }`}
+                  >
+                    {t("admin.surferSubTabVacancies")}
+                  </button>
+                </div>
+
+                {surferSubTab === "vacancies" && (
+                  <div className="flex flex-col gap-3">
+                    {loadingParsedVacancies && (
+                      <p className="text-sm text-white/40 text-center py-4">{t("common.loading")}</p>
+                    )}
+
+                    {!loadingParsedVacancies && parsedVacancies.length === 0 && (
+                      <p className="text-sm text-white/45 py-6 text-center">{t("admin.surferNoParsedVacancies")}</p>
+                    )}
+
+                    {!loadingParsedVacancies && parsedVacancies.length > 0 && (
+                      <p className="text-xs text-white/40">{t("admin.foundCount")(parsedVacancies.length)}</p>
+                    )}
+
+                    {parsedVacancies.map((pv) => {
+                      const d = pv.data || {};
+                      const site = surferSites.find((s) => s.id === pv.source_site_id);
+                      return (
+                        <div key={pv.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <p className="font-semibold text-sm truncate">{d.position || "—"}</p>
+                            <span
+                              className={`shrink-0 text-[11px] font-medium ${
+                                pv.status === "expired" ? "text-white/35" : "text-emerald-400"
+                              }`}
+                            >
+                              {pv.status === "expired" ? t("admin.surferExpired") : t("admin.surferActive")}
+                            </span>
+                          </div>
+                          <p className="text-xs text-white/50 truncate mb-1">
+                            {d.company || site?.company_name || site?.url}
+                            {d.location ? ` · ${d.location}` : ""}
+                          </p>
+                          <p className="text-[11px] text-white/35 truncate mb-3">{pv.external_url}</p>
+                          <div className="flex gap-2">
+                            {pv.external_url && (
+                              <a
+                                href={pv.external_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="tap flex-1 flex items-center justify-center bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
+                              >
+                                {t("admin.viewFull")}
+                              </a>
+                            )}
+                            <button
+                              onClick={() => deleteParsedVacancy(pv.id)}
+                              disabled={deletingParsedId === pv.id}
+                              className="tap shrink-0 bg-red-500/90 text-white text-xs font-semibold rounded-lg px-3 py-2 disabled:opacity-50"
+                            >
+                              {deletingParsedId === pv.id ? "…" : t("common.delete")}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {surferSubTab === "sites" && (
+                  <>
                 <div className="bg-base-850 border border-base-700 rounded-xl p-4">
                   <p className="text-sm font-semibold mb-3">{t("admin.surferAddSite")}</p>
                   <input
@@ -1108,7 +1247,7 @@ export default function AdminPanel({ onBack, adminId }) {
                       )}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => scanSurferSite(site.id)}
                         disabled={scanningId === site.id}
@@ -1123,6 +1262,13 @@ export default function AdminPanel({ onBack, adminId }) {
                         {site.is_active ? t("admin.surferPause") : t("admin.surferResume")}
                       </button>
                       <button
+                        onClick={() => deleteAllParsedVacanciesForSite(site)}
+                        disabled={deletingParsedId === `site:${site.id}`}
+                        className="tap bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg px-3 py-2 disabled:opacity-50"
+                      >
+                        {deletingParsedId === `site:${site.id}` ? "…" : t("admin.surferDeleteAllVacancies")}
+                      </button>
+                      <button
                         onClick={() => deleteSurferSite(site.id)}
                         className="tap shrink-0 bg-red-500/90 text-white text-xs font-semibold rounded-lg px-3 py-2"
                       >
@@ -1131,6 +1277,8 @@ export default function AdminPanel({ onBack, adminId }) {
                     </div>
                   </div>
                 ))}
+                  </>
+                )}
               </div>
             )}
 

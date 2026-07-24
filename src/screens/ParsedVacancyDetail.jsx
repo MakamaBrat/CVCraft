@@ -133,7 +133,7 @@ export default function ParsedVacancyDetail({ vacancyId, onBack, onNavPrev, onNa
                   href={vacancy.external_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="tap mt-2 flex items-center justify-center gap-2 bg-accent-500 text-white rounded-xl py-3 text-sm font-medium"
+                  className="tap mt-2 flex items-center justify-center gap-2 bg-accent-500 text-base-950 rounded-xl py-3 text-sm font-medium"
                 >
                   {t("parsedVacancy.openOriginal")}
                 </a>

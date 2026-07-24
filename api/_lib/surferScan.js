@@ -97,7 +97,7 @@ export async function scanSite(admin, site) {
     return { found: 0, created: 0, updated: 0, expired: 0, error: `list_extract_failed: ${err.message}` };
   }
 
-  const foundUrls = new Set();
+  const foundUrls = new Set(links.map((l) => l?.url).filter(Boolean));
   let created = 0;
   let updated = 0;
 
@@ -116,10 +116,20 @@ export async function scanSite(admin, site) {
     };
   }
 
+  // Обмежуємо кількість вакансій за один прогін — і щоб укластись у
+  // тайм-аут функції, і щоб не забити ліміти Gemini API за раз. Якщо на
+  // сайті більше — решту підхопить наступний скан (за розкладом крону).
+  const MAX_LINKS_PER_SCAN = 30;
+  const linksToProcess = links.slice(0, MAX_LINKS_PER_SCAN);
+
+  // Обробляємо пачками по CONCURRENCY штук паралельно замість суворо по
+  // одній — раніше 20+ вакансій послідовно (fetch + виклик LLM на кожну)
+  // легко перевищували тайм-аут функції, і скан "зависав".
+  const CONCURRENCY = 5;
   const failures = [];
-  for (const link of links) {
-    if (!link?.url) continue;
-    foundUrls.add(link.url);
+
+  async function processLink(link) {
+    if (!link?.url) return;
 
     let pageText;
     try {
@@ -127,7 +137,7 @@ export async function scanSite(admin, site) {
     } catch (err) {
       console.warn("[surferScan] page fetch failed", link.url, err.message);
       failures.push(`${link.url}: fetch_failed(${err.message})`);
-      continue;
+      return;
     }
 
     let fields;
@@ -136,11 +146,11 @@ export async function scanSite(admin, site) {
     } catch (err) {
       console.warn("[surferScan] page extract failed", link.url, err.message);
       failures.push(`${link.url}: extract_failed(${err.message})`);
-      continue;
+      return;
     }
     if (!fields?.position) {
       failures.push(`${link.url}: no_position_field`);
-      continue;
+      return;
     }
 
     const { data: existing } = await admin
@@ -169,7 +179,7 @@ export async function scanSite(admin, site) {
         })
         .eq("id", existing.id);
       if (!error) updated += 1;
-      continue;
+      return;
     }
 
     // Кубик: рандомна аватарка/фон + шаблон/тему, бо в спарсеної вакансії
@@ -199,6 +209,11 @@ export async function scanSite(admin, site) {
     });
     if (!insertError) created += 1;
     else console.warn("[surferScan] insert failed", link.url, insertError.message);
+  }
+
+  for (let i = 0; i < linksToProcess.length; i += CONCURRENCY) {
+    const batch = linksToProcess.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(processLink));
   }
 
   // Вакансії цього сайту, яких більше немає в свіжому скані — позначаємо

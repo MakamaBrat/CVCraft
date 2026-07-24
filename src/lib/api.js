@@ -7,16 +7,32 @@ import { getTelegramInitData } from "./telegram.js";
 // бо без цього жоден /api виклик все одно не пройде авторизацію.
 export const backendEnabled = Boolean(getTelegramInitData());
 
-export async function apiFetch(path, { method = "GET", body } = {}) {
+export async function apiFetch(path, { method = "GET", body, timeoutMs } = {}) {
   const initData = getTelegramInitData();
   const headers = { "Content-Type": "application/json" };
   if (initData) headers.Authorization = `tma ${initData}`;
 
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const controller = timeoutMs ? new AbortController() : null;
+  const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller?.signal,
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      const error = new Error("request_timeout");
+      error.status = 0;
+      throw error;
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   let json = null;
   try {
