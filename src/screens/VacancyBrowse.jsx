@@ -245,7 +245,7 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
             {filtered.map((v) => (
               <button
                 key={v.id}
-                onClick={() => onOpen(v.id)}
+                onClick={() => onOpen(v.id, filtered.map((x) => x.id))}
                 className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
                 style={getCellBackgroundStyle(v.backgroundUrl)}
               >

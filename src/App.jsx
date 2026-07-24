@@ -112,6 +112,10 @@ export default function App() {
   const [publicVacancies, setPublicVacancies] = useState([]);
   const [loadingPublicVacancies, setLoadingPublicVacancies] = useState(true);
   const [openVacancy, setOpenVacancy] = useState(null);
+  // Список id вакансій, у межах якого працюють стрілки "вперед/назад" на
+  // екрані деталей — це саме той (відфільтрований) список, з якого юзер
+  // відкрив вакансію (напр. результати пошуку в VacancyBrowse).
+  const [vacancyNavIds, setVacancyNavIds] = useState(null);
   const [appliedVacancyIds, setAppliedVacancyIds] = useState(() => new Set());
   const [applicantsVacancy, setApplicantsVacancy] = useState(null);
   const [applicants, setApplicants] = useState([]);
@@ -520,6 +524,7 @@ export default function App() {
   const openAppliedVacancy = (v) => {
     if (!v) return;
     setOpenVacancy(v);
+    setVacancyNavIds(null);
     setAppliedVacancyIds((prev) => new Set(prev).add(v.id));
     setRoute({ screen: "vacancyDetail", back: "myApplications" });
   };
@@ -636,14 +641,27 @@ export default function App() {
     goVacancyList();
   };
 
-  const openVacancyDetail = async (id) => {
+  const openVacancyDetail = async (id, navIds) => {
     const v = publicVacancies.find((x) => x.id === id);
     if (!v) return;
     setOpenVacancy(v);
+    if (navIds) setVacancyNavIds(navIds);
     setRoute({ screen: "vacancyDetail" });
     if (backendEnabled) {
       apiFetch("/api/vacancy-view", { method: "POST", body: { id } }).catch(() => {});
     }
+  };
+
+  // Перемикання стрілками "вперед/назад" усередині деталей вакансії —
+  // рухаємось по vacancyNavIds (список, з яким юзер прийшов на цей екран),
+  // а не по повному publicVacancies, щоб зберегти контекст пошуку/фільтра.
+  const navigateVacancyDetail = (direction) => {
+    if (!vacancyNavIds || !openVacancy) return;
+    const idx = vacancyNavIds.indexOf(openVacancy.id);
+    if (idx === -1) return;
+    const nextIdx = idx + direction;
+    if (nextIdx < 0 || nextIdx >= vacancyNavIds.length) return;
+    openVacancyDetail(vacancyNavIds[nextIdx], vacancyNavIds);
   };
 
   const applyToVacancy = async (message, resumeId) => {
@@ -875,6 +893,14 @@ export default function App() {
           }
           onApply={applyToVacancy}
           onWithdraw={withdrawFromVacancy}
+          canNavPrev={Boolean(vacancyNavIds && vacancyNavIds.indexOf(openVacancy.id) > 0)}
+          canNavNext={Boolean(
+            vacancyNavIds &&
+              vacancyNavIds.indexOf(openVacancy.id) !== -1 &&
+              vacancyNavIds.indexOf(openVacancy.id) < vacancyNavIds.length - 1
+          )}
+          onNavPrev={() => navigateVacancyDetail(-1)}
+          onNavNext={() => navigateVacancyDetail(1)}
         />
       )}
 

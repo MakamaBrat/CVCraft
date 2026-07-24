@@ -21,7 +21,18 @@ const WITHDRAW_CONFIRM = {
 
 const WITHDRAW_LABEL = { uk: "Забрати відгук", ru: "Забрать отклик", en: "Withdraw application" };
 
-export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, onApply, onWithdraw }) {
+export default function VacancyDetail({
+  vacancy,
+  applied,
+  resumes = [],
+  onBack,
+  onApply,
+  onWithdraw,
+  canNavPrev = false,
+  canNavNext = false,
+  onNavPrev,
+  onNavNext,
+}) {
   const { lang, t } = useLanguage();
   const [message, setMessage] = useState("");
   const [resumeId, setResumeId] = useState(resumes[0]?.id || "");
@@ -120,12 +131,30 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
           </svg>
         </button>
-        <button
-          onClick={() => setReporting(true)}
-          className="tap shrink-0 text-xs font-medium text-white/45 border border-base-700 rounded-full px-3 py-1.5"
-        >
-          {t("report.reportVacancy")}
-        </button>
+        {(onNavPrev || onNavNext) && (
+          <div className="shrink-0 flex items-center gap-1.5">
+            <button
+              onClick={onNavPrev}
+              disabled={!canNavPrev}
+              aria-label={t("vacancy.prevVacancy")}
+              className="tap w-8 h-8 flex items-center justify-center text-white/70 disabled:text-white/20 bg-base-850 border border-base-700 rounded-full"
+            >
+              <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+                <path d="M9.5 3l-5 4.5 5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              onClick={onNavNext}
+              disabled={!canNavNext}
+              aria-label={t("vacancy.nextVacancy")}
+              className="tap w-8 h-8 flex items-center justify-center text-white/70 disabled:text-white/20 bg-base-850 border border-base-700 rounded-full"
+            >
+              <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+                <path d="M5.5 3l5 4.5-5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
@@ -267,6 +296,13 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             )}
           </div>
         )}
+
+        <button
+          onClick={() => setReporting(true)}
+          className="tap block mx-auto mt-4 text-xs font-medium text-white/40 border border-base-700 rounded-full px-3 py-1.5"
+        >
+          {t("report.reportVacancy")}
+        </button>
       </div>
 
       {reporting && (

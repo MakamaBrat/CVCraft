@@ -69,6 +69,8 @@ export const uk = {
     noMyApplications: "Ви ще не відгукувались на жодну вакансію",
     loadApplicationsError: "Не вдалося завантажити відгуки. Спробуйте ще раз.",
     searchPlaceholder: "Пошук: вписуйте через кому посаду, компанію, місто, теги...",
+    prevVacancy: "Попередня вакансія",
+    nextVacancy: "Наступна вакансія",
     applyMessage: "Повідомлення (необов'язково)",
     applySent: "Відгук надіслано",
     status: {
@@ -487,6 +489,8 @@ export const ru = {
     noMyApplications: "Вы ещё не откликались ни на одну вакансию",
     loadApplicationsError: "Не удалось загрузить отклики. Попробуйте ещё раз.",
     searchPlaceholder: "Поиск: вписывайте через запятую должность, компанию, город, теги...",
+    prevVacancy: "Предыдущая вакансия",
+    nextVacancy: "Следующая вакансия",
     applyMessage: "Сообщение (необязательно)",
     applySent: "Отклик отправлен",
     status: {
@@ -905,6 +909,8 @@ export const en = {
     noMyApplications: "You haven't applied to any job posts yet",
     loadApplicationsError: "Couldn't load applications. Please try again.",
     searchPlaceholder: "Search: comma-separate position, company, city, tags...",
+    prevVacancy: "Previous vacancy",
+    nextVacancy: "Next vacancy",
     applyMessage: "Message (optional)",
     applySent: "Application sent",
     status: {
