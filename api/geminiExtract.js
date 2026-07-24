@@ -63,6 +63,7 @@ const VACANCY_SCHEMA = {
     requirements: { type: "string", nullable: true },
     contactTelegram: { type: "string", nullable: true },
     contactEmail: { type: "string", nullable: true },
+    tags: { type: "array", items: { type: "string" }, nullable: true },
   },
   required: ["position"],
 };
@@ -87,7 +88,10 @@ location (локація/формат роботи, напр. "Remote" або "U
 description (опис ролі й обов'язків, звичайний текст, збережи структуру абзацами),
 requirements (вимоги до кандидата, звичайний текст),
 contactTelegram (нікнейм у телеграмі без @, якщо вказаний),
-contactEmail (email, якщо вказаний).
+contactEmail (email, якщо вказаний),
+tags (масив 3-6 коротких ключових слів по вакансії — стек технологій, навички
+чи тип зайнятості, напр. ["React", "Remote", "Middle"], якщо зі сторінки
+видно недостатньо — поверни менше тегів або порожній масив, не вигадуй зайве).
 Якщо якогось поля немає на сторінці — не вигадуй, лиши порожнім.`;
   return callGemini(system, pageText.slice(0, 15000), VACANCY_SCHEMA);
 }

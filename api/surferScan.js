@@ -24,7 +24,8 @@ async function fetchPageText(url) {
     .trim();
 }
 
-// Сканує один сайт: список -> кожна вакансія -> upsert у vacancies.
+// Сканує один сайт: список -> кожна вакансія -> upsert у ОКРЕМІЙ таблиці
+// parsed_vacancies (не в vacancies — щоб не мішати спарсене з юзерським).
 // Повертає { found, created, updated, expired, error }.
 export async function scanSite(admin, site) {
   let listText;
@@ -67,7 +68,7 @@ export async function scanSite(admin, site) {
     if (!fields?.position) continue;
 
     const { data: existing } = await admin
-      .from("vacancies")
+      .from("parsed_vacancies")
       .select("id")
       .eq("source_site_id", site.id)
       .eq("external_url", link.url)
@@ -75,8 +76,9 @@ export async function scanSite(admin, site) {
 
     if (existing) {
       const { error } = await admin
-        .from("vacancies")
+        .from("parsed_vacancies")
         .update({
+          status: "active",
           data: {
             position: fields.position,
             company: fields.company || site.company_name || null,
@@ -85,6 +87,7 @@ export async function scanSite(admin, site) {
             requirements: fields.requirements || null,
             contactTelegram: fields.contactTelegram || null,
             contactEmail: fields.contactEmail || null,
+            tags: Array.isArray(fields.tags) ? fields.tags.filter(Boolean).slice(0, 6) : [],
           },
           updated_at: new Date().toISOString(),
         })
@@ -97,14 +100,10 @@ export async function scanSite(admin, site) {
     // немає своїх картинок.
     const { avatarUrl, backgroundUrl } = await rollRandomMedia();
 
-    const { error: insertError } = await admin.from("vacancies").insert({
-      status: "active",
-      source: "surfer",
+    const { error: insertError } = await admin.from("parsed_vacancies").insert({
       source_site_id: site.id,
       external_url: link.url,
-      telegram_id: null,
-      template: pick(TEMPLATES),
-      is_paid: true,
+      status: "active",
       data: {
         position: fields.position,
         company: fields.company || site.company_name || null,
@@ -113,9 +112,11 @@ export async function scanSite(admin, site) {
         requirements: fields.requirements || null,
         contactTelegram: fields.contactTelegram || null,
         contactEmail: fields.contactEmail || null,
+        tags: Array.isArray(fields.tags) ? fields.tags.filter(Boolean).slice(0, 6) : [],
         avatarUrl,
         backgroundUrl,
         colorScheme: pick(COLOR_SCHEMES),
+        template: pick(TEMPLATES),
       },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -125,18 +126,18 @@ export async function scanSite(admin, site) {
   }
 
   // Вакансії цього сайту, яких більше немає в свіжому скані — позначаємо
-  // expired (не видаляємо, щоб не губити перегляди/відгуки).
+  // expired (не видаляємо, щоб не губити історію).
   let expired = 0;
   if (foundUrls.size > 0) {
     const { data: staleRows } = await admin
-      .from("vacancies")
+      .from("parsed_vacancies")
       .select("id, external_url")
       .eq("source_site_id", site.id)
       .neq("status", "expired");
     const stale = (staleRows || []).filter((r) => !foundUrls.has(r.external_url));
     if (stale.length > 0) {
       const { error } = await admin
-        .from("vacancies")
+        .from("parsed_vacancies")
         .update({ status: "expired" })
         .in("id", stale.map((r) => r.id));
       if (!error) expired = stale.length;

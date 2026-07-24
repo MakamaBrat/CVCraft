@@ -11,6 +11,8 @@ import VacancyPreview from "./screens/VacancyPreview.jsx";
 import VacancyList from "./screens/VacancyList.jsx";
 import VacancyBrowse from "./screens/VacancyBrowse.jsx";
 import VacancyDetail from "./screens/VacancyDetail.jsx";
+import ParsedVacancyBrowse from "./screens/ParsedVacancyBrowse.jsx";
+import ParsedVacancyDetail from "./screens/ParsedVacancyDetail.jsx";
 import VacancyApplicants from "./screens/VacancyApplicants.jsx";
 import VacancyMyApplications from "./screens/VacancyMyApplications.jsx";
 import AdminPanel from "./screens/AdminPanel.jsx";
@@ -116,6 +118,8 @@ export default function App() {
   // екрані деталей — це саме той (відфільтрований) список, з якого юзер
   // відкрив вакансію (напр. результати пошуку в VacancyBrowse).
   const [vacancyNavIds, setVacancyNavIds] = useState(null);
+  const [openParsedVacancyId, setOpenParsedVacancyId] = useState(null);
+  const [parsedVacancyNavIds, setParsedVacancyNavIds] = useState(null);
   const [appliedVacancyIds, setAppliedVacancyIds] = useState(() => new Set());
   const [applicantsVacancy, setApplicantsVacancy] = useState(null);
   const [applicants, setApplicants] = useState([]);
@@ -653,6 +657,24 @@ export default function App() {
     }
   };
 
+  // Аналог openVacancyDetail, але для спарсених вакансій (Online Surfer) —
+  // ці живуть в окремій таблиці/екрані, тому не шукаємо в publicVacancies,
+  // а просто передаємо id в ParsedVacancyDetail, який сам собі підвантажить дані.
+  const openParsedVacancyDetail = (id, navIds) => {
+    setOpenParsedVacancyId(id);
+    if (navIds) setParsedVacancyNavIds(navIds);
+    setRoute({ screen: "parsedVacancyDetail" });
+  };
+
+  const navigateParsedVacancyDetail = (direction) => {
+    if (!parsedVacancyNavIds || !openParsedVacancyId) return;
+    const idx = parsedVacancyNavIds.indexOf(openParsedVacancyId);
+    if (idx === -1) return;
+    const nextIdx = idx + direction;
+    if (nextIdx < 0 || nextIdx >= parsedVacancyNavIds.length) return;
+    openParsedVacancyDetail(parsedVacancyNavIds[nextIdx], parsedVacancyNavIds);
+  };
+
   // Перемикання стрілками "вперед/назад" усередині деталей вакансії —
   // рухаємось по vacancyNavIds (список, з яким юзер прийшов на цей екран),
   // а не по повному publicVacancies, щоб зберегти контекст пошуку/фільтра.
@@ -890,6 +912,29 @@ export default function App() {
           loading={loadingPublicVacancies}
           onBack={goHome}
           onOpen={openVacancyDetail}
+          onOpenParsed={() => setRoute({ screen: "browseParsedVacancies" })}
+        />
+      )}
+
+      {route.screen === "browseParsedVacancies" && (
+        <ParsedVacancyBrowse
+          onBack={() => setRoute({ screen: "browseVacancies" })}
+          onOpen={openParsedVacancyDetail}
+        />
+      )}
+
+      {route.screen === "parsedVacancyDetail" && openParsedVacancyId && (
+        <ParsedVacancyDetail
+          vacancyId={openParsedVacancyId}
+          onBack={() => setRoute({ screen: "browseParsedVacancies" })}
+          canNavPrev={Boolean(parsedVacancyNavIds && parsedVacancyNavIds.indexOf(openParsedVacancyId) > 0)}
+          canNavNext={Boolean(
+            parsedVacancyNavIds &&
+              parsedVacancyNavIds.indexOf(openParsedVacancyId) !== -1 &&
+              parsedVacancyNavIds.indexOf(openParsedVacancyId) < parsedVacancyNavIds.length - 1
+          )}
+          onNavPrev={() => navigateParsedVacancyDetail(-1)}
+          onNavNext={() => navigateParsedVacancyDetail(1)}
         />
       )}
 

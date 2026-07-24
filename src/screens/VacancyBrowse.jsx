@@ -9,7 +9,7 @@ import { alertDialog } from "../lib/telegram.js";
 
 const ACCENTS = { minimal: "#9aa0a6", modern: "#6c5ce7", bold: "#ff7a59", classic: "#4c9be8" };
 
-export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
+export default function VacancyBrowse({ vacancies, loading, onBack, onOpen, onOpenParsed }) {
   const { t } = useLanguage();
   const [activeCity, setActiveCity] = useState("");
   const [query, setQuery] = useState("");
@@ -177,6 +177,20 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
           </button>
         )}
       </div>
+
+      {onOpenParsed && (
+        <div className="px-6 pb-3">
+          <button
+            onClick={onOpenParsed}
+            className="tap w-full flex items-center justify-between bg-base-850 border border-base-700 rounded-xl px-3.5 py-2.5 text-left"
+          >
+            <span className="text-sm text-white/70">{t("parsedVacancy.bannerLabel")}</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white/25 shrink-0">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <div className="px-6 pb-3">
         <div className="relative">
