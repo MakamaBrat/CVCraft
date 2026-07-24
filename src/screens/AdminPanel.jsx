@@ -452,7 +452,7 @@ export default function AdminPanel({ onBack, adminId }) {
       const res = await apiFetch("/api/admin?action=surferSites");
       setSurferSites(res?.sites || []);
     } catch (err) {
-      setActionError(err?.payload?.error || "load_failed");
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "load_failed"));
     }
     setLoadingSurfer(false);
   };
@@ -478,7 +478,7 @@ export default function AdminPanel({ onBack, adminId }) {
       setNewSiteCompany("");
       await loadSurferSites();
     } catch (err) {
-      setActionError(err?.payload?.error || "add_failed");
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "add_failed"));
     }
     setAddingSite(false);
   };
@@ -490,7 +490,7 @@ export default function AdminPanel({ onBack, adminId }) {
       await apiFetch("/api/admin", { method: "POST", body: { action: "scanSurferSite", id } });
       await loadSurferSites();
     } catch (err) {
-      setActionError(err?.payload?.error || "scan_failed");
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "scan_failed"));
     }
     setScanningId(null);
   };
@@ -504,7 +504,7 @@ export default function AdminPanel({ onBack, adminId }) {
       });
       setSurferSites((prev) => prev.map((s) => (s.id === site.id ? { ...s, is_active: !s.is_active } : s)));
     } catch (err) {
-      setActionError(err?.payload?.error || "toggle_failed");
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "toggle_failed"));
     }
   };
 
@@ -515,7 +515,7 @@ export default function AdminPanel({ onBack, adminId }) {
       await apiFetch("/api/admin", { method: "POST", body: { action: "deleteSurferSite", id } });
       setSurferSites((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
-      setActionError(err?.payload?.error || "delete_failed");
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "delete_failed"));
     }
   };
 
