@@ -750,7 +750,6 @@ export default function App() {
           onBrowseVacancies={goBrowseVacancies}
           onOpenMyApplications={goMyApplications}
           onOpenAdmin={goAdmin}
-          onOpenBlockedUsers={goBlockedUsers}
           isAdmin={isUserAdmin}
         />
       )}
@@ -803,6 +802,7 @@ export default function App() {
           onSendToModeration={sendVacancyToModeration}
           canCreateMore={canCreateMoreVacancies}
           maxVacancies={isUserAdmin ? "∞" : MAX_VACANCIES_PER_USER}
+          onOpenBlockedUsers={goBlockedUsers}
         />
       )}
 

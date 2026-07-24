@@ -38,6 +38,7 @@ export default function VacancyList({
   onSendToModeration,
   canCreateMore = true,
   maxVacancies = 5,
+  onOpenBlockedUsers,
 }) {
   const { t } = useLanguage();
   const [activeVacancy, setActiveVacancy] = useState(null);
@@ -119,6 +120,15 @@ export default function VacancyList({
         </button>
         {!canCreateMore && (
           <p className="text-xs text-amber-400/70 mt-2">{t("vacancy.limitReached", maxVacancies)}</p>
+        )}
+        {onOpenBlockedUsers && (
+          <button
+            onClick={onOpenBlockedUsers}
+            className="tap w-full flex items-center justify-center gap-2 bg-base-900 border border-base-700 rounded-xl px-3.5 py-3 mt-2.5"
+          >
+            <span className="text-base leading-none">🚫</span>
+            <span className="text-[13px] font-medium text-white/80">{t("block.blockedListTitle")}</span>
+          </button>
         )}
       </div>
 

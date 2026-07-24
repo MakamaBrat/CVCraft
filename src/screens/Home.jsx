@@ -33,7 +33,6 @@ export default function Home({
   onBrowseVacancies,
   onOpenMyApplications,
   onOpenAdmin,
-  onOpenBlockedUsers,
   isAdmin,
 }) {
   const { lang, t, setLang, supported } = useLanguage();
@@ -125,7 +124,7 @@ export default function Home({
         <div className="px-6 pb-5 grid grid-cols-3 gap-2.5">
           <button
             onClick={onBrowseVacancies}
-            className="tap flex flex-col items-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-2xl px-2.5 py-4 text-center"
+            className="tap flex flex-col items-center gap-2 px-2.5 py-4 text-center"
           >
             <span className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-base">
               🔍
@@ -136,7 +135,7 @@ export default function Home({
           </button>
           <button
             onClick={onCreateVacancy}
-            className="tap flex flex-col items-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-2xl px-2.5 py-4 text-center"
+            className="tap flex flex-col items-center gap-2 px-2.5 py-4 text-center"
           >
             <span className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-base">
               📋
@@ -147,7 +146,7 @@ export default function Home({
           </button>
           <button
             onClick={onOpenVacancies}
-            className="tap flex flex-col items-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-2xl px-2.5 py-4 text-center"
+            className="tap flex flex-col items-center gap-2 px-2.5 py-4 text-center"
           >
             <span className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-base">
               🗂️
@@ -181,18 +180,6 @@ export default function Home({
             >
               <span className="text-base leading-none">📨</span>
               <span className="text-[13px] font-medium text-amber-100/90">{t("home.myApplications")}</span>
-            </button>
-          </div>
-        )}
-
-        {onOpenBlockedUsers && (
-          <div className="px-6 pb-5 -mt-2">
-            <button
-              onClick={onOpenBlockedUsers}
-              className="tap w-full flex items-center justify-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-2xl px-3.5 py-3"
-            >
-              <span className="text-base leading-none">🚫</span>
-              <span className="text-[13px] font-medium text-amber-100/90">{t("block.blockedListTitle")}</span>
             </button>
           </div>
         )}
