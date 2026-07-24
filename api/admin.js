@@ -229,7 +229,7 @@ async function handlerImpl(req, res) {
     if (typeof enabled !== "boolean") {
       return sendJson(res, 400, { error: "invalid_enabled" });
     }
-    if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 100000) {
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 100000) {
       return sendJson(res, 400, { error: "invalid_after_minutes" });
     }
     const { error } = await admin.from("pricing_settings").upsert({

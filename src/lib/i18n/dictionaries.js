@@ -241,7 +241,8 @@ export const uk = {
       "Якщо увімкнено, вакансія, що чекає на модерацію довше вказаного часу, автоматично переходить у статус \"Схвалено\" без участі модератора.",
     autoApproveEnableLabel: "Автоматично схвалювати вакансії",
     autoApproveMinutesLabel: "Через скільки хвилин очікування",
-    autoApproveInvalid: "Час очікування має бути цілим числом хвилин, більшим за 0.",
+    autoApproveZeroHint: "0 хвилин — вакансії схвалюються миттєво, без очікування.",
+    autoApproveInvalid: "Час очікування має бути цілим невід'ємним числом хвилин (0 — миттєво).",
     currentAutoApproveValues: (enabled, minutes) =>
       enabled
         ? `Зараз увімкнено: автоапрув через ${minutes} хв очікування.`
@@ -658,7 +659,8 @@ export const ru = {
       "Если включено, вакансия, ожидающая модерации дольше указанного времени, автоматически переходит в статус \"Одобрено\" без участия модератора.",
     autoApproveEnableLabel: "Автоматически одобрять вакансии",
     autoApproveMinutesLabel: "Через сколько минут ожидания",
-    autoApproveInvalid: "Время ожидания должно быть целым числом минут, больше 0.",
+    autoApproveZeroHint: "0 минут — вакансии одобряются мгновенно, без ожидания.",
+    autoApproveInvalid: "Время ожидания должно быть целым неотрицательным числом минут (0 — мгновенно).",
     currentAutoApproveValues: (enabled, minutes) =>
       enabled
         ? `Сейчас включено: автоапрув через ${minutes} мин ожидания.`
@@ -1075,7 +1077,8 @@ export const en = {
       "When enabled, a job post waiting for review longer than the specified time is automatically switched to \"Approved\" without a moderator.",
     autoApproveEnableLabel: "Auto-approve job posts",
     autoApproveMinutesLabel: "After how many minutes of waiting",
-    autoApproveInvalid: "Wait time must be a whole number of minutes greater than 0.",
+    autoApproveZeroHint: "0 minutes — job posts are approved instantly, with no wait.",
+    autoApproveInvalid: "Wait time must be a non-negative whole number of minutes (0 means instant).",
     currentAutoApproveValues: (enabled, minutes) =>
       enabled
         ? `Currently on: auto-approve after ${minutes} min of waiting.`

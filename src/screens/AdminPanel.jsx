@@ -542,7 +542,7 @@ export default function AdminPanel({ onBack, adminId }) {
     setActionError(null);
     setAutoApproveSaved(false);
     const minutes = Number(autoApproveForm.afterMinutes);
-    if (!Number.isInteger(minutes) || minutes <= 0) {
+    if (!Number.isInteger(minutes) || minutes < 0) {
       setActionError(t("admin.autoApproveInvalid"));
       return;
     }
@@ -1158,7 +1158,7 @@ export default function AdminPanel({ onBack, adminId }) {
                       {t("admin.autoApproveMinutesLabel")}
                       <input
                         type="number"
-                        min="1"
+                        min="0"
                         step="1"
                         value={autoApproveForm.afterMinutes}
                         onChange={(e) => {
@@ -1167,6 +1167,9 @@ export default function AdminPanel({ onBack, adminId }) {
                         }}
                         className="mt-1 w-full bg-base-900 border border-base-700 rounded-lg px-3 py-2 text-sm text-white"
                       />
+                      <span className="block mt-1 text-[11px] text-white/35">
+                        {t("admin.autoApproveZeroHint")}
+                      </span>
                     </label>
                   )}
 
