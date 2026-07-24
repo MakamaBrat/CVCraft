@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { requireUser, isAdminId } from "./_lib/telegramAuth.js";
 import { sendJson, methodNotAllowed } from "./_lib/respond.js";
+import { runAutoApprove } from "./_lib/autoApprove.js";
 
 // POST /api/auth-sync — викликається при старті застосунку і періодично
 // (heartbeat). Єдине місце, де рядок users створюється/оновлюється —
@@ -13,6 +14,19 @@ export default async function handler(req, res) {
   if (!auth.ok) return sendJson(res, 401, { error: auth.error });
 
   const admin = supabaseAdmin();
+
+  // Ще один lazy-тригер автосхвалення, окрім публічного списку вакансій
+  // (vacancies.js scope=public): auth-sync викликається при кожному вході
+  // й на heartbeat для БУДЬ-ЯКОГО юзера (не тільки того, хто дивиться
+  // список), тож "будить" перевірку значно частіше. Не await — це
+  // допоміжний побічний ефект, а не те, від чого залежить відповідь на
+  // auth-sync; не варто затримувати вхід юзера через нього. Помилки сама
+  // runAutoApprove ковтає й логує, тому .catch тут суто про необроблений
+  // reject проміса.
+  runAutoApprove(admin, { source: "auth_sync" }).catch((err) =>
+    console.error("[auth-sync] auto-approve trigger failed", err)
+  );
+
   const languageCode = typeof req.body?.languageCode === "string" ? req.body.languageCode.slice(0, 8) : null;
 
   const { data, error } = await admin
