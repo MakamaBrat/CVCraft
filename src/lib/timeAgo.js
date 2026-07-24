@@ -3,7 +3,9 @@
 // VacancyList), щоб не дублювати логіку.
 export function timeAgo(ts, t) {
   if (!ts) return "";
-  const diff = Date.now() - ts;
+  const then = ts instanceof Date ? ts.getTime() : new Date(ts).getTime();
+  if (Number.isNaN(then)) return "";
+  const diff = Date.now() - then;
   const min = Math.floor(diff / 60000);
   if (min < 1) return t("timeAgo.justNow");
   if (min < 60) return t("timeAgo.minutes", min);

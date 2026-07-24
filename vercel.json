@@ -3,6 +3,10 @@
     {
       "path": "/api/cron-auto-approve",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/surfer-scan",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

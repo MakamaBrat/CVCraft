@@ -8,7 +8,11 @@
 // gemini-2.5-flash — для парсингу текстових сторінок цього зазвичай
 // достатньо, платити доведеться, лише якщо перевищите ліміти запитів).
 
-const MODEL = "gemini-2.5-flash";
+// gemini-flash-latest — alias, який Google сам перенаправляє на актуальну
+// flash-модель. Раніше тут була жорстко зашита конкретна версія
+// (gemini-2.5-flash), і коли Google її прибрав з доступу для нових
+// проєктів, парсинг почав падати з 404. Alias цього уникає.
+const MODEL = "gemini-flash-latest";
 const API_KEY = process.env.GEMINI_API_KEY;
 
 async function callGemini(systemPrompt, userText, responseSchema) {
