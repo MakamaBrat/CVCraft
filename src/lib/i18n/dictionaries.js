@@ -144,6 +144,12 @@ export const uk = {
     vacancyPlaceholder: "Вакансія",
     media: "Медіа",
   },
+  parsedVacancy: {
+    listTitle: "Вакансії з інших сайтів",
+    siteLinkHint: "Відкрити сайт вакансії",
+    bannerLabel: "Ще вакансії з інших сайтів →",
+    openOriginal: "Перейти на оригінал",
+  },
   share: {
     title: "Поділитися",
     shareApp: "Поділитися через застосунок",
@@ -564,6 +570,12 @@ export const ru = {
     vacancyPlaceholder: "Вакансия",
     media: "Медиа",
   },
+  parsedVacancy: {
+    listTitle: "Вакансии с других сайтов",
+    siteLinkHint: "Открыть сайт вакансии",
+    bannerLabel: "Ещё вакансии с других сайтов →",
+    openOriginal: "Перейти к оригиналу",
+  },
   share: {
     title: "Поделиться",
     shareApp: "Поделиться через приложение",
@@ -983,6 +995,12 @@ export const en = {
     companyPlaceholder: "Company",
     vacancyPlaceholder: "Job post",
     media: "Media",
+  },
+  parsedVacancy: {
+    listTitle: "Vacancies from other sites",
+    siteLinkHint: "Open vacancy site",
+    bannerLabel: "More vacancies from other sites →",
+    openOriginal: "Open original",
   },
   share: {
     title: "Share",
