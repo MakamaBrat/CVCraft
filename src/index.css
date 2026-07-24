@@ -62,6 +62,11 @@ input, textarea, select {
 }
 .fade-up { animation: fadeUp 0.5s ease both; }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /*
  * .stagger — контейнер, чиї прямі діти проявляються по черзі, а не всі
  * одночасно. Раніше клас "stagger" використовувався по всьому проєкту
@@ -71,10 +76,16 @@ input, textarea, select {
  * вигляд, 0.5с), але зі своєю затримкою — тому елементи "виринають" один за
  * одним. Затримка обмежена першими ~18 елементами (далі всі йдуть з
  * однаковим кроком 0.4с), щоб довгі списки не розтягували появу на секунди.
+ *
+ * Анімація дитини задається через --stagger-anim (за замовчуванням
+ * fadeUp — з невеликим зсувом по Y). Додайте клас .stagger-plain поруч зі
+ * .stagger, якщо потрібен саме чистий fade без будь-якого зсуву/скейлу
+ * (наприклад для рядів кнопок, де рух по Y виглядає як "стрибок").
  */
 .stagger > * {
-  animation: fadeUp 0.5s ease both;
+  animation: var(--stagger-anim, fadeUp) 0.5s ease both;
 }
+.stagger-plain { --stagger-anim: fadeIn; }
 .stagger > *:nth-child(1) { animation-delay: 0.04s; }
 .stagger > *:nth-child(2) { animation-delay: 0.08s; }
 .stagger > *:nth-child(3) { animation-delay: 0.12s; }
@@ -93,6 +104,7 @@ input, textarea, select {
 .stagger > *:nth-child(16) { animation-delay: 0.64s; }
 .stagger > *:nth-child(17) { animation-delay: 0.68s; }
 .stagger > *:nth-child(n+18) { animation-delay: 0.72s; }
+
 
 /*
  * Поява лого на HOME: чистий fade (тільки opacity, без scale/translate) —
