@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
 import { requireUser, isAdminId } from "./_lib/telegramAuth.js";
+import { runAutoApprove } from "./_lib/autoApprove.js";
 
 const MAX_VACANCIES_PER_USER = 5;
 const CLIENT_WRITABLE = new Set(["data", "template"]);
@@ -42,6 +43,18 @@ async function handlerImpl(req, res) {
   const admin = supabaseAdmin();
 
   if (req.method === "GET" && req.query?.scope === "public") {
+    // Lazy-тригер: та сама логіка, що й у крон-джобі (cron-auto-approve.js),
+    // але запускається тут, при відкритті публічного списку — щоб вакансія,
+    // час очікування якої вже вийшов, з'явилась одразу першому відвідувачу,
+    // а не чекала наступного тіку крону. Крон лишається як страховка на
+    // випадок, якщо список ніхто не відкриває. await навмисний (а не
+    // fire-and-forget) — інакше саме цей запит міг би не побачити щойно
+    // схвалену вакансію. runAutoApprove сам ловить свої помилки й не кидає
+    // виняток, тому список не впаде навіть якщо автосхвалення зламалось;
+    // сама перевірка дешева (LIMIT 200, індекс по status/created_at) і
+    // одразу виходить, якщо кандидатів нема.
+    await runAutoApprove(admin, { source: "public_list" });
+
     const { data, error } = await admin
       .from("vacancies")
       .select("*")
