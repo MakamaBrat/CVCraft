@@ -7,7 +7,7 @@ import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { getColorTheme } from "../lib/docTheme.js";
+import { getColorTheme, getCellBackgroundStyle } from "../lib/docTheme.js";
 
 const TEMPLATE_ACCENTS = {
   minimal: "#4b5563",
@@ -134,7 +134,11 @@ export default function VacancyList({
         ) : (
           <div className="flex flex-col gap-2.5">
             {vacancies.map((v) => (
-              <div key={v.id} className="group bg-base-850 border border-base-700 rounded-xl px-3.5 py-3">
+              <div
+                key={v.id}
+                className="group bg-base-850 border border-base-700 rounded-xl px-3.5 py-3"
+                style={getCellBackgroundStyle(v.backgroundUrl)}
+              >
                 <button onClick={() => setActiveVacancy(v)} className="tap flex items-center gap-3 w-full text-left">
                   <Avatar
                     url={v.avatarUrl}

@@ -5,7 +5,7 @@ import { vacancyFromRow, VACANCY_STATUS } from "../lib/vacancy.js";
 import { VacancyDocument } from "./VacancyPreview.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle, getCellBackgroundStyle } from "../lib/docTheme.js";
 import { confirmDialog } from "../lib/telegram.js";
 
 const TAB_IDS = ["stats", "moderation", "vacancies", "resumes", "reports", "applications", "users", "pricing"];
@@ -949,6 +949,7 @@ export default function AdminPanel({ onBack, adminId }) {
                     key={row.id}
                     onClick={() => openResumePreview(r, row, "plain")}
                     className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
+                    style={getCellBackgroundStyle(r.backgroundUrl)}
                   >
                     <Avatar
                       url={r.avatarUrl}
@@ -1391,6 +1392,7 @@ export default function AdminPanel({ onBack, adminId }) {
                   key={row.id}
                   onClick={() => openResumePreview(r, row, "plain")}
                   className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-lg px-3 py-2.5 text-left"
+                  style={getCellBackgroundStyle(r.backgroundUrl)}
                 >
                   <Avatar
                     url={r.avatarUrl}

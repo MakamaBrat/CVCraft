@@ -68,3 +68,21 @@ export function getDocBackgroundStyle(theme, backgroundUrl) {
 export function getAlign(id) {
   return id === "center" ? "center" : "left";
 }
+
+// Той самий принцип, що й getDocBackgroundStyle, але для компактних рядків
+// списку (VacancyList, VacancyBrowse, адмінка): там немає власної
+// кольорової теми документа під рукою (картки завжди на темному bg-base-850),
+// тож напівпрозорий градієнт бере фіксований темний колір, що збігається з
+// base-850, а не theme.bg. Якщо backgroundUrl не задано — повертає {}, і
+// клас bg-base-850 з розмітки працює як і раніше.
+export function getCellBackgroundStyle(backgroundUrl) {
+  if (!backgroundUrl) return {};
+  const url = normalizeMediaUrl(backgroundUrl);
+  if (!url) return {};
+  return {
+    backgroundImage: `linear-gradient(rgba(21,21,31,0.86), rgba(21,21,31,0.86)), url("${url}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  };
+}

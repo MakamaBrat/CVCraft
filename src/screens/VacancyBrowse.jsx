@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Avatar from "../components/Avatar.jsx";
-import { getColorTheme } from "../lib/docTheme.js";
+import { getColorTheme, getCellBackgroundStyle } from "../lib/docTheme.js";
 import { timeAgo } from "../lib/timeAgo.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { apiFetch, backendEnabled } from "../lib/api.js";
@@ -224,6 +224,7 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
                 key={v.id}
                 onClick={() => onOpen(v.id)}
                 className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
+                style={getCellBackgroundStyle(v.backgroundUrl)}
               >
                 <Avatar
                   url={v.avatarUrl}
