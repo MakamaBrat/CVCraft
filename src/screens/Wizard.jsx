@@ -391,6 +391,15 @@ export function detectMediaType(url) {
   if (/olx\.[a-z.]+\//i.test(u)) return "olx";
   if (/(chats\.)?viber\.com\/|invite\.viber\.com\/|^viber:\/\//i.test(u)) return "viber";
   if (/wa\.me\/|api\.whatsapp\.com\/|whatsapp\.com\/channel\//i.test(u)) return "whatsapp";
+  if (/drive\.google\.com\//i.test(u)) return "gdrive";
+  if (/disk\.yandex\.[a-z.]+\/|yadi\.sk\//i.test(u)) return "yadisk";
+  if (/robota\.ua\//i.test(u)) return "robotaua";
+  if (/work\.ua\//i.test(u)) return "workua";
+  if (/jooble\.[a-z.]+\//i.test(u)) return "jooble";
+  if (/dou\.ua\//i.test(u)) return "douua";
+  if (/hh\.ru\/|headhunter\.[a-z.]+\//i.test(u)) return "hh";
+  if (/superjob\.ru\//i.test(u)) return "superjob";
+  if (/rabota\.ru\//i.test(u)) return "rabotaru";
   return "link";
 }
 
@@ -547,6 +556,84 @@ const SOCIAL_STYLES = {
     fg: "#ffffff",
     icon: (
       <path d="M14 2H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V8l-5-6zm0 1.5L18.5 8H15a1 1 0 01-1-1V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h5v1.5H8V10z" />
+    ),
+  },
+  gdrive: {
+    label: "Google Drive",
+    bg: "#ffffff",
+    fg: "#1a1a1a",
+    icon: (
+      <>
+        <path d="M8.1 2.6L1.3 14.3l3 5.1L11 7.7 8.1 2.6z" fill="#00AC47" />
+        <path d="M15.9 2.6h-7.8L11 7.7h9.6L15.9 2.6z" fill="#EA4335" />
+        <path d="M20.6 7.7H11l6.1 10.6 3.3-5.6-1.8-5z" fill="#FFBA00" />
+        <path d="M4.3 19.4h15.4l-2.9-5H7.2l-2.9 5z" fill="#00AC47" />
+        <path d="M14.3 12.9H7.2l-2.9 5H17.2l-2.9-5z" fill="#00AC47" />
+      </>
+    ),
+  },
+  yadisk: {
+    label: "Яндекс Диск",
+    bg: "#FFCC00",
+    fg: "#000000",
+    icon: (
+      <path d="M13.1 3H10c-2.8 0-4.9 1.4-4.9 4.2 0 2.2 1.2 3.3 2.6 3.9L5 15.4h2.6l2.4-4.1h1.5v4.1h2.4V3h-.8zm-.8 6.3h-1.5c-1.4 0-2.2-.7-2.2-2 0-1.4.9-2.1 2.2-2.1h1.5v4.1z" />
+    ),
+  },
+  robotaua: {
+    label: "robota.ua",
+    bg: "#0057B8",
+    fg: "#ffffff",
+    icon: (
+      <path d="M6 4h5.2c3 0 4.8 1.5 4.8 4 0 1.9-1 3.1-2.6 3.6L17 20h-3l-2.9-8H9v8H6V4zm3 3v3.5h2c1.4 0 2-.6 2-1.8S12.4 7 11 7H9z" />
+    ),
+  },
+  workua: {
+    label: "work.ua",
+    bg: "#1AA64A",
+    fg: "#ffffff",
+    icon: (
+      <path d="M3 6h2.4l1.8 9 2-9h2l2 9 1.8-9H17l-2.8 12h-2.4l-1.9-8.5L8 18H5.6L3 6zm15.5 0H21v12h-2.5V6z" />
+    ),
+  },
+  jooble: {
+    label: "Jooble",
+    bg: "#FF7A00",
+    fg: "#ffffff",
+    icon: (
+      <path d="M9 3h2.4v11.4c0 3-1.6 4.6-4.4 4.6-.9 0-1.7-.1-2.4-.4l.4-2.1c.5.2 1.1.3 1.7.3 1.4 0 2.3-.7 2.3-2.5V3zm5.7 6.4a4.6 4.6 0 119.2 0 4.6 4.6 0 01-9.2 0zm2.3 0a2.3 2.3 0 104.6 0 2.3 2.3 0 00-4.6 0z" />
+    ),
+  },
+  douua: {
+    label: "DOU",
+    bg: "#0B1F3A",
+    fg: "#ffffff",
+    icon: (
+      <path d="M3 5h5.3c4.1 0 6.7 2.8 6.7 7s-2.6 7-6.7 7H3V5zm2.6 2.3v9.4h2.5c2.7 0 4.2-1.7 4.2-4.7s-1.5-4.7-4.2-4.7H5.6zM17 12a5 5 0 1110 0 5 5 0 01-10 0zm2.6 0a2.4 2.4 0 104.8 0 2.4 2.4 0 00-4.8 0z" />
+    ),
+  },
+  hh: {
+    label: "hh.ru",
+    bg: "#D6001C",
+    fg: "#ffffff",
+    icon: (
+      <path d="M3 4h2.6v6.2h4.8V4H13v16h-2.6v-7.4H5.6V20H3V4zm12.8 5.4h2.4c2.7 0 4.2 1.4 4.2 3.6 0 1.5-.7 2.6-1.9 3.2l2.1 3.8h-2.7l-1.8-3.4h-.1V20h-2.2V9.4zm2.2 2v2.9h.4c1.1 0 1.7-.5 1.7-1.5 0-.9-.6-1.4-1.7-1.4h-.4z" />
+    ),
+  },
+  superjob: {
+    label: "SuperJob",
+    bg: "#FF6600",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2l2.4 6.5L21 9.3l-5 4.4 1.5 6.8L12 17.2l-5.5 3.3L8 13.7 3 9.3l6.6-.8L12 2z" />
+    ),
+  },
+  rabotaru: {
+    label: "Rabota.ru",
+    bg: "#3D5AFE",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 3a2.6 2.6 0 110 5.2A2.6 2.6 0 0112 5zm0 14.2a7.6 7.6 0 01-5.6-2.5c.1-1.8 3.7-2.8 5.6-2.8s5.5 1 5.6 2.8A7.6 7.6 0 0112 19.2z" />
     ),
   },
 };
@@ -1007,7 +1094,25 @@ function renderMediaPreviewContent(item) {
       />
     );
   }
-  if (type === "tiktok" || type === "instagram" || type === "threads" || type === "telegram" || type === "olx" || type === "viber" || type === "whatsapp" || type === "map") {
+  if (
+    type === "tiktok" ||
+    type === "instagram" ||
+    type === "threads" ||
+    type === "telegram" ||
+    type === "olx" ||
+    type === "viber" ||
+    type === "whatsapp" ||
+    type === "map" ||
+    type === "gdrive" ||
+    type === "yadisk" ||
+    type === "robotaua" ||
+    type === "workua" ||
+    type === "jooble" ||
+    type === "douua" ||
+    type === "hh" ||
+    type === "superjob" ||
+    type === "rabotaru"
+  ) {
     return <SocialButton type={type} url={item.url} title={item.title} />;
   }
   if (type === "gdoc") {
