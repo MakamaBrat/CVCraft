@@ -6,7 +6,7 @@ import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { getColorTheme } from "../lib/docTheme.js";
+import { getColorTheme, getCellBackgroundStyle } from "../lib/docTheme.js";
 import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
 
@@ -134,14 +134,15 @@ export default function Home({
             </span>
           </button>
           <button
-            onClick={onCreateVacancy}
-            className="tap flex flex-col items-center gap-1.5 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-xl px-2 py-2.5 text-center"
+            onClick={onCreate}
+            disabled={!canCreateMore}
+            className="tap flex flex-col items-center gap-1.5 bg-gradient-to-b from-amber-300 to-amber-500 rounded-xl px-2 py-2.5 text-center disabled:from-white/30 disabled:to-white/20"
           >
-            <span className="w-7 h-7 rounded-full bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-sm">
-              📋
+            <span className="w-7 h-7 rounded-full bg-black/15 border border-black/20 flex items-center justify-center text-sm text-black">
+              +
             </span>
-            <span className="text-[11px] font-medium text-amber-100/90 leading-tight">
-              {t("home.createVacancy")}
+            <span className="text-[11px] font-semibold text-black leading-tight">
+              {t("home.createNew")}
             </span>
           </button>
           <button
@@ -154,20 +155,6 @@ export default function Home({
             <span className="text-[11px] font-medium text-amber-100/90 leading-tight">
               {t("home.myVacancies")}
             </span>
-          </button>
-        </div>
-
-        <div className="px-6 pb-5">
-          <button
-            onClick={onCreate}
-            disabled={!canCreateMore}
-            className={`tap relative flex items-center justify-center gap-2 w-full font-semibold text-sm rounded-full py-3.5 ${
-              canCreateMore
-                ? "bg-gradient-to-b from-amber-300 to-amber-500 text-black shadow-[0_4px_20px_rgba(245,180,60,0.35)] hover:brightness-105"
-                : "bg-amber-500 text-black/60 shadow-none"
-            }`}
-          >
-            <span className="text-lg leading-none">+</span> {t("home.createNew")}
           </button>
         </div>
 
@@ -190,7 +177,13 @@ export default function Home({
               {t("home.title")}
             </h2>
             <span className="h-px flex-1 bg-amber-400/25" />
-            <span className="text-xs text-amber-100/50 font-medium border border-amber-400/25 rounded-full px-2 py-0.5 shrink-0">
+            <span
+              className={`text-xs font-medium rounded-full px-2 py-0.5 shrink-0 border ${
+                resumes.length >= maxResumes
+                  ? "bg-amber-500 border-amber-500 text-black"
+                  : "border-amber-400/25 text-amber-100/50"
+              }`}
+            >
               {resumes.length}/{maxResumes}
             </span>
           </div>
@@ -216,6 +209,7 @@ export default function Home({
                   key={r.id}
                   onClick={() => setActiveResume(r)}
                   className="tap group flex items-center gap-3 bg-black/50 backdrop-blur-sm border border-amber-500/20 rounded-2xl px-3.5 py-3 text-left"
+                  style={getCellBackgroundStyle(r.backgroundUrl)}
                 >
                   <Avatar
                     url={r.avatarUrl}
