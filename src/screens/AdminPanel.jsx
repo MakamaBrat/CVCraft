@@ -10,7 +10,7 @@ import { getColorTheme, getAlign, getDocBackgroundStyle, getCellBackgroundStyle 
 import { confirmDialog } from "../lib/telegram.js";
 import { timeAgo } from "../lib/timeAgo.js";
 
-const TAB_IDS = ["stats", "moderation", "vacancies", "resumes", "reports", "applications", "users", "pricing"];
+const TAB_IDS = ["stats", "moderation", "vacancies", "resumes", "reports", "applications", "users", "pricing", "surfer"];
 const TAB_LABEL_KEYS = {
   stats: "admin.tabStats",
   moderation: "admin.tabModeration",
@@ -20,6 +20,7 @@ const TAB_LABEL_KEYS = {
   applications: "admin.tabApplications",
   users: "admin.tabUsers",
   pricing: "admin.tabPricing",
+  surfer: "admin.tabSurfer",
 };
 
 const STATUS_COLOR = {
@@ -382,6 +383,12 @@ export default function AdminPanel({ onBack, adminId }) {
   const [activeUser, setActiveUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
   const [showActiveUsers, setShowActiveUsers] = useState(false);
+  const [surferSites, setSurferSites] = useState([]);
+  const [loadingSurfer, setLoadingSurfer] = useState(false);
+  const [newSiteUrl, setNewSiteUrl] = useState("");
+  const [newSiteCompany, setNewSiteCompany] = useState("");
+  const [addingSite, setAddingSite] = useState(false);
+  const [scanningId, setScanningId] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -438,6 +445,79 @@ export default function AdminPanel({ onBack, adminId }) {
   }, []);
 
   const [actionError, setActionError] = useState(null);
+
+  const loadSurferSites = async () => {
+    setLoadingSurfer(true);
+    try {
+      const res = await apiFetch("/api/admin?action=surferSites");
+      setSurferSites(res?.sites || []);
+    } catch (err) {
+      setActionError(err?.payload?.error || "load_failed");
+    }
+    setLoadingSurfer(false);
+  };
+
+  useEffect(() => {
+    if (tab === "surfer" && surferSites.length === 0 && !loadingSurfer) {
+      loadSurferSites();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  const addSurferSite = async () => {
+    const url = newSiteUrl.trim();
+    if (!url) return;
+    setActionError(null);
+    setAddingSite(true);
+    try {
+      await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "addSurferSite", url, companyName: newSiteCompany.trim() || null },
+      });
+      setNewSiteUrl("");
+      setNewSiteCompany("");
+      await loadSurferSites();
+    } catch (err) {
+      setActionError(err?.payload?.error || "add_failed");
+    }
+    setAddingSite(false);
+  };
+
+  const scanSurferSite = async (id) => {
+    setActionError(null);
+    setScanningId(id);
+    try {
+      await apiFetch("/api/admin", { method: "POST", body: { action: "scanSurferSite", id } });
+      await loadSurferSites();
+    } catch (err) {
+      setActionError(err?.payload?.error || "scan_failed");
+    }
+    setScanningId(null);
+  };
+
+  const toggleSurferSite = async (site) => {
+    setActionError(null);
+    try {
+      await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "toggleSurferSite", id: site.id, isActive: !site.is_active },
+      });
+      setSurferSites((prev) => prev.map((s) => (s.id === site.id ? { ...s, is_active: !s.is_active } : s)));
+    } catch (err) {
+      setActionError(err?.payload?.error || "toggle_failed");
+    }
+  };
+
+  const deleteSurferSite = async (id) => {
+    if (!(await confirmDialog(t("admin.confirmDeleteSurferSite")))) return;
+    setActionError(null);
+    try {
+      await apiFetch("/api/admin", { method: "POST", body: { action: "deleteSurferSite", id } });
+      setSurferSites((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      setActionError(err?.payload?.error || "delete_failed");
+    }
+  };
 
   const approve = async (id) => {
     setActionError(null);
@@ -955,6 +1035,98 @@ export default function AdminPanel({ onBack, adminId }) {
                         className="tap shrink-0 bg-red-500/90 text-white text-xs font-semibold rounded-lg px-3 py-2 disabled:opacity-50"
                       >
                         {deletingId === v.id ? "…" : t("common.delete")}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {tab === "surfer" && (
+              <div className="flex flex-col gap-4">
+                <div className="bg-base-850 border border-base-700 rounded-xl p-4">
+                  <p className="text-sm font-semibold mb-3">{t("admin.surferAddSite")}</p>
+                  <input
+                    value={newSiteUrl}
+                    onChange={(e) => setNewSiteUrl(e.target.value)}
+                    placeholder="https://company.com/vacancies/"
+                    className="w-full bg-base-900 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-2"
+                  />
+                  <input
+                    value={newSiteCompany}
+                    onChange={(e) => setNewSiteCompany(e.target.value)}
+                    placeholder={t("admin.surferCompanyNamePlaceholder")}
+                    className="w-full bg-base-900 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-3"
+                  />
+                  <button
+                    onClick={addSurferSite}
+                    disabled={addingSite || !newSiteUrl.trim()}
+                    className="tap w-full bg-accent-500 disabled:bg-base-700 disabled:text-white/30 text-base-950 font-semibold text-sm rounded-xl py-3"
+                  >
+                    {addingSite ? t("common.loading") : t("admin.surferAddSiteButton")}
+                  </button>
+                </div>
+
+                {loadingSurfer && <p className="text-sm text-white/40 text-center py-4">{t("common.loading")}</p>}
+
+                {!loadingSurfer && surferSites.length === 0 && (
+                  <p className="text-sm text-white/45 py-6 text-center">{t("admin.surferNoSites")}</p>
+                )}
+
+                {surferSites.map((site) => (
+                  <div key={site.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{site.company_name || site.url}</p>
+                        <p className="text-xs text-white/40 truncate">{site.url}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-[11px] font-medium rounded-full px-2 py-0.5 border ${
+                          site.is_active
+                            ? "text-emerald-400 border-emerald-500/30"
+                            : "text-white/40 border-base-700"
+                        }`}
+                      >
+                        {site.is_active ? t("admin.surferActive") : t("admin.surferPaused")}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-white/45 mb-3">
+                      {site.last_scanned_at ? (
+                        <>
+                          {t("admin.surferLastScan")}: {timeAgo(site.last_scanned_at, t)} ·{" "}
+                          {site.last_scan_status === "error" ? (
+                            <span className="text-red-400">{site.last_scan_error || t("admin.surferScanError")}</span>
+                          ) : (
+                            <span>
+                              {t("admin.surferScanStats")(site.found_count, site.created_count, site.updated_count, site.expired_count)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        t("admin.surferNeverScanned")
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => scanSurferSite(site.id)}
+                        disabled={scanningId === site.id}
+                        className="tap flex-1 bg-accent-500/15 border border-accent-500/30 text-accent-300 text-xs font-semibold rounded-lg py-2 disabled:opacity-50"
+                      >
+                        {scanningId === site.id ? t("admin.surferScanning") : t("admin.surferScanNow")}
+                      </button>
+                      <button
+                        onClick={() => toggleSurferSite(site)}
+                        className="tap bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg px-3 py-2"
+                      >
+                        {site.is_active ? t("admin.surferPause") : t("admin.surferResume")}
+                      </button>
+                      <button
+                        onClick={() => deleteSurferSite(site.id)}
+                        className="tap shrink-0 bg-red-500/90 text-white text-xs font-semibold rounded-lg px-3 py-2"
+                      >
+                        {t("common.delete")}
                       </button>
                     </div>
                   </div>

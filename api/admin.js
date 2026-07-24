@@ -2,6 +2,7 @@ import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { requireUser, isAdminId } from "./_lib/telegramAuth.js";
 import { sendJson, methodNotAllowed, logDbError, logInfo } from "./_lib/respond.js";
 import { getCurrentPricing } from "./_lib/pricing.js";
+import { scanSite } from "./_lib/surferScan.js";
 
 async function handlerImpl(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -319,6 +320,91 @@ async function handlerImpl(req, res) {
     }
     logInfo("admin ban POST: ok", { telegramId: auth.user.id, targetTelegramId: telegramId, banned });
     return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "GET" && action === "surferSites") {
+    const { data, error } = await admin
+      .from("surfer_sites")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      logDbError("admin surferSites GET", error, { telegramId: auth.user.id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { sites: data });
+  }
+
+  if (req.method === "POST" && action === "addSurferSite") {
+    const { url, companyName } = req.body || {};
+    if (!url || typeof url !== "string" || !/^https?:\/\//.test(url)) {
+      return sendJson(res, 400, { error: "invalid_url" });
+    }
+    const { data, error } = await admin
+      .from("surfer_sites")
+      .insert({ url, company_name: companyName || null, created_by: auth.user.id })
+      .select()
+      .maybeSingle();
+    if (error) {
+      logDbError("admin addSurferSite POST", error, { telegramId: auth.user.id, url });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("admin addSurferSite POST: ok", { telegramId: auth.user.id, url });
+    return sendJson(res, 200, { ok: true, site: data });
+  }
+
+  if (req.method === "POST" && action === "toggleSurferSite") {
+    const { id, isActive } = req.body || {};
+    if (!id || typeof isActive !== "boolean") return sendJson(res, 400, { error: "invalid_body" });
+    const { error } = await admin.from("surfer_sites").update({ is_active: isActive }).eq("id", id);
+    if (error) {
+      logDbError("admin toggleSurferSite POST", error, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && action === "deleteSurferSite") {
+    const { id } = req.body || {};
+    if (!id) return sendJson(res, 400, { error: "missing_id" });
+    const { error } = await admin.from("surfer_sites").delete().eq("id", id);
+    if (error) {
+      logDbError("admin deleteSurferSite POST", error, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("admin deleteSurferSite POST: ok", { telegramId: auth.user.id, id });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && action === "scanSurferSite") {
+    const { id } = req.body || {};
+    if (!id) return sendJson(res, 400, { error: "missing_id" });
+    const { data: site, error: siteError } = await admin
+      .from("surfer_sites")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (siteError) {
+      logDbError("admin scanSurferSite: lookup", siteError, { telegramId: auth.user.id, id });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    if (!site) return sendJson(res, 404, { error: "site_not_found" });
+
+    const result = await scanSite(admin, site);
+    await admin
+      .from("surfer_sites")
+      .update({
+        last_scanned_at: new Date().toISOString(),
+        last_scan_status: result.error ? "error" : "ok",
+        last_scan_error: result.error,
+        found_count: result.found,
+        created_count: result.created,
+        updated_count: result.updated,
+        expired_count: result.expired,
+      })
+      .eq("id", id);
+
+    logInfo("admin scanSurferSite POST: done", { telegramId: auth.user.id, id, ...result });
+    return sendJson(res, 200, { ok: !result.error, ...result });
   }
 
   console.warn("[admin] no matching route", { method: req.method, action });
