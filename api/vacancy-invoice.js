@@ -79,8 +79,11 @@ export default async function handler(req, res) {
     // "listing" — це перша публікація (approved -> active). Саме зараз
     // вакансія вперше стає видимою в публічному пошуку, тож розсилаємо
     // підписникам збережених фільтрів, яким вона відповідає.
+    //
+    // ВАЖЛИВО: await перед відповіддю — інакше serverless-процес може
+    // завершитись раніше, ніж піде повідомлення в Telegram.
     if (kind === "listing") {
-      notifyMatchingSubscribers(admin, botToken, vacancy).catch((err) =>
+      await notifyMatchingSubscribers(admin, botToken, vacancy).catch((err) =>
         console.error("[vacancy-invoice] subscriber notification failed", err)
       );
     }

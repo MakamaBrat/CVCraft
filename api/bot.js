@@ -120,9 +120,14 @@ async function handleSuccessfulPayment(message) {
   // вакансія щойно вперше стала видимою в публічному пошуку. Розсилаємо
   // підписникам збережених фільтрів (дзвіночок у пошуку), яким вона
   // відповідає.
+  //
+  // ВАЖЛИВО: чекаємо (await) завершення розсилки ПЕРЕД тим, як хендлер
+  // віддасть відповідь і завершиться. У serverless середовищі процес може
+  // бути заморожений одразу після відповіді — "fire and forget" тут
+  // ненадійний і сповіщення інколи просто не встигало піти.
   if (wasFirstListing) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    notifyMatchingSubscribers(admin, token, vacancy).catch((err) =>
+    await notifyMatchingSubscribers(admin, token, vacancy).catch((err) =>
       console.error("[bot] subscriber notification failed", err)
     );
   }
