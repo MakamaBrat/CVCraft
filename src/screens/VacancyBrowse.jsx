@@ -67,12 +67,20 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
 
   // Поточний фільтр вважається "підписаним", якщо серед збережених
   // підписок є рядок з тим самим query/city (порівнюємо після trim,
-  // так само як їх зберігає бекенд).
+  // так само як їх зберігає бекенд) — саме цей запис видаляється повторним
+  // тапом на дзвіночок.
   const trimmedQuery = query.trim();
   const activeSubscription = subscriptions.find(
     (s) => (s.query || "") === trimmedQuery && (s.city || "") === activeCity
   );
   const isSubscribed = Boolean(activeSubscription);
+
+  // Дзвіночок підсвічується, щойно у юзера є ХОЧ ОДНА підписка — незалежно
+  // від того, що зараз введено в рядку пошуку. Раніше підсвітка залежала
+  // лише від точного збігу з поточним фільтром, тож після перезапуску
+  // застосунку (рядок пошуку завжди починається порожнім) дзвіночок
+  // виглядав "пустим", хоча підписка насправді була збережена на бекенді.
+  const hasAnySubscription = subscriptions.length > 0;
 
   const toggleSubscription = async () => {
     if (!backendEnabled || subscribing) return;
@@ -95,7 +103,12 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
     }
 
     if (!trimmedQuery && !activeCity) {
-      await alertDialog(t("vacancy.subscribeNeedQuery"));
+      // Порожній фільтр — нема що зберігати. Якщо у юзера вже є інші
+      // підписки, підказуємо, чим саме зайнятий дзвіночок зараз, замість
+      // просто мовчазної відмови.
+      await alertDialog(
+        hasAnySubscription ? t("vacancy.subscribeHasOthersHint") : t("vacancy.subscribeNeedQuery")
+      );
       return;
     }
 
@@ -131,12 +144,18 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
           <button
             onClick={toggleSubscription}
             disabled={subscribing}
-            title={t("vacancy.subscribeBell")}
-            className={`tap w-8 h-8 flex items-center justify-center rounded-full ${
-              isSubscribed ? "bg-accent-500/15 text-accent-300" : "text-white/60"
+            title={
+              isSubscribed
+                ? t("vacancy.subscribeBellActiveHint")
+                : hasAnySubscription
+                ? t("vacancy.subscribeHasOthersHint")
+                : t("vacancy.subscribeBell")
+            }
+            className={`tap relative w-8 h-8 flex items-center justify-center rounded-full ${
+              hasAnySubscription ? "bg-accent-500/15 text-accent-300" : "text-white/60"
             } ${subscribing ? "opacity-50" : ""}`}
           >
-            <svg width="17" height="17" viewBox="0 0 17 17" fill={isSubscribed ? "currentColor" : "none"}>
+            <svg width="17" height="17" viewBox="0 0 17 17" fill={hasAnySubscription ? "currentColor" : "none"}>
               <path
                 d="M8.5 2.2c-2.1 0-3.6 1.7-3.6 3.9v2.3c0 .5-.2 1.2-.5 1.6L3.4 11.4c-.6.8-.2 1.7.8 2 3 1 6.3 1 9.3 0 .9-.3 1.3-1.3.7-2l-1-1.4c-.3-.4-.5-1.1-.5-1.6V6.1c0-2.1-1.6-3.9-3.7-3.9z"
                 stroke="currentColor"
@@ -151,6 +170,11 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
                 strokeLinecap="round"
               />
             </svg>
+            {subscriptions.length > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-[3px] rounded-full bg-accent-500 text-base-950 text-[9px] font-bold flex items-center justify-center leading-none">
+                {subscriptions.length}
+              </span>
+            )}
           </button>
         )}
       </div>
