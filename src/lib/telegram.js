@@ -61,6 +61,16 @@ export function initTelegramApp() {
   tg.ready();
   tg.expand();
   try {
+    // Bot API 8.0+. Прибирає верхню "шапку" застосунку — контент іде під
+    // самий зріз екрана, а кнопки "Закрити"/"▾"/"•••" Telegram малює
+    // напівпрозоро ПОВЕРХ контенту. Відступ під них рахує
+    // watchTelegramSafeArea() нижче. Старі клієнти просто не мають цього
+    // методу — try/catch, щоб не падати.
+    tg.requestFullscreen?.();
+  } catch {
+    // older clients may not support fullscreen
+  }
+  try {
     tg.setHeaderColor("#0a0a12");
     tg.setBackgroundColor("#0a0a12");
   } catch {
@@ -73,4 +83,44 @@ export function initTelegramApp() {
   } catch {
     // older clients may not support this call
   }
+}
+
+// --- Fullscreen safe area -------------------------------------------
+// У fullscreen-режимі (requestFullscreen вище) нативного хедера більше
+// нема, і Telegram малює свої контроли ("Закрити", "▾", "•••") просто
+// поверх верху сторінки. Розмір цієї зони віддають два поля WebApp:
+//   - safeAreaInset        — відступ під "залізо" пристрою (notch/статусбар);
+//   - contentSafeAreaInset — додатковий відступ саме під панель Telegram.
+// Сума йде в CSS-змінну --tg-safe-area-top на <html>; PageBackground.jsx
+// підставляє її як paddingTop, тож усі екрани отримують правильний
+// відступ автоматично, без правок у кожному з них. Поза fullscreen
+// (звичайний expand()) або поза Telegram відступ — 0, бо там місце під
+// хедер лишає сам клієнт.
+function computeTopInset(tg) {
+  if (!tg?.isFullscreen) return 0;
+  const device = tg.safeAreaInset?.top || 0;
+  const chrome = tg.contentSafeAreaInset?.top || 0;
+  return device + chrome;
+}
+
+function applyTopInset(tg) {
+  document.documentElement.style.setProperty("--tg-safe-area-top", `${computeTopInset(tg)}px`);
+}
+
+// Підписує --tg-safe-area-top на зміни (вхід/вихід із fullscreen, поворот
+// екрана, різні пристрої). Викликати один раз в App.jsx; повертає функцію
+// відписки для cleanup у useEffect.
+export function watchTelegramSafeArea() {
+  const tg = getTelegramWebApp();
+  if (!tg) return () => {};
+  applyTopInset(tg);
+  const handler = () => applyTopInset(tg);
+  tg.onEvent?.("fullscreenChanged", handler);
+  tg.onEvent?.("safeAreaChanged", handler);
+  tg.onEvent?.("contentSafeAreaChanged", handler);
+  return () => {
+    tg.offEvent?.("fullscreenChanged", handler);
+    tg.offEvent?.("safeAreaChanged", handler);
+    tg.offEvent?.("contentSafeAreaChanged", handler);
+  };
 }

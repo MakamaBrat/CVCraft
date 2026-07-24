@@ -75,7 +75,19 @@ export default function PageBackground({ children, className = "" }) {
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black" />
       </div>
 
-      <div className="relative z-10 flex-1 flex flex-col min-h-0">{children}</div>
+      {/* Фон лишається на весь екран (заходить під контроли Telegram у
+          fullscreen-режимі), а сам контент зсувається вниз на
+          --tg-safe-area-top, щоб заголовок/кнопка "назад" не ховались під
+          напівпрозорими "Закрити"/"▾"/"•••", які Telegram малює поверх
+          сторінки. Значення змінної рахує watchTelegramSafeArea()
+          (lib/telegram.js) і оновлює на <html> — тут лише підстановка з
+          безпечним фолбеком 0 поза Telegram/fullscreen. */}
+      <div
+        className="relative z-10 flex-1 flex flex-col min-h-0"
+        style={{ paddingTop: "var(--tg-safe-area-top, 0px)" }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

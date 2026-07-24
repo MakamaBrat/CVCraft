@@ -18,7 +18,7 @@ import BlockedUsers from "./screens/BlockedUsers.jsx";
 import TelegramGate from "./components/TelegramGate.jsx";
 import ConfirmModal from "./components/ConfirmModal.jsx";
 import { apiFetch, backendEnabled } from "./lib/api.js";
-import { getTelegramUser, initTelegramApp, alertDialog } from "./lib/telegram.js";
+import { getTelegramUser, initTelegramApp, watchTelegramSafeArea, alertDialog } from "./lib/telegram.js";
 import { MAX_RESUMES_PER_USER, MAX_VACANCIES_PER_USER } from "./lib/config.js";
 import { emptyVacancy, vacancyFromRow, VACANCY_STATUS } from "./lib/vacancy.js";
 import { useLanguage } from "./lib/i18n/index.jsx";
@@ -120,6 +120,7 @@ export default function App() {
 
   useEffect(() => {
     initTelegramApp();
+    const stopWatchingSafeArea = watchTelegramSafeArea();
     const tgUser = getTelegramUser();
     if (tgUser) {
       const resolved = { id: tgUser.id, username: tgUser.username, firstName: tgUser.firstName };
@@ -127,6 +128,7 @@ export default function App() {
       setIdentity(resolved);
     }
     setCheckedTelegram(true);
+    return stopWatchingSafeArea;
   }, []);
 
   const { lang, t } = useLanguage();
