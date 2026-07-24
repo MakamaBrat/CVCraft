@@ -8,6 +8,7 @@ import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.
 import { calcAge, formatAge } from "../lib/age.js";
 import { getTelegramWebApp, getTelegramUser } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import LOGO_URL from "../assets/logo.gif";
 
 const ACCENTS = {
   minimal: "#4b5563",
@@ -123,14 +124,10 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
     <PageBackground>
 <div className="flex-1 flex flex-col">
 
-      <div className="px-6 pt-2 pb-4 flex items-center gap-2">
-        <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-            <path d="M2 3h10v2H2zM2 6h10v2H2zM2 9h7v2H2z" fill="black" />
-          </svg>
-        </div>
-        <span className="font-semibold text-sm text-white/70">CV DECK</span>
-      </div>
+      <button onClick={onOpenApp} className="tap px-6 pt-2 pb-4 flex items-center gap-2 w-fit">
+        <img src={LOGO_URL} alt="CV GRAMs" className="w-6 h-6 object-contain rounded-lg" />
+        <span className="font-semibold text-sm text-white/70">CV GRAMs</span>
+      </button>
 
       <div className="flex-1 overflow-y-auto px-6 pb-8 fade-up">
         <div

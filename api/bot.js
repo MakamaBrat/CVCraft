@@ -1,6 +1,6 @@
 // Vercel serverless function: обробляє вебхук Telegram-бота.
 // На команду /start надсилає повідомлення з кнопкою "Start", яка
-// відкриває CV DECK як Telegram Mini App.
+// відкриває CV GRAMs як Telegram Mini App.
 //
 // Також обробляє оплату Telegram Stars за вакансії:
 //   pre_checkout_query   — обов'язково відповісти протягом 10с (answerPreCheckoutQuery)

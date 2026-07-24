@@ -97,7 +97,7 @@ export default function Home({
           >
             {lang}
           </button>
-          <img src={LOGO_URL} alt="CV Deck" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
+          <img src={LOGO_URL} alt="CV GRAMs" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
         </div>
 
         <div className="fade-in px-6 pb-5 grid grid-cols-3 gap-2.5">

@@ -35,7 +35,7 @@ const LABELS = {
     experience: "ДОСВІД РОБОТИ",
     portfolio: "ПОРТФОЛІО",
     openInTelegram: "Відкрити в Telegram",
-    backToApp: "CV DECK →",
+    backToApp: "CV GRAMs →",
     tip: "Порада: відкривайте у застосунку Telegram — вкладені файли та посилання коректно працюють саме там.",
   },
   ru: {
@@ -56,7 +56,7 @@ const LABELS = {
     experience: "ОПЫТ РАБОТЫ",
     portfolio: "ПОРТФОЛИО",
     openInTelegram: "Открыть в Telegram",
-    backToApp: "CV DECK →",
+    backToApp: "CV GRAMs →",
     tip: "Совет: открывайте в приложении Telegram — вложенные файлы и ссылки корректно работают именно там.",
   },
   en: {
@@ -77,7 +77,7 @@ const LABELS = {
     experience: "EXPERIENCE",
     portfolio: "PORTFOLIO",
     openInTelegram: "Open in Telegram",
-    backToApp: "CV DECK →",
+    backToApp: "CV GRAMs →",
     tip: "Tip: open this in the Telegram app — attached files and links work correctly only there.",
   },
 };

@@ -4,6 +4,7 @@ import { apiFetch } from "../lib/api.js";
 import { VacancyDocument } from "./VacancyPreview.jsx";
 import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import LOGO_URL from "../assets/logo.gif";
 
 const MESSAGES = {
   loading: { uk: "Завантаження вакансії…", ru: "Загрузка вакансии…", en: "Loading job post…" },
@@ -17,7 +18,7 @@ const MESSAGES = {
     ru: "Срок размещения этой вакансии уже завершился.",
     en: "This job post is no longer active.",
   },
-  openApp: { uk: "Перейти до CV DECK", ru: "Перейти в CV DECK", en: "Open CV DECK" },
+  openApp: { uk: "Перейти до CV GRAMs", ru: "Перейти в CV GRAMs", en: "Open CV GRAMs" },
   apply: { uk: "Відгукнутися", ru: "Откликнуться", en: "Apply" },
   browseMore: {
     uk: "Переглянути всі вакансії",
@@ -95,14 +96,10 @@ export default function SharedVacancyView({ vacancyId, onOpenApp, onApply, onBro
   return (
     <PageBackground>
 <div className="flex-1 flex flex-col">
-      <div className="px-6 pt-2 pb-4 flex items-center gap-2">
-        <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-            <path d="M2 3h10v2H2zM2 6h10v2H2zM2 9h7v2H2z" fill="black" />
-          </svg>
-        </div>
-        <span className="font-semibold text-sm text-white/70">CV DECK</span>
-      </div>
+      <button onClick={onOpenApp} className="tap px-6 pt-2 pb-4 flex items-center gap-2 w-fit">
+        <img src={LOGO_URL} alt="CV GRAMs" className="w-6 h-6 object-contain rounded-lg" />
+        <span className="font-semibold text-sm text-white/70">CV GRAMs</span>
+      </button>
 
       <div className="flex-1 overflow-y-auto px-6 pb-8 fade-up">
         <VacancyDocument vacancy={vacancy} />
