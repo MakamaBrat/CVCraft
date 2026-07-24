@@ -1,6 +1,6 @@
-import { supabaseAdmin } from "../_lib/supabaseAdmin.js";
-import { sendJson } from "../_lib/respond.js";
-import { scanSite } from "../_lib/surferScan.js";
+import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { sendJson } from "./_lib/respond.js";
+import { scanSite } from "./_lib/surferScan.js";
 
 // Викликається Vercel Cron (див. vercel.json). Захищено через заголовок
 // Authorization: Bearer <CRON_SECRET> — Vercel Cron сам додає його,
