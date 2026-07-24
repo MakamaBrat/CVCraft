@@ -66,45 +66,54 @@ input, textarea, select {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.fade-in { animation: fadeIn 2s ease both; }
+.fade-in { animation: fadeIn 1s ease both; }
 
 /*
  * .stagger — контейнер, чиї прямі діти проявляються по черзі, а не всі
  * одночасно. Раніше клас "stagger" використовувався по всьому проєкту
  * (VacancyList, Home, VacancyBrowse тощо), але жодних правил для нього не
  * було оголошено — фактично він нічого не робив. Тепер кожна пряма дитина
- * контейнера отримує ту саму fadeUp-анімацію (повна прозорість → звичний
- * вигляд, 0.5с), але зі своєю затримкою — тому елементи "виринають" один за
- * одним. Затримка обмежена першими ~18 елементами (далі всі йдуть з
- * однаковим кроком 0.4с), щоб довгі списки не розтягували появу на секунди.
+ * контейнера отримує ту саму анімацію проявлення, але зі своєю затримкою —
+ * тому елементи "виринають" один за одним. Уся послідовність (затримка
+ * останнього елемента + тривалість його власної анімації) вкладається в
+ * ~1с. Затримка обмежена першими ~18 елементами (далі всі йдуть з
+ * однаковим кроком), щоб довгі списки не розтягували появу.
  *
- * Анімація дитини задається через --stagger-anim (за замовчуванням
- * fadeUp — з невеликим зсувом по Y). Додайте клас .stagger-plain поруч зі
- * .stagger, якщо потрібен саме чистий fade без будь-якого зсуву/скейлу
- * (наприклад для рядів кнопок, де рух по Y виглядає як "стрибок").
+ * За замовчуванням анімація — чистий fade (тільки opacity), БЕЗ
+ * transform. Причина: майже всі елементи в .stagger-списках — це самі
+ * .tap-кнопки (карточки вакансій/резюме тощо), а .tap:active теж керує
+ * transform (scale(0.97)). Поки анімація ".stagger" (навіть із
+ * animation-fill-mode: both) технічно активна на властивості transform,
+ * вона має пріоритет над transition з .tap:active — тап по картці під час
+ * або одразу після появи виглядав як різкий "дьорг" замість плавного
+ * scale-натискання. Прибравши transform з entrance-анімації, конфлікту
+ * властивості більше нема, і .tap:active знову плавно спрацьовує.
+ *
+ * Якщо десь свідомо потрібен саме зсув по Y (translateY), задайте
+ * --stagger-anim: fadeUp на КОНТЕЙНЕРІ, що не має .tap-дітей.
  */
 .stagger > * {
-  animation: var(--stagger-anim, fadeUp) 0.5s ease both;
+  animation: var(--stagger-anim, fadeIn) 0.32s ease both;
 }
 .stagger-plain { --stagger-anim: fadeIn; }
-.stagger > *:nth-child(1) { animation-delay: 0.04s; }
-.stagger > *:nth-child(2) { animation-delay: 0.08s; }
-.stagger > *:nth-child(3) { animation-delay: 0.12s; }
-.stagger > *:nth-child(4) { animation-delay: 0.16s; }
-.stagger > *:nth-child(5) { animation-delay: 0.2s; }
-.stagger > *:nth-child(6) { animation-delay: 0.24s; }
-.stagger > *:nth-child(7) { animation-delay: 0.28s; }
-.stagger > *:nth-child(8) { animation-delay: 0.32s; }
-.stagger > *:nth-child(9) { animation-delay: 0.36s; }
-.stagger > *:nth-child(10) { animation-delay: 0.4s; }
-.stagger > *:nth-child(11) { animation-delay: 0.44s; }
-.stagger > *:nth-child(12) { animation-delay: 0.48s; }
-.stagger > *:nth-child(13) { animation-delay: 0.52s; }
-.stagger > *:nth-child(14) { animation-delay: 0.56s; }
-.stagger > *:nth-child(15) { animation-delay: 0.6s; }
-.stagger > *:nth-child(16) { animation-delay: 0.64s; }
-.stagger > *:nth-child(17) { animation-delay: 0.68s; }
-.stagger > *:nth-child(n+18) { animation-delay: 0.72s; }
+.stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.09s; }
+.stagger > *:nth-child(4) { animation-delay: 0.12s; }
+.stagger > *:nth-child(5) { animation-delay: 0.15s; }
+.stagger > *:nth-child(6) { animation-delay: 0.18s; }
+.stagger > *:nth-child(7) { animation-delay: 0.21s; }
+.stagger > *:nth-child(8) { animation-delay: 0.24s; }
+.stagger > *:nth-child(9) { animation-delay: 0.27s; }
+.stagger > *:nth-child(10) { animation-delay: 0.3s; }
+.stagger > *:nth-child(11) { animation-delay: 0.33s; }
+.stagger > *:nth-child(12) { animation-delay: 0.36s; }
+.stagger > *:nth-child(13) { animation-delay: 0.39s; }
+.stagger > *:nth-child(14) { animation-delay: 0.42s; }
+.stagger > *:nth-child(15) { animation-delay: 0.45s; }
+.stagger > *:nth-child(16) { animation-delay: 0.48s; }
+.stagger > *:nth-child(17) { animation-delay: 0.51s; }
+.stagger > *:nth-child(n+18) { animation-delay: 0.54s; }
 
 
 /*
