@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "crons": [
+    {
+      "path": "/api/cron-auto-approve",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }
