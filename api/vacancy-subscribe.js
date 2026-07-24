@@ -12,8 +12,12 @@ import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from ".
 // юзер боту писати собі: якщо перше тестове повідомлення не пройшло
 // (403 blocked / chat not found), фронт лише показує підказку, а сам рядок
 // фільтра лишається збереженим і почне працювати, щойно юзер натисне Start.
-
-const MAX_SUBSCRIPTIONS_PER_USER = 10;
+//
+// На юзера — рівно ОДНА підписка (unique constraint на telegram_id у БД,
+// див. sql/migration_vacancy_search_subscriptions.sql). "save" завжди
+// замінює попередній фільтр юзера новим, а не додає ще один рядок — так
+// вони не накопичуються в таблиці і видаляти завжди є що видаляти: 0 або 1
+// запис.
 
 export default async function handler(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -60,46 +64,24 @@ export default async function handler(req, res) {
   const city = typeof req.body?.city === "string" ? req.body.city.trim().slice(0, 100) : "";
   if (!query && !city) return sendJson(res, 400, { error: "empty_filter" });
 
-  // Той самий фільтр уже збережено — не плодимо дублікатів, просто
-  // повертаємо існуючий запис як успіх.
-  const { data: existing, error: existingError } = await admin
+  // Один юзер = один рядок: upsert по telegram_id (unique constraint у БД)
+  // просто перезаписує попередній фільтр новим замість додавання ще одного
+  // запису. created_at теж оновлюємо, щоб "остання" підписка справді
+  // виглядала останньою.
+  const { data: upserted, error: upsertError } = await admin
     .from("vacancy_search_subscriptions")
+    .upsert(
+      { telegram_id: user.id, query, city: city || null, created_at: new Date().toISOString() },
+      { onConflict: "telegram_id" }
+    )
     .select("id")
-    .eq("telegram_id", user.id)
-    .eq("query", query)
-    .eq("city", city)
-    .maybeSingle();
-  if (existingError) {
-    logDbError("vacancy-subscribe save: lookup", existingError, { telegramId: user.id });
+    .single();
+  if (upsertError) {
+    logDbError("vacancy-subscribe save: upsert", upsertError, { telegramId: user.id });
     return sendJson(res, 500, { error: "db_error" });
   }
 
-  let subscriptionId = existing?.id || null;
-
-  if (!subscriptionId) {
-    const { count, error: countError } = await admin
-      .from("vacancy_search_subscriptions")
-      .select("id", { count: "exact", head: true })
-      .eq("telegram_id", user.id);
-    if (countError) {
-      logDbError("vacancy-subscribe save: count", countError, { telegramId: user.id });
-      return sendJson(res, 500, { error: "db_error" });
-    }
-    if ((count || 0) >= MAX_SUBSCRIPTIONS_PER_USER) {
-      return sendJson(res, 409, { error: "subscription_limit_reached" });
-    }
-
-    const { data: inserted, error: insertError } = await admin
-      .from("vacancy_search_subscriptions")
-      .insert({ telegram_id: user.id, query, city: city || null })
-      .select("id")
-      .single();
-    if (insertError) {
-      logDbError("vacancy-subscribe save: insert", insertError, { telegramId: user.id });
-      return sendJson(res, 500, { error: "db_error" });
-    }
-    subscriptionId = inserted.id;
-  }
+  const subscriptionId = upserted.id;
 
   // Тестове повідомлення одразу після підписки — так фронт може сказати
   // юзеру ще на цьому кроці, чи треба спершу дозволити боту писати йому,
