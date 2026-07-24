@@ -113,3 +113,58 @@ export async function notifyMatchingSubscribers(admin, botToken, vacancy) {
 
   logInfo("notifyMatchingSubscribers: done", { vacancyId: vacancy.id, matched: matched.length });
 }
+
+// Той самий механізм підписок (vacancy_search_subscriptions), але для
+// спарсених вакансій (Online Surfer). Викликається з
+// /api/_lib/surferScan.js одразу після успішного insert нової (ще не
+// баченої раніше) спарсеної вакансії — на update (вже існуючу) не шлемо,
+// щоб не спамити при кожному повторному скані.
+//
+// У спарсеної вакансії немає d.description/d.requirements (не парситься,
+// щоб економити токени) і немає d.city — є d.location, тому пошук по
+// тексту й фільтр по місту звірені з тими полями, що реально є.
+export async function notifyMatchingSubscribersParsed(admin, botToken, parsedVacancy) {
+  if (!botToken) return;
+
+  const { data: subs, error } = await admin
+    .from("vacancy_search_subscriptions")
+    .select("id, telegram_id, query, city");
+  if (error) {
+    logDbError("notifyMatchingSubscribersParsed: list", error, { parsedVacancyId: parsedVacancy.id });
+    return;
+  }
+  if (!subs || subs.length === 0) return;
+
+  const d = parsedVacancy.data || {};
+  const haystack = [d.position, d.company, d.location, ...(d.tags || [])]
+    .filter(Boolean)
+    .join(" \u2022 ")
+    .toLowerCase();
+  const vacancyLocation = (d.location || "").trim().toLowerCase();
+
+  const matched = subs.filter((s) => {
+    if (s.city && !vacancyLocation.includes(s.city.trim().toLowerCase())) return false;
+    const terms = String(s.query || "")
+      .split(",")
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean);
+    if (terms.length === 0) return true;
+    return terms.every((term) => haystack.includes(term));
+  });
+  if (matched.length === 0) return;
+
+  const position = d.position?.trim() || "Нова вакансія";
+  const company = d.company?.trim();
+  const text = `🔔 Нова вакансія за вашим збереженим пошуком:\n<b>${escapeHtml(position)}</b>${
+    company ? ` — ${escapeHtml(company)}` : ""
+  }`;
+  const link = buildStartAppLink(`pv_${parsedVacancy.id}`);
+
+  await Promise.all(
+    matched.map((s) =>
+      sendTelegramMessage(botToken, s.telegram_id, text, { linkUrl: link, linkText: "Дивитись вакансію" })
+    )
+  );
+
+  logInfo("notifyMatchingSubscribersParsed: done", { parsedVacancyId: parsedVacancy.id, matched: matched.length });
+}

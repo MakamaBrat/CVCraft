@@ -1,5 +1,6 @@
 import { extractVacancyLinks, extractVacancyFieldsBatch } from "../geminiExtract.js";
 import { rollRandomMedia } from "../giphyServer.js";
+import { notifyMatchingSubscribersParsed } from "./telegramNotify.js";
 
 const TEMPLATES = ["minimal", "modern", "bold", "classic"];
 const COLOR_SCHEMES = ["dark", "light"];
@@ -207,27 +208,45 @@ async function scanOneListPage(admin, site, pageUrl) {
     // немає своїх картинок.
     const { avatarUrl, backgroundUrl } = await rollRandomMedia();
 
-    const { error: insertError } = await admin.from("parsed_vacancies").insert({
-      source_site_id: site.id,
-      external_url: page.url,
-      status: "active",
-      data: {
-        position: fields.position,
-        company: fields.company || site.company_name || null,
-        location: fields.location || null,
-        contactTelegram: fields.contactTelegram || null,
-        contactEmail: fields.contactEmail || null,
-        tags: Array.isArray(fields.tags) ? fields.tags.filter(Boolean).slice(0, 6) : [],
-        avatarUrl,
-        backgroundUrl,
-        colorScheme: pick(COLOR_SCHEMES),
-        template: pick(TEMPLATES),
-      },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-    if (!insertError) created += 1;
-    else console.warn("[surferScan] insert failed", page.url, insertError.message);
+    const insertedData = {
+      position: fields.position,
+      company: fields.company || site.company_name || null,
+      location: fields.location || null,
+      contactTelegram: fields.contactTelegram || null,
+      contactEmail: fields.contactEmail || null,
+      tags: Array.isArray(fields.tags) ? fields.tags.filter(Boolean).slice(0, 6) : [],
+      avatarUrl,
+      backgroundUrl,
+      colorScheme: pick(COLOR_SCHEMES),
+      template: pick(TEMPLATES),
+    };
+
+    const { data: insertedRow, error: insertError } = await admin
+      .from("parsed_vacancies")
+      .insert({
+        source_site_id: site.id,
+        external_url: page.url,
+        status: "active",
+        data: insertedData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
+    if (!insertError) {
+      created += 1;
+      // Сповіщення підписників — лише для щойно СТВОРЕНОЇ вакансії (не при
+      // update), інакше кожен повторний скан того самого сайту спамив би
+      // тими самими вакансіями повторно.
+      if (insertedRow?.id && process.env.TELEGRAM_BOT_TOKEN) {
+        await notifyMatchingSubscribersParsed(admin, process.env.TELEGRAM_BOT_TOKEN, {
+          id: insertedRow.id,
+          data: insertedData,
+        }).catch((err) => console.error("[surferScan] notify failed", page.url, err));
+      }
+    } else {
+      console.warn("[surferScan] insert failed", page.url, insertError.message);
+    }
   }
 
   return {

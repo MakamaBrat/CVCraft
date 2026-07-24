@@ -79,8 +79,13 @@ function parseHashRoute() {
   // веде власника вакансії одразу на екран VacancyApplicants усередині
   // звичайного (авторизованого) застосунку, а не на публічний SharedView.
   // Тому тут його НЕ повертаємо як sharedId.
+  //
+  // "pv_<id>" — так само не публічний шеринг, а диплінк із сповіщення про
+  // нову спарсену вакансію (підписка на пошук, notifyMatchingSubscribers):
+  // веде одразу на ParsedVacancyDetail усередині звичайного застосунку,
+  // без окремого публічного SharedView-екрану для спарсених вакансій.
   const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
-  if (tgStartParam && !tgStartParam.startsWith("ap_")) return tgStartParam;
+  if (tgStartParam && !tgStartParam.startsWith("ap_") && !tgStartParam.startsWith("pv_")) return tgStartParam;
   return null;
 }
 
@@ -90,11 +95,20 @@ function parsePendingApplicantsId() {
   return null;
 }
 
+function parsePendingParsedVacancyId() {
+  const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+  if (tgStartParam && tgStartParam.startsWith("pv_")) return tgStartParam.slice(3);
+  return null;
+}
+
 export default function App() {
   const [sharedId, setSharedId] = useState(() => parseHashRoute());
   // id вакансії з диплінку "новий відгук" (?startapp=ap_<id>) — обробляється
   // окремо від sharedId, див. коментар у parsePendingApplicantsId().
   const [pendingApplicantsId, setPendingApplicantsId] = useState(() => parsePendingApplicantsId());
+  // id спарсеної вакансії з диплінку сповіщення підписки (?startapp=pv_<id>)
+  // — так само окремо від sharedId, див. parsePendingParsedVacancyId().
+  const [pendingParsedVacancyId, setPendingParsedVacancyId] = useState(() => parsePendingParsedVacancyId());
   const [identity, setIdentity] = useState(loadIdentity);
   const [checkedTelegram, setCheckedTelegram] = useState(false);
   const [resumes, setResumes] = useState([]);
@@ -674,6 +688,19 @@ export default function App() {
     if (nextIdx < 0 || nextIdx >= parsedVacancyNavIds.length) return;
     openParsedVacancyDetail(parsedVacancyNavIds[nextIdx], parsedVacancyNavIds);
   };
+
+  // Диплінк "нова спарсена вакансія за підпискою" (?startapp=pv_<id>):
+  // спарсені вакансії публічні й анонімні, тож на відміну від
+  // pendingApplicantsId тут не треба чекати на завантаження жодного списку
+  // — просто одразу відкриваємо ParsedVacancyDetail, він сам підвантажить
+  // дані по id. Спрацьовує один раз (скидається одразу після переходу).
+  useEffect(() => {
+    if (!pendingParsedVacancyId || !identity) return;
+    const id = pendingParsedVacancyId;
+    setPendingParsedVacancyId(null);
+    openParsedVacancyDetail(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingParsedVacancyId, identity]);
 
   // Перемикання стрілками "вперед/назад" усередині деталей вакансії —
   // рухаємось по vacancyNavIds (список, з яким юзер прийшов на цей екран),
