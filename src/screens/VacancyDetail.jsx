@@ -5,7 +5,7 @@ import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { timeAgo } from "../lib/timeAgo.js";
-import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
+import { getColorTheme, getAlign, getDocBackgroundStyle, getCellBackgroundStyle } from "../lib/docTheme.js";
 import { confirmDialog, getTelegramWebApp } from "../lib/telegram.js";
 import { buildVacancyShareLink } from "../lib/config.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
@@ -206,17 +206,27 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
             {resumes.length > 0 ? (
               <>
                 <label className="block text-sm font-medium text-white/85 mb-1.5">{t("vacancy.chooseResume")}</label>
-                <div className="flex flex-col gap-2 mb-3">
+                <div className="stagger flex flex-col gap-2 mb-3">
                   {resumes.map((r) => (
                     <button
                       key={r.id}
                       onClick={() => setResumeId(r.id)}
-                      className={`tap text-left rounded-xl px-4 py-3 border ${
+                      className={`tap flex items-center gap-3 text-left rounded-xl px-4 py-3 border ${
                         resumeId === r.id ? "border-accent-500 bg-accent-500/10" : "border-base-700 bg-base-900"
                       }`}
+                      style={getCellBackgroundStyle(r.backgroundUrl)}
                     >
-                      <p className="text-sm font-medium truncate">{r.fullName || "—"}</p>
-                      <p className="text-xs text-white/45 truncate">{r.role}</p>
+                      <Avatar
+                        url={r.avatarUrl}
+                        name={r.fullName || r.role}
+                        accent={ACCENTS[r.template] || ACCENTS.minimal}
+                        theme={getColorTheme(r.colorScheme)}
+                        size={9}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{r.fullName || "—"}</p>
+                        <p className="text-xs text-white/45 truncate">{r.role}</p>
+                      </div>
                     </button>
                   ))}
                 </div>

@@ -1101,15 +1101,42 @@ export default function AdminPanel({ onBack, adminId }) {
             {tab === "applications" && (
               <div className="stagger flex flex-col gap-3">
                 {applications.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noApplications")}</p>}
-                {applications.map((a) => (
-                  <div key={a.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
-                    <p className="font-semibold text-sm">{a.vacancies?.data?.position || "—"}</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <LinkChip onClick={() => openUserById(a.telegram_id)}>id {a.telegram_id}</LinkChip>
+                {applications.map((a) => {
+                  const v = vacancyDocFromRaw(a.vacancies);
+                  return (
+                    <div
+                      key={a.id}
+                      className="bg-base-850 border border-base-700 rounded-xl p-4"
+                      style={getCellBackgroundStyle(v?.backgroundUrl)}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Avatar
+                          url={v?.avatarUrl}
+                          name={v?.company || v?.position || "—"}
+                          accent={ACCENTS[v?.template] || ACCENTS.minimal}
+                          theme={getColorTheme(v?.colorScheme)}
+                          size={9}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm truncate">{v?.position || "—"}</p>
+                          <p className="text-xs text-white/50 truncate">{v?.company}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <LinkChip onClick={() => openUserById(a.telegram_id)}>id {a.telegram_id}</LinkChip>
+                      </div>
+                      {a.message && <p className="text-xs text-white/70 mb-3">{a.message}</p>}
+                      {a.vacancies && (
+                        <button
+                          onClick={() => openVacancyPreview(v, a.vacancies, "delete")}
+                          className="tap w-full bg-base-800 border border-base-700 text-white/80 text-xs font-semibold rounded-lg py-2"
+                        >
+                          {t("admin.viewVacancy")}
+                        </button>
+                      )}
                     </div>
-                    {a.message && <p className="text-xs text-white/70">{a.message}</p>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

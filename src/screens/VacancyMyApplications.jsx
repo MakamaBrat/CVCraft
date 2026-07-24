@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import PageBackground from "../components/PageBackground.jsx";
 import Avatar from "../components/Avatar.jsx";
-import { getColorTheme } from "../lib/docTheme.js";
+import { getColorTheme, getCellBackgroundStyle } from "../lib/docTheme.js";
 import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { confirmDialog } from "../lib/telegram.js";
@@ -105,6 +105,7 @@ export default function VacancyMyApplications({ onBack, onOpen, onWithdraw }) {
                   key={a.id}
                   onClick={() => onOpen(v)}
                   className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-3 text-left"
+                  style={getCellBackgroundStyle(v.backgroundUrl)}
                 >
                   <Avatar
                     url={v.avatarUrl}

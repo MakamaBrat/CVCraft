@@ -19,28 +19,53 @@ export default function PageBackground({ children, className = "" }) {
         }
 
         @keyframes cvdeck-fade-up {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
+          0% {
+            opacity: 0;
+            transform: translate3d(-28px, 14px, 0) scale(0.94);
+          }
+          60% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
         }
         .fade-up {
-          animation: cvdeck-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+          animation: cvdeck-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
         /* Застосувати на батьківський елемент (напр. список карток), щоб
-           кожна дитина з'являлась з невеликою затримкою одна за одною. */
+           кожна дитина виїжджала збоку з невеликою затримкою одна за одною. */
         .stagger > * {
           opacity: 0;
-          animation: cvdeck-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: cvdeck-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
-        .stagger > *:nth-child(1) { animation-delay: 0.02s; }
-        .stagger > *:nth-child(2) { animation-delay: 0.06s; }
-        .stagger > *:nth-child(3) { animation-delay: 0.10s; }
-        .stagger > *:nth-child(4) { animation-delay: 0.14s; }
-        .stagger > *:nth-child(5) { animation-delay: 0.18s; }
-        .stagger > *:nth-child(6) { animation-delay: 0.22s; }
-        .stagger > *:nth-child(7) { animation-delay: 0.26s; }
-        .stagger > *:nth-child(8) { animation-delay: 0.30s; }
-        .stagger > *:nth-child(9) { animation-delay: 0.34s; }
-        .stagger > *:nth-child(n+10) { animation-delay: 0.38s; }
+        .stagger > *:nth-child(2n) {
+          animation-name: cvdeck-fade-up-right;
+        }
+        @keyframes cvdeck-fade-up-right {
+          0% {
+            opacity: 0;
+            transform: translate3d(28px, 14px, 0) scale(0.94);
+          }
+          60% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+        }
+        .stagger > *:nth-child(1) { animation-delay: 0.03s; }
+        .stagger > *:nth-child(2) { animation-delay: 0.09s; }
+        .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+        .stagger > *:nth-child(4) { animation-delay: 0.21s; }
+        .stagger > *:nth-child(5) { animation-delay: 0.27s; }
+        .stagger > *:nth-child(6) { animation-delay: 0.33s; }
+        .stagger > *:nth-child(7) { animation-delay: 0.39s; }
+        .stagger > *:nth-child(8) { animation-delay: 0.45s; }
+        .stagger > *:nth-child(9) { animation-delay: 0.51s; }
+        .stagger > *:nth-child(n+10) { animation-delay: 0.57s; }
       `}</style>
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div
