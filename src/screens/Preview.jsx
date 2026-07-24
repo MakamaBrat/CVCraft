@@ -6,7 +6,7 @@ import { backendEnabled } from "../lib/api.js";
 import { buildShareLink } from "../lib/config.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
-import { getTelegramWebApp } from "../lib/telegram.js";
+import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle } from "../lib/docTheme.js";
 import { calcAge, formatAge } from "../lib/age.js";
@@ -163,10 +163,11 @@ function ResumeDocument({ resume, t, lang }) {
   );
 }
 
-export default function Preview({ resume, onBack, onDone }) {
+export default function Preview({ resume, onBack, onDone, onEdit, onDelete }) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
   const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { t, lang } = useLanguage();
 
   const shareUrl = buildShareLink(resume.id);
@@ -229,6 +230,19 @@ export default function Preview({ resume, onBack, onDone }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold flex-1">{t("preview.title")}</h1>
+          {(onEdit || onDelete) && (
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-full"
+              aria-label={t("common.more")}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="3.2" r="1.3" fill="currentColor" />
+                <circle cx="8" cy="8" r="1.3" fill="currentColor" />
+                <circle cx="8" cy="12.8" r="1.3" fill="currentColor" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -282,6 +296,52 @@ export default function Preview({ resume, onBack, onDone }) {
           setShareChoiceOpen(false);
         }}
       />
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center print:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} />
+          <div className="relative w-full max-w-[420px] bg-base-900 border-t border-base-700 rounded-t-2xl px-5 pt-4 pb-6 fade-up">
+            <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-white/90 truncate mb-0.5">
+              {resume.fullName || t("home.newResume")}
+            </p>
+            <p className="text-xs text-white/45 mb-4 truncate">{resume.role || t("home.noRole")}</p>
+
+            <div className="flex flex-col gap-2">
+              {onEdit && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit(resume.id);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">✏️</span> {t("common.edit")}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={async () => {
+                    if (!(await confirmDialog(t("common.confirmDeleteResume")))) return;
+                    setMenuOpen(false);
+                    onDelete(resume.id);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400"
+                >
+                  <span className="text-base leading-none">🗑️</span> {t("common.delete")}
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setMenuOpen(false)}
+              className="tap w-full mt-3 text-center text-sm font-medium text-white/50 py-2"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
 </PageBackground>
   );

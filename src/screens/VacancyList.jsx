@@ -151,7 +151,14 @@ export default function VacancyList({
                 className="group bg-base-850 border border-base-700 rounded-xl px-3.5 py-3"
                 style={getCellBackgroundStyle(v.backgroundUrl)}
               >
-                <button onClick={() => setActiveVacancy(v)} className="tap flex items-center gap-3 w-full text-left">
+                <button
+                  onClick={() => (onView ? onView(v.id) : setActiveVacancy(v))}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setActiveVacancy(v);
+                  }}
+                  className="tap flex items-center gap-3 w-full text-left"
+                >
                   <Avatar
                     url={v.avatarUrl}
                     name={v.company || v.position}

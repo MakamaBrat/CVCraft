@@ -194,7 +194,11 @@ export default function Home({
               {resumes.map((r) => (
                 <button
                   key={r.id}
-                  onClick={() => setActiveResume(r)}
+                  onClick={() => (onView ? onView(r.id) : setActiveResume(r))}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setActiveResume(r);
+                  }}
                   className="tap group flex items-center gap-3 bg-black/50 backdrop-blur-sm border border-amber-500/20 rounded-2xl px-3.5 py-3 text-left"
                   style={getCellBackgroundStyle(r.backgroundUrl)}
                 >

@@ -8,6 +8,7 @@ import { timeAgo } from "../lib/timeAgo.js";
 import { getColorTheme, getAlign, getDocBackgroundStyle, getCellBackgroundStyle } from "../lib/docTheme.js";
 import { confirmDialog, getTelegramWebApp } from "../lib/telegram.js";
 import { buildVacancyShareLink } from "../lib/config.js";
+import { VACANCY_STATUS } from "../lib/vacancy.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 
@@ -32,6 +33,12 @@ export default function VacancyDetail({
   canNavNext = false,
   onNavPrev,
   onNavNext,
+  isOwner = false,
+  onEdit,
+  onDelete,
+  onPay,
+  onSendToModeration,
+  onOpenApplicants,
 }) {
   const { lang, t } = useLanguage();
   const [message, setMessage] = useState("");
@@ -41,6 +48,10 @@ export default function VacancyDetail({
   const [withdrawing, setWithdrawing] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const canPay = [VACANCY_STATUS.APPROVED, VACANCY_STATUS.ACTIVE, VACANCY_STATUS.PAUSED].includes(vacancy.status);
+  const canSendToModeration = [VACANCY_STATUS.DRAFT, VACANCY_STATUS.REJECTED].includes(vacancy.status);
   const accent = ACCENTS[vacancy.template] || ACCENTS.minimal;
   const theme = getColorTheme(vacancy.colorScheme);
   const align = getAlign(vacancy.align);
@@ -131,6 +142,19 @@ export default function VacancyDetail({
             <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
           </svg>
         </button>
+        {isOwner && (onEdit || onDelete || onPay || onSendToModeration || onOpenApplicants) && (
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-full"
+            aria-label={t("common.more")}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="3.2" r="1.3" fill="currentColor" />
+              <circle cx="8" cy="8" r="1.3" fill="currentColor" />
+              <circle cx="8" cy="12.8" r="1.3" fill="currentColor" />
+            </svg>
+          </button>
+        )}
         {(onNavPrev || onNavNext) && (
           <div className="shrink-0 flex items-center gap-1.5">
             <button
@@ -319,6 +343,84 @@ export default function VacancyDetail({
           setShareChoiceOpen(false);
         }}
       />
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} />
+          <div className="relative w-full max-w-[420px] bg-base-900 border-t border-base-700 rounded-t-2xl px-5 pt-4 pb-6 fade-up">
+            <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-4" />
+            <p className="text-sm font-semibold text-white/90 truncate mb-0.5">{vacancy.position || "—"}</p>
+            <p className="text-xs text-white/45 mb-4 truncate">{vacancy.company}</p>
+
+            <div className="flex flex-col gap-2">
+              {onOpenApplicants && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenApplicants(vacancy.id);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">📋</span> {t("vacancy.viewApplicants")}
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit(vacancy.id);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">✏️</span> {t("common.edit")}
+                </button>
+              )}
+              {canSendToModeration && onSendToModeration && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSendToModeration(vacancy);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
+                >
+                  <span className="text-base leading-none">📮</span> {t("vacancy.sendToModeration")}
+                </button>
+              )}
+              {canPay && onPay && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onPay(vacancy.id);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-accent-500/15 border border-accent-500/30 rounded-xl px-4 py-3 text-left text-sm font-medium text-accent-300"
+                >
+                  <span className="text-base leading-none">⭐</span>{" "}
+                  {vacancy.status === VACANCY_STATUS.APPROVED ? t("vacancy.payAndPublish") : t("vacancy.extendListing")}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={async () => {
+                    if (!(await confirmDialog(t("common.confirmDeleteVacancy")))) return;
+                    setMenuOpen(false);
+                    onDelete(vacancy.id);
+                  }}
+                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400"
+                >
+                  <span className="text-base leading-none">🗑️</span> {t("common.delete")}
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setMenuOpen(false)}
+              className="tap w-full mt-3 text-center text-sm font-medium text-white/50 py-2"
+            >
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
 </PageBackground>
   );

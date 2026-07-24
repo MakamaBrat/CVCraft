@@ -404,12 +404,15 @@ export function detectMediaType(url) {
   return "link";
 }
 
+const MAX_PORTFOLIO_ITEMS = 10;
+
 function PortfolioStep({ draft, set, t, registerFlush }) {
   const [item, setItem] = useState({ title: "", url: "" });
   const portfolio = draft.portfolio || [];
+  const limitReached = portfolio.length >= MAX_PORTFOLIO_ITEMS;
 
   const add = () => {
-    if (!item.url.trim()) return;
+    if (!item.url.trim() || limitReached) return;
     set({
       portfolio: [
         ...portfolio,
@@ -422,7 +425,7 @@ function PortfolioStep({ draft, set, t, registerFlush }) {
 
   useEffect(() => {
     registerFlush?.(() => {
-      if (item.url.trim()) add();
+      if (item.url.trim() && !limitReached) add();
     });
   });
 
@@ -441,28 +444,40 @@ function PortfolioStep({ draft, set, t, registerFlush }) {
         </div>
       ))}
 
-      <Field label={t("wizard.portfolioTitleLabel")} hint={t("wizard.portfolioTitleHint")}>
-        <input
-          className={inputCls}
-          placeholder={t("wizard.portfolioTitlePlaceholder")}
-          value={item.title}
-          onChange={(e) => setItem({ ...item, title: e.target.value })}
-        />
-      </Field>
-      <Field
-        label={t("wizard.portfolioUrlLabel")}
-        hint={t("wizard.portfolioUrlHint")}
-      >
-        <input
-          className={inputCls}
-          placeholder={t("wizard.portfolioUrlPlaceholder")}
-          value={item.url}
-          onChange={(e) => setItem({ ...item, url: e.target.value })}
-        />
-      </Field>
-      <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
-        {t("wizard.addPortfolio")}
-      </button>
+      {limitReached ? (
+        <p className="text-xs text-white/40 text-center py-2">
+          {t("wizard.portfolioLimitReached", MAX_PORTFOLIO_ITEMS)}
+        </p>
+      ) : (
+        <>
+          <Field label={t("wizard.portfolioTitleLabel")} hint={t("wizard.portfolioTitleHint")}>
+            <input
+              className={inputCls}
+              placeholder={t("wizard.portfolioTitlePlaceholder")}
+              value={item.title}
+              onChange={(e) => setItem({ ...item, title: e.target.value })}
+            />
+          </Field>
+          <Field
+            label={t("wizard.portfolioUrlLabel")}
+            hint={t("wizard.portfolioUrlHint")}
+          >
+            <input
+              className={inputCls}
+              placeholder={t("wizard.portfolioUrlPlaceholder")}
+              value={item.url}
+              onChange={(e) => setItem({ ...item, url: e.target.value })}
+            />
+          </Field>
+          <button
+            onClick={add}
+            disabled={limitReached}
+            className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5 disabled:opacity-40"
+          >
+            {t("wizard.addPortfolio")}
+          </button>
+        </>
+      )}
     </div>
   );
 }

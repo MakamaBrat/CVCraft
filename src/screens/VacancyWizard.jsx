@@ -332,12 +332,21 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
   );
 }
 
+const MAX_MEDIA_ITEMS = 10;
+
+const MEDIA_LIMIT_LABEL = {
+  uk: (n) => `Досягнуто ліміту (${n} медіа).`,
+  ru: (n) => `Достигнут лимит (${n} медиа).`,
+  en: (n) => `Limit reached (${n} media items).`,
+};
+
 function ContactMediaStep({ draft, set, lang }) {
   const [item, setItem] = useState({ title: "", url: "" });
   const media = draft.media || [];
+  const limitReached = media.length >= MAX_MEDIA_ITEMS;
 
   const add = () => {
-    if (!item.url.trim()) return;
+    if (!item.url.trim() || limitReached) return;
     set({
       media: [
         ...media,
@@ -378,20 +387,30 @@ function ContactMediaStep({ draft, set, lang }) {
         </div>
       ))}
 
-      <Field
-        label={{ uk: "Приклад про компанію (необов'язково)", ru: "Пример о компании (необязательно)", en: "Example about the company (optional)" }[lang]}
-        hint="Відео, соцмережі, гіф, файли, застосунки, карти і т.д."
-      >
-        <input
-          className={inputCls}
-          placeholder="https://..."
-          value={item.url}
-          onChange={(e) => setItem({ ...item, url: e.target.value })}
-        />
-      </Field>
-      <button onClick={add} className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5">
-        + {{ uk: "Додати медіа", ru: "Добавить медиа", en: "Add media" }[lang]}
-      </button>
+      {limitReached ? (
+        <p className="text-xs text-white/40 text-center py-2">{MEDIA_LIMIT_LABEL[lang](MAX_MEDIA_ITEMS)}</p>
+      ) : (
+        <>
+          <Field
+            label={{ uk: "Приклад про компанію (необов'язково)", ru: "Пример о компании (необязательно)", en: "Example about the company (optional)" }[lang]}
+            hint="Відео, соцмережі, гіф, файли, застосунки, карти і т.д."
+          >
+            <input
+              className={inputCls}
+              placeholder="https://..."
+              value={item.url}
+              onChange={(e) => setItem({ ...item, url: e.target.value })}
+            />
+          </Field>
+          <button
+            onClick={add}
+            disabled={limitReached}
+            className="tap w-full border border-dashed border-accent-500/50 text-accent-300 text-sm font-medium rounded-xl py-2.5 disabled:opacity-40"
+          >
+            + {{ uk: "Додати медіа", ru: "Добавить медиа", en: "Add media" }[lang]}
+          </button>
+        </>
+      )}
     </div>
   );
 }
