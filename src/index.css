@@ -66,7 +66,7 @@ input, textarea, select {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.fade-in { animation: fadeIn 0.5s ease both; }
+.fade-in { animation: fadeIn 2s ease both; }
 
 /*
  * .stagger — контейнер, чиї прямі діти проявляються по черзі, а не всі
