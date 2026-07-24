@@ -8,13 +8,8 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function fetchPageText(url) {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; OnlineSurferBot/1.0)" },
-  });
-  if (!res.ok) throw new Error(`fetch_failed_${res.status}`);
-  const html = await res.text();
-  // Груба, але достатня для передачі в LLM очистка тегів — Claude сам
+function stripHtml(html) {
+  // Груба, але достатня для передачі в LLM очистка тегів — Claude/Gemini сам
   // розбереться зі структурою тексту, точний HTML-парсинг тут не потрібен.
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -24,20 +19,80 @@ async function fetchPageText(url) {
     .trim();
 }
 
+// Витягує всі <a href> ДО того, як теги (і разом з ними href-атрибути)
+// зникнуть при очистці. Без цього кроку stripHtml прибирає геть усі URL
+// зі сторінки, і LLM просто нема з чого брати посилання на вакансії.
+function extractLinks(html, baseUrl) {
+  const links = [];
+  const seen = new Set();
+  const re = /<a\b[^>]*href=["']([^"'#][^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    let href;
+    try {
+      href = new URL(m[1].trim(), baseUrl).toString();
+    } catch {
+      continue;
+    }
+    if (!href.startsWith("http")) continue;
+    if (seen.has(href)) continue;
+    seen.add(href);
+    const text = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    links.push({ href, text: text.slice(0, 120) });
+  }
+  return links;
+}
+
+async function fetchPageText(url) {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; OnlineSurferBot/1.0)" },
+  });
+  if (!res.ok) throw new Error(`fetch_failed_${res.status}`);
+  const html = await res.text();
+  return stripHtml(html);
+}
+
+// Для сторінки-списку потрібен ще й перелік реальних <a href> — окремо від
+// зачищеного тексту, — інакше LLM бачить тільки видимий текст без жодного URL.
+async function fetchListPage(url) {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; OnlineSurferBot/1.0)" },
+  });
+  if (!res.ok) throw new Error(`fetch_failed_${res.status}`);
+  const html = await res.text();
+  return { text: stripHtml(html), links: extractLinks(html, url) };
+}
+
 // Сканує один сайт: список -> кожна вакансія -> upsert у ОКРЕМІЙ таблиці
 // parsed_vacancies (не в vacancies — щоб не мішати спарсене з юзерським).
 // Повертає { found, created, updated, expired, error }.
 export async function scanSite(admin, site) {
-  let listText;
+  let listText, listLinks;
   try {
-    listText = await fetchPageText(site.url);
+    const listPage = await fetchListPage(site.url);
+    listText = listPage.text;
+    listLinks = listPage.links;
   } catch (err) {
     return { found: 0, created: 0, updated: 0, expired: 0, error: `list_fetch_failed: ${err.message}` };
   }
 
+  if (listLinks.length === 0) {
+    // На сторінці взагалі немає жодного <a href> у сирому HTML — типова
+    // ознака SPA (React/Next/Vue), де контент домальовується JS-ом на
+    // клієнті. Наш fetch бачить лише порожній каркас, тож повідомляємо
+    // про це прямо, замість тихого "found: 0".
+    return {
+      found: 0,
+      created: 0,
+      updated: 0,
+      expired: 0,
+      error: "no_links_in_raw_html: сторінка не містить посилань у вихідному HTML — ймовірно, контент рендериться через JS (SPA), а не приходить одразу від сервера",
+    };
+  }
+
   let links;
   try {
-    links = await extractVacancyLinks(site.url, listText);
+    links = await extractVacancyLinks(site.url, listText, listLinks);
   } catch (err) {
     return { found: 0, created: 0, updated: 0, expired: 0, error: `list_extract_failed: ${err.message}` };
   }
