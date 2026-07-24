@@ -20,14 +20,14 @@
 У файлі `src/lib/config.js` вкажіть реальні дані вашого бота:
 
 ```js
-export const TELEGRAM_BOT_USERNAME = "cvdeckbot";
+export const TELEGRAM_BOT_USERNAME = "cvgramsbot";
 export const TELEGRAM_MINI_APP_NAME = "Work";
 ```
 
 Кнопка «Поділитись резюме» генерує посилання у форматі:
 
 ```
-https://t.me/cvdeckbot/Work?startapp=<id_резюме>
+https://t.me/cvgramsbot/Work?startapp=<id_резюме>
 ```
 
 Перехід за таким посиланням відкриває застосунок як Mini App і одразу показує конкретне резюме (з відтворенням відео/гіфок з портфоліо), без входу.

@@ -4,7 +4,7 @@ import { logDbError, logInfo } from "./respond.js";
 // фронтенду (import.meta.env і т.д.), а серверні функції збираються
 // незалежно. Значення навмисно ті самі, що й у src/lib/config.js —
 // якщо змінюєте бота/назву міні-аппу там, поміняйте і тут.
-const TELEGRAM_BOT_USERNAME = "cvdeckbot";
+const TELEGRAM_BOT_USERNAME = "cvgramsbot";
 const TELEGRAM_MINI_APP_NAME = "Work";
 
 function escapeHtml(str) {

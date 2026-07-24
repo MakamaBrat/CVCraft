@@ -1,5 +1,5 @@
 // Змініть на реальні дані вашого бота, якщо вони відрізняються.
-export const TELEGRAM_BOT_USERNAME = "cvdeckbot";
+export const TELEGRAM_BOT_USERNAME = "cvgramsbot";
 export const TELEGRAM_MINI_APP_NAME = "Work";
 
 export const MAX_RESUMES_PER_USER = 2;
