@@ -95,13 +95,12 @@ input, textarea, select {
 .stagger > *:nth-child(n+18) { animation-delay: 0.72s; }
 
 /*
- * Окрема, трохи "живіша" поява для лого на HOME: фейд з повної
- * прозорості + легкий вихід з масштабу 0.92 → 1 (замість зсуву по Y, як у
- * .fade-up — для лого це виглядає природніше). Той самий таймінг 0.5с.
+ * Поява лого на HOME: чистий fade (тільки opacity, без scale/translate) —
+ * 0.5с з повної прозорості у звичний вигляд.
  */
 @keyframes logoFadeIn {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .logo-fade { animation: logoFadeIn 0.5s ease both; }
 
