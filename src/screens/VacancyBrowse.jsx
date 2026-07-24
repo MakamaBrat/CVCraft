@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Avatar from "../components/Avatar.jsx";
 import { getColorTheme } from "../lib/docTheme.js";
 import { timeAgo } from "../lib/timeAgo.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
+import { apiFetch, backendEnabled } from "../lib/api.js";
+import { alertDialog } from "../lib/telegram.js";
 
 const ACCENTS = { minimal: "#9aa0a6", modern: "#6c5ce7", bold: "#ff7a59", classic: "#4c9be8" };
 
@@ -10,6 +12,21 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
   const { t } = useLanguage();
   const [activeCity, setActiveCity] = useState("");
   const [query, setQuery] = useState("");
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subscribing, setSubscribing] = useState(false);
+
+  useEffect(() => {
+    if (!backendEnabled) return;
+    let cancelled = false;
+    apiFetch("/api/vacancy-subscribe")
+      .then((res) => {
+        if (!cancelled) setSubscriptions(res?.subscriptions || []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const allCities = useMemo(() => {
     const set = new Set();
@@ -48,6 +65,58 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
     });
   }, [vacancies, activeCity, query]);
 
+  // Поточний фільтр вважається "підписаним", якщо серед збережених
+  // підписок є рядок з тим самим query/city (порівнюємо після trim,
+  // так само як їх зберігає бекенд).
+  const trimmedQuery = query.trim();
+  const activeSubscription = subscriptions.find(
+    (s) => (s.query || "") === trimmedQuery && (s.city || "") === activeCity
+  );
+  const isSubscribed = Boolean(activeSubscription);
+
+  const toggleSubscription = async () => {
+    if (!backendEnabled || subscribing) return;
+
+    if (isSubscribed) {
+      setSubscribing(true);
+      try {
+        await apiFetch("/api/vacancy-subscribe", {
+          method: "POST",
+          body: { action: "delete", id: activeSubscription.id },
+        });
+        setSubscriptions((prev) => prev.filter((s) => s.id !== activeSubscription.id));
+        await alertDialog(t("vacancy.unsubscribeSuccess"));
+      } catch (err) {
+        console.error("vacancy unsubscribe failed:", err.status, err.payload || err.message);
+        await alertDialog(t("vacancy.subscribeFailed"));
+      }
+      setSubscribing(false);
+      return;
+    }
+
+    if (!trimmedQuery && !activeCity) {
+      await alertDialog(t("vacancy.subscribeNeedQuery"));
+      return;
+    }
+
+    setSubscribing(true);
+    try {
+      const res = await apiFetch("/api/vacancy-subscribe", {
+        method: "POST",
+        body: { action: "save", query: trimmedQuery, city: activeCity },
+      });
+      setSubscriptions((prev) => [
+        { id: res.id, query: trimmedQuery, city: activeCity, created_at: new Date().toISOString() },
+        ...prev,
+      ]);
+      await alertDialog(res.notifyBlocked ? t("vacancy.subscribeAllowBot") : t("vacancy.subscribeSuccess"));
+    } catch (err) {
+      console.error("vacancy subscribe failed:", err.status, err.payload || err.message);
+      await alertDialog(t("vacancy.subscribeFailed"));
+    }
+    setSubscribing(false);
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-base-950">
 
@@ -57,7 +126,33 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
             <path d="M11 3L5 9l6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold">{t("vacancy.listTitle")}</h1>
+        <h1 className="text-lg font-bold flex-1">{t("vacancy.listTitle")}</h1>
+        {backendEnabled && (
+          <button
+            onClick={toggleSubscription}
+            disabled={subscribing}
+            title={t("vacancy.subscribeBell")}
+            className={`tap w-8 h-8 flex items-center justify-center rounded-full ${
+              isSubscribed ? "bg-accent-500/15 text-accent-300" : "text-white/60"
+            } ${subscribing ? "opacity-50" : ""}`}
+          >
+            <svg width="17" height="17" viewBox="0 0 17 17" fill={isSubscribed ? "currentColor" : "none"}>
+              <path
+                d="M8.5 2.2c-2.1 0-3.6 1.7-3.6 3.9v2.3c0 .5-.2 1.2-.5 1.6L3.4 11.4c-.6.8-.2 1.7.8 2 3 1 6.3 1 9.3 0 .9-.3 1.3-1.3.7-2l-1-1.4c-.3-.4-.5-1.1-.5-1.6V6.1c0-2.1-1.6-3.9-3.7-3.9z"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M10.2 14c-.3.5-.9.9-1.7.9s-1.4-.4-1.7-.9"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="px-6 pb-3">

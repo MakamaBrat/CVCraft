@@ -2,6 +2,7 @@ import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate, logDbError, logInfo } from "./_lib/respond.js";
 import { getCurrentPricing } from "./_lib/pricing.js";
 import { applyVacancyPayment } from "./_lib/applyVacancyPayment.js";
+import { notifyMatchingSubscribers } from "./_lib/telegramNotify.js";
 
 // POST /api/vacancy-invoice
 // body: { id: vacancyId, kind: "listing" | "extend" | "top", weeks: number }
@@ -74,6 +75,16 @@ export default async function handler(req, res) {
     });
     if (!result.ok) return sendJson(res, 500, { error: "db_error" });
     logInfo("vacancy-invoice: granted free", { telegramId: user.id, id, kind, periodsCount });
+
+    // "listing" — це перша публікація (approved -> active). Саме зараз
+    // вакансія вперше стає видимою в публічному пошуку, тож розсилаємо
+    // підписникам збережених фільтрів, яким вона відповідає.
+    if (kind === "listing") {
+      notifyMatchingSubscribers(admin, botToken, vacancy).catch((err) =>
+        console.error("[vacancy-invoice] subscriber notification failed", err)
+      );
+    }
+
     return sendJson(res, 200, { free: true, totalStars: 0 });
   }
 

@@ -16,6 +16,7 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { logDbError, logInfo } from "./_lib/respond.js";
 import { applyVacancyPayment } from "./_lib/applyVacancyPayment.js";
+import { notifyMatchingSubscribers } from "./_lib/telegramNotify.js";
 
 async function answerPreCheckoutQuery(token, preCheckoutQueryId, ok, errorMessage) {
   await fetch(`https://api.telegram.org/bot${token}/answerPreCheckoutQuery`, {
@@ -88,7 +89,7 @@ async function handleSuccessfulPayment(message) {
   const admin = supabaseAdmin();
   const { data: vacancy, error: fetchError } = await admin
     .from("vacancies")
-    .select("id, status, expires_at, top_until")
+    .select("id, status, data, telegram_id, expires_at, top_until")
     .eq("id", payload.v)
     .maybeSingle();
 
@@ -101,6 +102,8 @@ async function handleSuccessfulPayment(message) {
     return;
   }
 
+  const wasFirstListing = payload.k === "listing" && vacancy.status === "approved";
+
   const result = await applyVacancyPayment(admin, {
     vacancy,
     kind: payload.k,
@@ -112,6 +115,17 @@ async function handleSuccessfulPayment(message) {
   if (!result.ok) return;
 
   logInfo("bot: payment processed", { vacancyId: payload.v, kind: payload.k, periods: payload.w });
+
+  // "listing" з попереднього статусу "approved" — це перша публікація,
+  // вакансія щойно вперше стала видимою в публічному пошуку. Розсилаємо
+  // підписникам збережених фільтрів (дзвіночок у пошуку), яким вона
+  // відповідає.
+  if (wasFirstListing) {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    notifyMatchingSubscribers(admin, token, vacancy).catch((err) =>
+      console.error("[bot] subscriber notification failed", err)
+    );
+  }
 }
 
 export default async function handler(req, res) {

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendJson, methodNotAllowed, authenticate } from "./_lib/respond.js";
+import { notifyVacancyOwnerAboutApplication } from "./_lib/telegramNotify.js";
 
 // Загальний ліміт відгуків на юзера — сумарно по всіх вакансіях, а не
 // на одну. Захищає від спаму заявками й тримає списки "Мої відгуки" /
@@ -87,5 +88,14 @@ export default async function handler(req, res) {
     resume_snapshot: resumeSnapshot,
   });
   if (error) return sendJson(res, 500, { error: "db_error" });
+
+  // Повідомляємо власника вакансії про новий відгук. Навмисно "fire and
+  // forget": якщо бот заблокований власником або Telegram недоступний —
+  // це не повинно перетворити щойно успішний відгук на помилку 500 для
+  // кандидата, тож помилки відправки лише логуються всередині helper'а.
+  notifyVacancyOwnerAboutApplication(botToken, vacancy).catch((err) =>
+    console.error("[vacancy-apply] owner notification failed", err)
+  );
+
   sendJson(res, 200, { ok: true });
 }

@@ -71,13 +71,28 @@ function parseHashRoute() {
   // браузері, без Telegram взагалі. Застосунок тепер відкривається ТІЛЬКИ
   // всередині Telegram, тому єдине законне джерело sharedId — start_param,
   // який Telegram підставляє сам після ?startapp=... у диплінку бота.
+  //
+  // "ap_<id>" — окремий випадок: це не публічний шеринг (як "v_"/резюме),
+  // а диплінк із повідомлення бота "новий відгук на вашу вакансію" —
+  // веде власника вакансії одразу на екран VacancyApplicants усередині
+  // звичайного (авторизованого) застосунку, а не на публічний SharedView.
+  // Тому тут його НЕ повертаємо як sharedId.
   const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
-  if (tgStartParam) return tgStartParam;
+  if (tgStartParam && !tgStartParam.startsWith("ap_")) return tgStartParam;
+  return null;
+}
+
+function parsePendingApplicantsId() {
+  const tgStartParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+  if (tgStartParam && tgStartParam.startsWith("ap_")) return tgStartParam.slice(3);
   return null;
 }
 
 export default function App() {
   const [sharedId, setSharedId] = useState(() => parseHashRoute());
+  // id вакансії з диплінку "новий відгук" (?startapp=ap_<id>) — обробляється
+  // окремо від sharedId, див. коментар у parsePendingApplicantsId().
+  const [pendingApplicantsId, setPendingApplicantsId] = useState(() => parsePendingApplicantsId());
   const [identity, setIdentity] = useState(loadIdentity);
   const [checkedTelegram, setCheckedTelegram] = useState(false);
   const [resumes, setResumes] = useState([]);
@@ -276,6 +291,37 @@ export default function App() {
     return () => clearTimeout(draftSaveTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, route.screen]);
+
+  // Диплінк "новий відгук" (?startapp=ap_<vacancyId>) із повідомлення бота:
+  // щойно власні вакансії підвантажились і серед них знайшлась потрібна —
+  // одразу відкриваємо для неї екран відгуків, як за звичайним натисканням
+  // "Відгуки" у VacancyList. Спрацьовує один раз (pendingApplicantsId
+  // скидається одразу після переходу), щоб не заважати подальшій навігації
+  // всередині застосунку.
+  useEffect(() => {
+    if (!pendingApplicantsId || !identity || loadingVacancies) return;
+    const v = vacancies.find((x) => x.id === pendingApplicantsId);
+    if (!v) {
+      // Вакансію могли видалити, або власні вакансії ще не встигли
+      // повністю завантажитись асинхронно — просто не переходимо нікуди
+      // і не блокуємо звичайне використання застосунку.
+      setPendingApplicantsId(null);
+      return;
+    }
+    setPendingApplicantsId(null);
+    setApplicantsVacancy(v);
+    setRoute({ screen: "vacancyApplicants" });
+    if (!backendEnabled) {
+      setApplicants([]);
+      return;
+    }
+    setLoadingApplicants(true);
+    apiFetch(`/api/vacancy-applicants?vacancyId=${encodeURIComponent(v.id)}`)
+      .then((res) => setApplicants(res?.applicants || []))
+      .catch(() => setApplicants([]))
+      .finally(() => setLoadingApplicants(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingApplicantsId, identity, loadingVacancies, vacancies]);
 
   if (sharedId) {
     const isVacancyShare = sharedId.startsWith("v_");
