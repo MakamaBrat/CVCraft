@@ -93,7 +93,7 @@ export default function Home({
               const idx = list.indexOf(lang);
               setLang(list[(idx + 1) % list.length]);
             }}
-            className="tap absolute right-6 top-4 w-8 h-8 flex items-center justify-center text-[11px] font-semibold uppercase text-amber-100/85 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-full"
+            className="tap fade-in absolute right-6 top-4 w-8 h-8 flex items-center justify-center text-[11px] font-semibold uppercase text-amber-100/85 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-full"
           >
             {lang}
           </button>
@@ -146,7 +146,7 @@ export default function Home({
         </div>
 
         {onOpenMyApplications && (
-          <div className="px-6 pb-5">
+          <div className="fade-in px-6 pb-5">
             <button
               onClick={onOpenMyApplications}
               className="tap w-full flex items-center justify-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-2xl px-3.5 py-3"
@@ -228,7 +228,7 @@ export default function Home({
         </div>
 
         {isAdmin && (
-          <div className="px-6 pt-2 pb-4">
+          <div className="fade-in px-6 pt-2 pb-4">
             <button
               onClick={onOpenAdmin}
               className="tap w-full flex items-center justify-center gap-2 bg-black/50 backdrop-blur-sm border border-amber-500/30 rounded-2xl px-3.5 py-3"
