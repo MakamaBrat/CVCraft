@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { getColorTheme } from "../lib/docTheme.js";
 import { apiFetch } from "../lib/api.js";
@@ -73,7 +74,8 @@ export default function VacancyMyApplications({ onBack, onOpen, onWithdraw }) {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -95,7 +97,7 @@ export default function VacancyMyApplications({ onBack, onOpen, onWithdraw }) {
             <p className="text-sm text-white/50 max-w-[220px]">{t("vacancy.noMyApplications")}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5">
+          <div className="stagger flex flex-col gap-2.5">
             {applications.map((a) => {
               const v = a.vacancy || {};
               return (
@@ -140,5 +142,6 @@ export default function VacancyMyApplications({ onBack, onOpen, onWithdraw }) {
         )}
       </div>
     </div>
+</PageBackground>
   );
 }

@@ -6,8 +6,8 @@ import { getTelegramWebApp, confirmDialog } from "../lib/telegram.js";
 import { sendLinkViaBot } from "../lib/shareSend.js";
 import ShareChoiceSheet from "../components/ShareChoiceSheet.jsx";
 import Avatar from "../components/Avatar.jsx";
+import PageBackground from "../components/PageBackground.jsx";
 import { getColorTheme, getCellBackgroundStyle } from "../lib/docTheme.js";
-import BG_URL from "../assets/bg-home.png";
 import LOGO_URL from "../assets/logo.gif";
 
 const TEMPLATE_ACCENTS = {
@@ -85,29 +85,8 @@ export default function Home({
   };
 
   return (
-    <div className="relative flex-1 flex flex-col bg-black overflow-hidden">
-      {/* animated background */}
-      <style>{`
-        @keyframes cvdeck-drift {
-          0%   { transform: scale(1.12) translate3d(0, 0, 0); }
-          50%  { transform: scale(1.12) translate3d(-2%, -1.5%, 0); }
-          100% { transform: scale(1.12) translate3d(0, 0, 0); }
-        }
-        .cvdeck-bg {
-          animation: cvdeck-drift 26s ease-in-out infinite;
-        }
-      `}</style>
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div
-          className="cvdeck-bg absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${BG_URL})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black" />
-      </div>
-
-      {/* content */}
-      <div className="relative z-10 flex-1 flex flex-col">
-        <div className="px-6 pt-4 pb-1 relative flex flex-col items-center text-center">
+    <PageBackground>
+        <div className="px-6 pt-4 pb-1 relative flex flex-col items-center text-center fade-up">
           <button
             onClick={() => {
               const list = supported;
@@ -121,7 +100,7 @@ export default function Home({
           <img src={LOGO_URL} alt="CV Deck" className="w-40 h-48 object-contain drop-shadow-[0_0_22px_rgba(255,190,90,0.45)]" />
         </div>
 
-        <div className="px-6 pb-5 grid grid-cols-3 gap-2.5">
+        <div className="stagger px-6 pb-5 grid grid-cols-3 gap-2.5">
           <button
             onClick={onBrowseVacancies}
             className="tap flex flex-col items-center gap-1.5 bg-black/50 backdrop-blur-sm border border-amber-500/25 rounded-xl px-2 py-2.5 text-center"
@@ -139,17 +118,17 @@ export default function Home({
             className={`tap flex flex-col items-center gap-1.5 rounded-xl px-2 py-2.5 text-center ${
               canCreateMore
                 ? "bg-gradient-to-b from-amber-300 to-amber-500"
-                : "bg-base-800 border border-base-700"
+                : "bg-black/50 backdrop-blur-sm border border-amber-500/25"
             }`}
           >
             <span
               className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
-                canCreateMore ? "bg-black/15 border border-black/20 text-black" : "bg-white/5 border border-white/10 text-white/30"
+                canCreateMore ? "bg-black/15 border border-black/20 text-black" : "bg-amber-500/15 border border-amber-400/30 text-amber-100/50"
               }`}
             >
               +
             </span>
-            <span className={`text-[11px] font-semibold leading-tight ${canCreateMore ? "text-black" : "text-white/30"}`}>
+            <span className={`text-[11px] font-semibold leading-tight ${canCreateMore ? "text-black" : "text-amber-100/50"}`}>
               {t("home.createNew")}
             </span>
           </button>
@@ -211,7 +190,7 @@ export default function Home({
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2.5 overflow-y-auto pb-4">
+            <div className="stagger flex flex-col gap-2.5 overflow-y-auto pb-4">
               {resumes.map((r) => (
                 <button
                   key={r.id}
@@ -259,7 +238,6 @@ export default function Home({
             </button>
           </div>
         )}
-      </div>
 
       {activeResume && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -333,6 +311,6 @@ export default function Home({
           setShareChoiceTarget(null);
         }}
       />
-    </div>
+    </PageBackground>
   );
 }

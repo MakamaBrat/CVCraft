@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { apiFetch } from "../lib/api.js";
 import { normalizeMediaUrl } from "../lib/media.js";
 import TagPicker from "../components/TagPicker.jsx";
@@ -106,7 +107,8 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
   const goHome = () => onBackHome();
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
 
       <div className="px-6 pt-2 pb-4">
         <div className="flex items-center gap-3 mb-4">
@@ -248,6 +250,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
         </button>
       </div>
     </div>
+</PageBackground>
   );
 }
 

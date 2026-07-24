@@ -1,4 +1,5 @@
 import { useLanguage } from "../lib/i18n/index.jsx";
+import PageBackground from "../components/PageBackground.jsx";
 import { COLOR_THEMES, ALIGNMENTS, DEFAULT_COLOR_THEME } from "../lib/docTheme.js";
 import GifUrlField from "../components/GifUrlField.jsx";
 
@@ -129,7 +130,8 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
   const align = draft.align || "left";
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
 
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
@@ -141,7 +143,7 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="stagger grid grid-cols-2 gap-3">
           {TEMPLATES.map((tpl) => (
             <MiniCard
               key={tpl.id}
@@ -155,7 +157,7 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
         </div>
 
         <p className="text-sm font-semibold text-white/85 mt-6 mb-2">{SECTION_LABELS.theme[lang]}</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="stagger grid grid-cols-2 gap-3">
           {COLOR_THEMES.map((theme) => (
             <ThemeCard
               key={theme.id}
@@ -246,5 +248,6 @@ export default function VacancyTemplates({ draft, setDraft, onBack, onNext }) {
         </button>
       </div>
     </div>
+</PageBackground>
   );
 }

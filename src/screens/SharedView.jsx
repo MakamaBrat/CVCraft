@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { apiFetch } from "../lib/api.js";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -77,15 +78,18 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
 
   if (status === "loading") {
     return (
-      <div className="flex-1 flex flex-col bg-base-950">
+      <PageBackground>
+<div className="flex-1 flex flex-col">
         <div className="flex-1 flex items-center justify-center text-white/40 text-sm">{t("share.loadingResume")}</div>
       </div>
+</PageBackground>
     );
   }
 
   if (status === "not-found") {
     return (
-      <div className="flex-1 flex flex-col bg-base-950">
+      <PageBackground>
+<div className="flex-1 flex flex-col">
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
           <p className="text-sm text-white/60">{t("share.resumeNotFound")}</p>
           <button onClick={onOpenApp} className="tap text-sm text-accent-300 font-medium">
@@ -93,6 +97,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
           </button>
         </div>
       </div>
+</PageBackground>
     );
   }
 
@@ -115,7 +120,8 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
   const showMessageButton = Boolean(messageTarget) && !isOwnResume;
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
 
       <div className="px-6 pt-2 pb-4 flex items-center gap-2">
         <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
@@ -128,7 +134,7 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
 
       <div className="flex-1 overflow-y-auto px-6 pb-8 fade-up">
         <div
-          className="rounded-xl shadow-xl mx-auto"
+          className="fade-up rounded-xl shadow-xl mx-auto"
           style={{
             maxWidth: 400,
             padding: "28px 24px",
@@ -307,5 +313,6 @@ export default function SharedView({ resumeId, onOpenApp, onBrowseVacancies, onC
         <ReportModal targetType="resume" resumeId={resumeId} onClose={() => setReportOpen(false)} />
       )}
     </div>
+</PageBackground>
   );
 }

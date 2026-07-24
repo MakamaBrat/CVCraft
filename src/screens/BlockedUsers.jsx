@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { confirmDialog } from "../lib/telegram.js";
@@ -57,7 +58,8 @@ export default function BlockedUsers({ onBack }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -79,7 +81,7 @@ export default function BlockedUsers({ onBack }) {
             <p className="text-sm text-white/50 max-w-[220px]">{t("block.blockedListEmpty")}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5">
+          <div className="stagger flex flex-col gap-2.5">
             {blocked.map((item) => {
               const displayName = item.firstName || item.telegramUsername || item.telegramId;
               return (
@@ -110,5 +112,6 @@ export default function BlockedUsers({ onBack }) {
         )}
       </div>
     </div>
+</PageBackground>
   );
 }

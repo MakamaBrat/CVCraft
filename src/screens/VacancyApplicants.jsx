@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
@@ -124,7 +125,8 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-base-950 flex flex-col">
+    <PageBackground>
+<div className="fixed inset-0 z-50 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onClose} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -369,6 +371,7 @@ function ApplicantDetail({ applicant, onClose, onPrev, onNext, hasPrev, hasNext,
         />
       )}
     </div>
+</PageBackground>
   );
 }
 
@@ -385,7 +388,8 @@ export default function VacancyApplicants({ vacancy, applicants: applicantsProp,
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -406,7 +410,7 @@ export default function VacancyApplicants({ vacancy, applicants: applicantsProp,
             <p className="text-sm text-white/50 max-w-[220px]">{t("vacancy.noApplicants")}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="stagger flex flex-col gap-3">
             {applicants.map((a) => {
               const r = a.resume_snapshot;
               return (
@@ -467,5 +471,6 @@ export default function VacancyApplicants({ vacancy, applicants: applicantsProp,
         />
       )}
     </div>
+</PageBackground>
   );
 }

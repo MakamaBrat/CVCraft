@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { apiFetch } from "../lib/api.js";
 import { VacancyDocument } from "./VacancyPreview.jsx";
 import ReportModal from "../components/ReportModal.jsx";
@@ -68,15 +69,18 @@ export default function SharedVacancyView({ vacancyId, onOpenApp, onApply, onBro
 
   if (status === "loading") {
     return (
-      <div className="flex-1 flex flex-col bg-base-950">
+      <PageBackground>
+<div className="flex-1 flex flex-col">
         <div className="flex-1 flex items-center justify-center text-white/40 text-sm">{MESSAGES.loading[lang]}</div>
       </div>
+</PageBackground>
     );
   }
 
   if (status === "not-found" || status === "expired") {
     return (
-      <div className="flex-1 flex flex-col bg-base-950">
+      <PageBackground>
+<div className="flex-1 flex flex-col">
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
           <p className="text-sm text-white/60">{MESSAGES[status === "expired" ? "expired" : "notFound"][lang]}</p>
           <button onClick={onOpenApp} className="tap text-sm text-accent-300 font-medium">
@@ -84,11 +88,13 @@ export default function SharedVacancyView({ vacancyId, onOpenApp, onApply, onBro
           </button>
         </div>
       </div>
+</PageBackground>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-2">
         <div className="w-6 h-6 rounded-lg bg-accent-500 flex items-center justify-center">
           <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
@@ -146,5 +152,6 @@ export default function SharedVacancyView({ vacancyId, onOpenApp, onApply, onBro
         <ReportModal targetType="vacancy" vacancyId={vacancyId} onClose={() => setReportOpen(false)} />
       )}
     </div>
+</PageBackground>
   );
 }

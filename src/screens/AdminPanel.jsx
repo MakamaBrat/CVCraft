@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { apiFetch } from "../lib/api.js";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { vacancyFromRow, VACANCY_STATUS } from "../lib/vacancy.js";
@@ -690,7 +691,8 @@ export default function AdminPanel({ onBack, adminId }) {
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -825,7 +827,7 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "moderation" && (
-              <div className="flex flex-col gap-3">
+              <div className="stagger flex flex-col gap-3">
                 {pending.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noPending")}</p>}
                 {pending.map(({ v, row }) => (
                   <div key={v.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
@@ -876,7 +878,7 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "vacancies" && (
-              <div className="flex flex-col gap-3">
+              <div className="stagger flex flex-col gap-3">
                 <input
                   value={vacancySearch}
                   onChange={(e) => setVacancySearch(e.target.value)}
@@ -961,7 +963,7 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "resumes" && (
-              <div className="flex flex-col gap-3">
+              <div className="stagger flex flex-col gap-3">
                 <input
                   value={resumeSearch}
                   onChange={(e) => setResumeSearch(e.target.value)}
@@ -1004,7 +1006,7 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "reports" && (
-              <div className="flex flex-col gap-3">
+              <div className="stagger flex flex-col gap-3">
                 {reports.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noReports")}</p>}
                 {reports.map((rep) => {
                   const vacancyTitle = rep.vacancies?.data?.position || rep.vacancy_applications?.vacancy_id || "—";
@@ -1097,7 +1099,7 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "applications" && (
-              <div className="flex flex-col gap-3">
+              <div className="stagger flex flex-col gap-3">
                 {applications.length === 0 && <p className="text-sm text-white/45 py-6 text-center">{t("admin.noApplications")}</p>}
                 {applications.map((a) => (
                   <div key={a.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
@@ -1221,7 +1223,7 @@ export default function AdminPanel({ onBack, adminId }) {
             )}
 
             {tab === "users" && (
-              <div className="flex flex-col gap-3">
+              <div className="stagger flex flex-col gap-3">
                 <input
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
@@ -1341,7 +1343,7 @@ export default function AdminPanel({ onBack, adminId }) {
               <p className="text-sm text-white/45 py-6 text-center">{t("admin.noActiveUsers")}</p>
             )}
 
-            <div className="flex flex-col gap-2">
+            <div className="stagger flex flex-col gap-2">
               {activeUsersToday.map((u) => (
                 <button
                   key={u.telegram_id}
@@ -1506,5 +1508,6 @@ export default function AdminPanel({ onBack, adminId }) {
         </Sheet>
       )}
     </div>
+</PageBackground>
   );
 }

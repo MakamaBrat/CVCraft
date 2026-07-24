@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { buildVacancyShareLink } from "../lib/config.js";
@@ -26,7 +27,7 @@ export function VacancyDocument({ vacancy }) {
   return (
     <div
       id="vacancy-doc"
-      className="rounded-xl shadow-xl mx-auto"
+      className="fade-up rounded-xl shadow-xl mx-auto"
       style={{
         width: "100%",
         maxWidth: 400,
@@ -271,7 +272,8 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="print:hidden">
         <div className="px-6 pt-2 pb-4 flex items-center gap-3">
           <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
@@ -473,5 +475,6 @@ export default function VacancyPreview({ vacancy, onBack, onSendToModeration, on
         }}
       />
     </div>
+</PageBackground>
   );
 }

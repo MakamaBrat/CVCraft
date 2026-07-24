@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import ReportModal from "../components/ReportModal.jsx";
@@ -97,7 +98,8 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -128,7 +130,7 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
 
       <div className="flex-1 overflow-y-auto px-6 pb-4">
         <div
-          className="rounded-xl shadow-xl mx-auto mb-4"
+          className="fade-up rounded-xl shadow-xl mx-auto mb-4"
           style={{
             width: "100%",
             maxWidth: 400,
@@ -272,5 +274,6 @@ export default function VacancyDetail({ vacancy, applied, resumes = [], onBack, 
         }}
       />
     </div>
+</PageBackground>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageBackground from "../components/PageBackground.jsx";
 import { useLanguage } from "../lib/i18n/index.jsx";
 import { timeAgo } from "../lib/timeAgo.js";
 import { VACANCY_STATUS } from "../lib/vacancy.js";
@@ -96,7 +97,8 @@ export default function VacancyList({
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-base-950">
+    <PageBackground>
+<div className="flex-1 flex flex-col">
 
       <div className="px-6 pt-2 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="tap w-8 h-8 flex items-center justify-center text-white/70">
@@ -142,7 +144,7 @@ export default function VacancyList({
             <p className="text-sm text-white/50 max-w-[220px]">{t("vacancy.noVacancies")}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5">
+          <div className="stagger flex flex-col gap-2.5">
             {vacancies.map((v) => (
               <div
                 key={v.id}
@@ -285,5 +287,6 @@ export default function VacancyList({
         }}
       />
     </div>
+</PageBackground>
   );
 }
