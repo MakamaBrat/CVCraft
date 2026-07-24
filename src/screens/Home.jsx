@@ -136,12 +136,20 @@ export default function Home({
           <button
             onClick={onCreate}
             disabled={!canCreateMore}
-            className="tap flex flex-col items-center gap-1.5 bg-gradient-to-b from-amber-300 to-amber-500 rounded-xl px-2 py-2.5 text-center disabled:from-white/30 disabled:to-white/20"
+            className={`tap flex flex-col items-center gap-1.5 rounded-xl px-2 py-2.5 text-center ${
+              canCreateMore
+                ? "bg-gradient-to-b from-amber-300 to-amber-500"
+                : "bg-base-800 border border-base-700"
+            }`}
           >
-            <span className="w-7 h-7 rounded-full bg-black/15 border border-black/20 flex items-center justify-center text-sm text-black">
+            <span
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
+                canCreateMore ? "bg-black/15 border border-black/20 text-black" : "bg-white/5 border border-white/10 text-white/30"
+              }`}
+            >
               +
             </span>
-            <span className="text-[11px] font-semibold text-black leading-tight">
+            <span className={`text-[11px] font-semibold leading-tight ${canCreateMore ? "text-black" : "text-white/30"}`}>
               {t("home.createNew")}
             </span>
           </button>
