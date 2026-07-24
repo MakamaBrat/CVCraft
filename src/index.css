@@ -60,7 +60,50 @@ input, textarea, select {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fadeUp 0.35s ease both; }
+.fade-up { animation: fadeUp 0.5s ease both; }
+
+/*
+ * .stagger — контейнер, чиї прямі діти проявляються по черзі, а не всі
+ * одночасно. Раніше клас "stagger" використовувався по всьому проєкту
+ * (VacancyList, Home, VacancyBrowse тощо), але жодних правил для нього не
+ * було оголошено — фактично він нічого не робив. Тепер кожна пряма дитина
+ * контейнера отримує ту саму fadeUp-анімацію (повна прозорість → звичний
+ * вигляд, 0.5с), але зі своєю затримкою — тому елементи "виринають" один за
+ * одним. Затримка обмежена першими ~18 елементами (далі всі йдуть з
+ * однаковим кроком 0.4с), щоб довгі списки не розтягували появу на секунди.
+ */
+.stagger > * {
+  animation: fadeUp 0.5s ease both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.16s; }
+.stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.stagger > *:nth-child(6) { animation-delay: 0.24s; }
+.stagger > *:nth-child(7) { animation-delay: 0.28s; }
+.stagger > *:nth-child(8) { animation-delay: 0.32s; }
+.stagger > *:nth-child(9) { animation-delay: 0.36s; }
+.stagger > *:nth-child(10) { animation-delay: 0.4s; }
+.stagger > *:nth-child(11) { animation-delay: 0.44s; }
+.stagger > *:nth-child(12) { animation-delay: 0.48s; }
+.stagger > *:nth-child(13) { animation-delay: 0.52s; }
+.stagger > *:nth-child(14) { animation-delay: 0.56s; }
+.stagger > *:nth-child(15) { animation-delay: 0.6s; }
+.stagger > *:nth-child(16) { animation-delay: 0.64s; }
+.stagger > *:nth-child(17) { animation-delay: 0.68s; }
+.stagger > *:nth-child(n+18) { animation-delay: 0.72s; }
+
+/*
+ * Окрема, трохи "живіша" поява для лого на HOME: фейд з повної
+ * прозорості + легкий вихід з масштабу 0.92 → 1 (замість зсуву по Y, як у
+ * .fade-up — для лого це виглядає природніше). Той самий таймінг 0.5с.
+ */
+@keyframes logoFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+.logo-fade { animation: logoFadeIn 0.5s ease both; }
 
 @media print {
   body { background: white; }

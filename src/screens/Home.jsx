@@ -86,7 +86,7 @@ export default function Home({
 
   return (
     <PageBackground>
-        <div className="px-6 pt-4 pb-1 relative flex flex-col items-center text-center fade-up">
+        <div className="px-6 pt-4 pb-1 relative flex flex-col items-center text-center logo-fade">
           <button
             onClick={() => {
               const list = supported;
