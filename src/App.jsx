@@ -553,8 +553,9 @@ export default function App() {
   const viewVacancy = (id) => {
     const v = vacancies.find((x) => x.id === id);
     if (v) {
-      setVacancyDraft(v);
-      setRoute({ screen: "vacancyPreview", back: "vacancies" });
+      setOpenVacancy(v);
+      setVacancyNavIds(null);
+      setRoute({ screen: "vacancyDetail", back: "vacancies" });
     }
   };
 
@@ -805,6 +806,15 @@ export default function App() {
             commitDraft({ ...draft, status: "complete" });
             goHome();
           }}
+          {...(route.back === "home"
+            ? {
+                onEdit: editExisting,
+                onDelete: (id) => {
+                  deleteResume(id);
+                  goHome();
+                },
+              }
+            : {})}
         />
       )}
 
@@ -889,7 +899,14 @@ export default function App() {
           applied={appliedVacancyIds.has(openVacancy.id)}
           resumes={resumes}
           onBack={() =>
-            setRoute({ screen: route.back === "myApplications" ? "myApplications" : "browseVacancies" })
+            setRoute({
+              screen:
+                route.back === "myApplications"
+                  ? "myApplications"
+                  : route.back === "vacancies"
+                  ? "vacancies"
+                  : "browseVacancies",
+            })
           }
           onApply={applyToVacancy}
           onWithdraw={withdrawFromVacancy}
@@ -901,6 +918,19 @@ export default function App() {
           )}
           onNavPrev={() => navigateVacancyDetail(-1)}
           onNavNext={() => navigateVacancyDetail(1)}
+          {...(route.back === "vacancies"
+            ? {
+                isOwner: true,
+                onEdit: editVacancy,
+                onDelete: (id) => {
+                  deleteVacancy(id);
+                  goVacancyList();
+                },
+                onPay: payVacancy,
+                onSendToModeration: (v) => sendVacancyToModeration(v),
+                onOpenApplicants: goApplicants,
+              }
+            : {})}
         />
       )}
 
