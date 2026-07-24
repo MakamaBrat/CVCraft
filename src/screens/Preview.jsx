@@ -230,6 +230,19 @@ export default function Preview({ resume, onBack, onDone, onEdit, onDelete }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold flex-1">{t("preview.title")}</h1>
+          <button
+            onClick={() => setShareChoiceOpen(true)}
+            disabled={sharing}
+            className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-full disabled:opacity-60"
+            aria-label={t("common.share")}
+          >
+            <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+              <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="3.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
+          </button>
           {(onEdit || onDelete) && (
             <button
               onClick={() => setMenuOpen(true)}
@@ -266,21 +279,8 @@ export default function Preview({ resume, onBack, onDone, onEdit, onDelete }) {
 
       <div className="px-6 pb-6 print:hidden flex gap-3">
         <button
-          onClick={() => setShareChoiceOpen(true)}
-          disabled={sharing}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5 disabled:opacity-60"
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <circle cx="11.5" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.3" />
-            <circle cx="3.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.3" />
-            <circle cx="11.5" cy="11.5" r="2" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
-          </svg>
-          {sharing ? t("share.sending") : t("common.share")}
-        </button>
-        <button
           onClick={onDone}
-          className="tap flex-1 flex items-center justify-center gap-2 bg-base-850 border border-base-700 text-white/85 font-medium text-sm rounded-xl py-3.5"
+          className="tap flex-1 flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
         >
           {t("common.save")}
         </button>
