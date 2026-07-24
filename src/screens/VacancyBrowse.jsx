@@ -118,9 +118,11 @@ export default function VacancyBrowse({ vacancies, loading, onBack, onOpen }) {
         method: "POST",
         body: { action: "save", query: trimmedQuery, city: activeCity },
       });
-      setSubscriptions((prev) => [
+      // На юзера — рівно одна підписка (бекенд робить upsert по
+      // telegram_id), тож новий запис ЗАМІНЮЄ будь-яку попередню
+      // підписку в локальному стейті, а не додається до неї.
+      setSubscriptions([
         { id: res.id, query: trimmedQuery, city: activeCity, created_at: new Date().toISOString() },
-        ...prev,
       ]);
       await alertDialog(res.notifyBlocked ? t("vacancy.subscribeAllowBot") : t("vacancy.subscribeSuccess"));
     } catch (err) {
