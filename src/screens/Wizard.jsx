@@ -400,6 +400,7 @@ export function detectMediaType(url) {
   if (/hh\.ru\/|headhunter\.[a-z.]+\//i.test(u)) return "hh";
   if (/superjob\.ru\//i.test(u)) return "superjob";
   if (/rabota\.ru\//i.test(u)) return "rabotaru";
+  if (/djinni\.co\//i.test(u)) return "djinni";
   return "link";
 }
 
@@ -564,11 +565,9 @@ const SOCIAL_STYLES = {
     fg: "#1a1a1a",
     icon: (
       <>
-        <path d="M8.1 2.6L1.3 14.3l3 5.1L11 7.7 8.1 2.6z" fill="#00AC47" />
-        <path d="M15.9 2.6h-7.8L11 7.7h9.6L15.9 2.6z" fill="#EA4335" />
-        <path d="M20.6 7.7H11l6.1 10.6 3.3-5.6-1.8-5z" fill="#FFBA00" />
-        <path d="M4.3 19.4h15.4l-2.9-5H7.2l-2.9 5z" fill="#00AC47" />
-        <path d="M14.3 12.9H7.2l-2.9 5H17.2l-2.9-5z" fill="#00AC47" />
+        <path d="M12 3L3 20L12 14Z" fill="#2684FC" />
+        <path d="M12 3L21 20L12 14Z" fill="#FFBA00" />
+        <path d="M3 20L21 20L12 14Z" fill="#00AC47" />
       </>
     ),
   },
@@ -582,7 +581,7 @@ const SOCIAL_STYLES = {
   },
   robotaua: {
     label: "robota.ua",
-    bg: "#0057B8",
+    bg: "linear-gradient(135deg,#EE3124,#F7941D)",
     fg: "#ffffff",
     icon: (
       <path d="M6 4h5.2c3 0 4.8 1.5 4.8 4 0 1.9-1 3.1-2.6 3.6L17 20h-3l-2.9-8H9v8H6V4zm3 3v3.5h2c1.4 0 2-.6 2-1.8S12.4 7 11 7H9z" />
@@ -590,7 +589,7 @@ const SOCIAL_STYLES = {
   },
   workua: {
     label: "work.ua",
-    bg: "#1AA64A",
+    bg: "#005EB8",
     fg: "#ffffff",
     icon: (
       <path d="M3 6h2.4l1.8 9 2-9h2l2 9 1.8-9H17l-2.8 12h-2.4l-1.9-8.5L8 18H5.6L3 6zm15.5 0H21v12h-2.5V6z" />
@@ -634,6 +633,14 @@ const SOCIAL_STYLES = {
     fg: "#ffffff",
     icon: (
       <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 3a2.6 2.6 0 110 5.2A2.6 2.6 0 0112 5zm0 14.2a7.6 7.6 0 01-5.6-2.5c.1-1.8 3.7-2.8 5.6-2.8s5.5 1 5.6 2.8A7.6 7.6 0 0112 19.2z" />
+    ),
+  },
+  djinni: {
+    label: "Djinni",
+    bg: "#155EEF",
+    fg: "#ffffff",
+    icon: (
+      <path d="M12 2C8 2 5 5.4 5 9.5c0 3.4 2.1 5.1 3.4 6.4.9.9 1.2 1.4 1.2 2.1V21h4.8v-3c0-.7.3-1.2 1.2-2.1 1.3-1.3 3.4-3 3.4-6.4C19 5.4 16 2 12 2zm-2 19h4v1h-4v-1z" />
     ),
   },
 };
@@ -1111,7 +1118,8 @@ function renderMediaPreviewContent(item) {
     type === "douua" ||
     type === "hh" ||
     type === "superjob" ||
-    type === "rabotaru"
+    type === "rabotaru" ||
+    type === "djinni"
   ) {
     return <SocialButton type={type} url={item.url} title={item.title} />;
   }
