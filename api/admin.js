@@ -223,6 +223,30 @@ async function handlerImpl(req, res) {
     return sendJson(res, 200, { ok: true, listingPrice: listing, topPrice: top });
   }
 
+  if (req.method === "POST" && action === "setAutoApprove") {
+    const { enabled, afterMinutes } = req.body || {};
+    const minutes = Number(afterMinutes);
+    if (typeof enabled !== "boolean") {
+      return sendJson(res, 400, { error: "invalid_enabled" });
+    }
+    if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 100000) {
+      return sendJson(res, 400, { error: "invalid_after_minutes" });
+    }
+    const { error } = await admin.from("pricing_settings").upsert({
+      id: 1,
+      auto_approve_enabled: enabled,
+      auto_approve_after_minutes: minutes,
+      updated_by: auth.user.id,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      logDbError("admin setAutoApprove POST", error, { telegramId: auth.user.id, enabled, minutes });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+    logInfo("admin setAutoApprove POST: ok", { telegramId: auth.user.id, enabled, minutes });
+    return sendJson(res, 200, { ok: true, autoApproveEnabled: enabled, autoApproveAfterMinutes: minutes });
+  }
+
   if (req.method === "POST" && action === "deleteVacancy") {
     const { id } = req.body || {};
     if (!id) return sendJson(res, 400, { error: "missing_id" });
