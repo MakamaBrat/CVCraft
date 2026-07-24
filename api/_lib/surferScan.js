@@ -1,4 +1,4 @@
-import { extractVacancyLinks, extractVacancyFields } from "../geminiExtract.js";
+import { extractVacancyLinks, extractVacancyFieldsBatch } from "../geminiExtract.js";
 import { rollRandomMedia } from "../giphyServer.js";
 
 const TEMPLATES = ["minimal", "modern", "bold", "classic"];
@@ -117,47 +117,51 @@ export async function scanSite(admin, site) {
   }
 
   // Обмежуємо кількість вакансій за один прогін — і щоб укластись у
-  // тайм-аут функції, і щоб не забити ліміти Gemini API за раз. Якщо на
-  // сайті більше — решту підхопить наступний скан (за розкладом крону).
-  const MAX_LINKS_PER_SCAN = 30;
-  const linksToProcess = links.slice(0, MAX_LINKS_PER_SCAN);
+  // тайм-аут функції, і щоб не перевищити ліміт розміру одного запиту до
+  // Gemini. Якщо на сайті більше — решту підхопить наступний скан.
+  const MAX_LINKS_PER_SCAN = 20;
+  const linksToProcess = links.slice(0, MAX_LINKS_PER_SCAN).filter((l) => l?.url);
 
-  // Обробляємо пачками по CONCURRENCY штук паралельно замість суворо по
-  // одній — раніше 20+ вакансій послідовно (fetch + виклик LLM на кожну)
-  // легко перевищували тайм-аут функції, і скан "зависав".
-  const CONCURRENCY = 5;
+  // Завантаження сторінок — звичайний fetch, не рахується в ліміти Gemini,
+  // тож паралелимо без обмежень. А ось LLM-виклик на весь скан — РІВНО
+  // ОДИН пакетний запит (замість одного на кожну вакансію), плюс той,
+  // що знайшов посилання вище — разом 2 запити до Gemini на сайт.
   const failures = [];
+  const fetchedPages = [];
+  await Promise.all(
+    linksToProcess.map(async (link) => {
+      try {
+        const text = await fetchPageText(link.url);
+        fetchedPages.push({ url: link.url, text });
+      } catch (err) {
+        console.warn("[surferScan] page fetch failed", link.url, err.message);
+        failures.push(`${link.url}: fetch_failed(${err.message})`);
+      }
+    })
+  );
 
-  async function processLink(link) {
-    if (!link?.url) return;
-
-    let pageText;
+  let fieldsList = [];
+  if (fetchedPages.length > 0) {
     try {
-      pageText = await fetchPageText(link.url);
+      fieldsList = await extractVacancyFieldsBatch(fetchedPages);
     } catch (err) {
-      console.warn("[surferScan] page fetch failed", link.url, err.message);
-      failures.push(`${link.url}: fetch_failed(${err.message})`);
-      return;
+      return { found: links.length, created: 0, updated: 0, expired: 0, error: `fields_extract_failed: ${err.message}` };
     }
+  }
+  const fieldsByUrl = new Map(fieldsList.map((f) => [f.url, f]));
 
-    let fields;
-    try {
-      fields = await extractVacancyFields(link.url, pageText);
-    } catch (err) {
-      console.warn("[surferScan] page extract failed", link.url, err.message);
-      failures.push(`${link.url}: extract_failed(${err.message})`);
-      return;
-    }
+  for (const page of fetchedPages) {
+    const fields = fieldsByUrl.get(page.url);
     if (!fields?.position) {
-      failures.push(`${link.url}: no_position_field`);
-      return;
+      failures.push(`${page.url}: no_position_field`);
+      continue;
     }
 
     const { data: existing } = await admin
       .from("parsed_vacancies")
       .select("id")
       .eq("source_site_id", site.id)
-      .eq("external_url", link.url)
+      .eq("external_url", page.url)
       .maybeSingle();
 
     if (existing) {
@@ -179,7 +183,7 @@ export async function scanSite(admin, site) {
         })
         .eq("id", existing.id);
       if (!error) updated += 1;
-      return;
+      continue;
     }
 
     // Кубик: рандомна аватарка/фон + шаблон/тему, бо в спарсеної вакансії
@@ -188,7 +192,7 @@ export async function scanSite(admin, site) {
 
     const { error: insertError } = await admin.from("parsed_vacancies").insert({
       source_site_id: site.id,
-      external_url: link.url,
+      external_url: page.url,
       status: "active",
       data: {
         position: fields.position,
@@ -208,12 +212,7 @@ export async function scanSite(admin, site) {
       updated_at: new Date().toISOString(),
     });
     if (!insertError) created += 1;
-    else console.warn("[surferScan] insert failed", link.url, insertError.message);
-  }
-
-  for (let i = 0; i < linksToProcess.length; i += CONCURRENCY) {
-    const batch = linksToProcess.slice(i, i + CONCURRENCY);
-    await Promise.all(batch.map(processLink));
+    else console.warn("[surferScan] insert failed", page.url, insertError.message);
   }
 
   // Вакансії цього сайту, яких більше немає в свіжому скані — позначаємо

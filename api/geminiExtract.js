@@ -15,7 +15,11 @@
 const MODEL = "gemini-flash-latest";
 const API_KEY = process.env.GEMINI_API_KEY;
 
-async function callGemini(systemPrompt, userText, responseSchema) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callGemini(systemPrompt, userText, responseSchema, attempt = 0) {
   if (!API_KEY) throw new Error("GEMINI_API_KEY not set");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
@@ -33,6 +37,14 @@ async function callGemini(systemPrompt, userText, responseSchema) {
       },
     }),
   });
+
+  if (res.status === 429 && attempt < 1) {
+    // Лише один ретрай з невеликою паузою: якщо квота вичерпана надовго
+    // (а не тимчасовий ліміт запитів/хвилину), повторні спроби все одно
+    // не допоможуть, а тільки з'їдять бюджет часу функції (maxDuration).
+    await sleep(3000);
+    return callGemini(systemPrompt, userText, responseSchema, attempt + 1);
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -57,25 +69,27 @@ const LINKS_SCHEMA = {
   },
 };
 
-const VACANCY_SCHEMA = {
-  type: "object",
-  properties: {
-    position: { type: "string" },
-    company: { type: "string", nullable: true },
-    location: { type: "string", nullable: true },
-    description: { type: "string", nullable: true },
-    requirements: { type: "string", nullable: true },
-    contactTelegram: { type: "string", nullable: true },
-    contactEmail: { type: "string", nullable: true },
-    tags: { type: "array", items: { type: "string" }, nullable: true },
+const VACANCY_BATCH_SCHEMA = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      url: { type: "string" },
+      position: { type: "string" },
+      company: { type: "string", nullable: true },
+      location: { type: "string", nullable: true },
+      description: { type: "string", nullable: true, maxLength: 20 },
+      requirements: { type: "string", nullable: true },
+      contactTelegram: { type: "string", nullable: true },
+      contactEmail: { type: "string", nullable: true },
+      tags: { type: "array", items: { type: "string" }, nullable: true },
+    },
+    required: ["url", "position"],
   },
-  required: ["position"],
 };
 
-// Зі сторінки-списку вакансій (сирий текст + реальний перелік знайдених
-// <a href>) вибирає ті посилання, що ведуть на окремі вакансії.
-// URL-и вже абсолютні (резолвнуті на бекенді) — LLM лише фільтрує та,
-// за потреби, підказує заголовок з видимого тексту, а не вигадує самі URL.
+// Зі сторінки-списку вакансій (сирий текст) витягує масив посилань на
+// окремі вакансії разом із заголовком (якщо видно з самого списку).
 export async function extractVacancyLinks(pageUrl, pageText, links = []) {
   if (!links.length) return [];
   const linksBlock = links
@@ -95,19 +109,33 @@ ${linksBlock}`;
   return Array.isArray(result) ? result : [];
 }
 
-// Зі сторінки конкретної вакансії (сирий текст) робить структурований об'єкт
-// у форматі, сумісному з полем `data` таблиці vacancies.
-export async function extractVacancyFields(pageUrl, pageText) {
-  const system = `Ти отримуєш текст сторінки однієї вакансії (${pageUrl}).
-Витягни: position (назва посади), company (назва компанії, якщо є),
+// Один запит замість одного-на-вакансію: отримує вже завантажений текст
+// КІЛЬКОХ сторінок вакансій одразу (кожна позначена своїм URL) і повертає
+// масив структурованих об'єктів. Так на весь скан сайту йде лише 2 запити
+// до Gemini (посилання + пачка даних) незалежно від кількості вакансій.
+export async function extractVacancyFieldsBatch(pages) {
+  if (!pages.length) return [];
+  const PER_PAGE_CHARS = 3000;
+  const body = pages
+    .map((p) => `=== URL: ${p.url} ===\n${p.text.slice(0, PER_PAGE_CHARS)}`)
+    .join("\n\n");
+  const system = `Ти отримуєш текст кількох сторінок вакансій, кожна починається з рядка
+"=== URL: <адреса> ===". Для КОЖНОЇ сторінки поверни окремий об'єкт у масиві з полями:
+url (та сама адреса, ТОЧНО як у заголовку блоку, нічого не змінюй),
+position (назва посади), company (назва компанії, якщо є),
 location (локація/формат роботи, напр. "Remote" або "Ukraine"),
-description (опис ролі й обов'язків, звичайний текст, збережи структуру абзацами),
+description (ДУЖЕ КОРОТКИЙ тизер, максимум 20 символів, буквально пара слів
+по суті ролі — НЕ повний опис і НЕ обов'язки, повний опис користувач
+подивиться за посиланням external_url на оригінальну сторінку),
 requirements (вимоги до кандидата, звичайний текст),
 contactTelegram (нікнейм у телеграмі без @, якщо вказаний),
 contactEmail (email, якщо вказаний),
 tags (масив 3-6 коротких ключових слів по вакансії — стек технологій, навички
 чи тип зайнятості, напр. ["React", "Remote", "Middle"], якщо зі сторінки
 видно недостатньо — поверни менше тегів або порожній масив, не вигадуй зайве).
-Якщо якогось поля немає на сторінці — не вигадуй, лиши порожнім.`;
-  return callGemini(system, pageText.slice(0, 15000), VACANCY_SCHEMA);
+Якщо якогось поля немає на сторінці — не вигадуй, лиши порожнім.
+Якщо сторінка виявилась не вакансією (помилка, порожньо, редирект тощо) —
+все одно поверни об'єкт з цим url, але з порожнім position.`;
+  const result = await callGemini(system, body, VACANCY_BATCH_SCHEMA);
+  return Array.isArray(result) ? result : [];
 }
