@@ -142,7 +142,7 @@ export default function VacancyDetail({
             <path d="M5.3 6.5L9.7 4.3M5.3 8.5l4.4 2.2" stroke="currentColor" strokeWidth="1.3" />
           </svg>
         </button>
-        {isOwner && (onEdit || onDelete || onPay || onSendToModeration || onOpenApplicants) && (
+        {isOwner && (onEdit || onDelete || onPay || onSendToModeration) && (
           <button
             onClick={() => setMenuOpen(true)}
             className="tap shrink-0 w-8 h-8 flex items-center justify-center text-white/70 bg-base-850 border border-base-700 rounded-full"
@@ -254,7 +254,16 @@ export default function VacancyDetail({
           )}
         </div>
 
-        {!isApplied ? (
+        {isOwner ? (
+          onOpenApplicants && (
+            <button
+              onClick={() => onOpenApplicants(vacancy.id)}
+              className="tap w-full flex items-center justify-center gap-2 bg-accent-500 text-base-950 font-semibold text-sm rounded-xl py-3.5"
+            >
+              <span className="text-base leading-none">📋</span> {t("vacancy.viewApplicants")}
+            </button>
+          )
+        ) : !isApplied ? (
           <div className="bg-base-850 border border-base-700 rounded-xl p-4">
             {resumes.length > 0 ? (
               <>
@@ -353,17 +362,6 @@ export default function VacancyDetail({
             <p className="text-xs text-white/45 mb-4 truncate">{vacancy.company}</p>
 
             <div className="flex flex-col gap-2">
-              {onOpenApplicants && (
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenApplicants(vacancy.id);
-                  }}
-                  className="tap w-full flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/90"
-                >
-                  <span className="text-base leading-none">📋</span> {t("vacancy.viewApplicants")}
-                </button>
-              )}
               {onEdit && (
                 <button
                   onClick={() => {
