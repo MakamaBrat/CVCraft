@@ -4,6 +4,10 @@ import { rollRandomMedia } from "../giphyServer.js";
 const TEMPLATES = ["minimal", "modern", "bold", "classic"];
 const COLOR_SCHEMES = ["dark", "light"];
 
+// Скільки сторінок дозволяємо просканувати за один ручний запуск
+// "парсити N сторінок" — щоб не впертися в тайм-аут функції й ліміти Gemini.
+export const MAX_MANUAL_PAGES = 15;
+
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -63,17 +67,32 @@ async function fetchListPage(url) {
   return { text: stripHtml(html), links: extractLinks(html, url) };
 }
 
-// Сканує один сайт: список -> кожна вакансія -> upsert у ОКРЕМІЙ таблиці
-// parsed_vacancies (не в vacancies — щоб не мішати спарсене з юзерським).
-// Повертає { found, created, updated, expired, error }.
-export async function scanSite(admin, site) {
+// Підставляє номер сторінки в URL: якщо в query вже є "page" — перезаписує
+// його, інакше додає. Так з "https://djinni.co/jobs/?page=2" на кроці 3
+// вийде "https://djinni.co/jobs/?page=3", а з "https://example.com/jobs"
+// (без параметра) вийде "https://example.com/jobs?page=3".
+export function buildPageUrl(baseUrl, pageNum) {
+  try {
+    const u = new URL(baseUrl);
+    u.searchParams.set("page", String(pageNum));
+    return u.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+// Сканує ОДНУ вже конкретну сторінку-список (список -> кожна вакансія ->
+// upsert у parsed_vacancies). Без позначення expired — цим займається
+// виклик, що знає, чи це повний скан сайту, чи лише частина сторінок.
+// Повертає { found, created, updated, error, foundUrls }.
+async function scanOneListPage(admin, site, pageUrl) {
   let listText, listLinks;
   try {
-    const listPage = await fetchListPage(site.url);
+    const listPage = await fetchListPage(pageUrl);
     listText = listPage.text;
     listLinks = listPage.links;
   } catch (err) {
-    return { found: 0, created: 0, updated: 0, expired: 0, error: `list_fetch_failed: ${err.message}` };
+    return { found: 0, created: 0, updated: 0, foundUrls: new Set(), error: `list_fetch_failed: ${err.message}` };
   }
 
   if (listLinks.length === 0) {
@@ -85,16 +104,16 @@ export async function scanSite(admin, site) {
       found: 0,
       created: 0,
       updated: 0,
-      expired: 0,
+      foundUrls: new Set(),
       error: "no_links_in_raw_html: сторінка не містить посилань у вихідному HTML — ймовірно, контент рендериться через JS (SPA), а не приходить одразу від сервера",
     };
   }
 
   let links;
   try {
-    links = await extractVacancyLinks(site.url, listText, listLinks);
+    links = await extractVacancyLinks(pageUrl, listText, listLinks);
   } catch (err) {
-    return { found: 0, created: 0, updated: 0, expired: 0, error: `list_extract_failed: ${err.message}` };
+    return { found: 0, created: 0, updated: 0, foundUrls: new Set(), error: `list_extract_failed: ${err.message}` };
   }
 
   const foundUrls = new Set(links.map((l) => l?.url).filter(Boolean));
@@ -111,7 +130,7 @@ export async function scanSite(admin, site) {
       found: 0,
       created: 0,
       updated: 0,
-      expired: 0,
+      foundUrls,
       error: `gemini_filtered_all_links: на сторінці знайдено ${listLinks.length} посилань, але жодне не визначено як вакансія. Приклади: ${sample}`,
     };
   }
@@ -125,7 +144,7 @@ export async function scanSite(admin, site) {
   // Завантаження сторінок — звичайний fetch, не рахується в ліміти Gemini,
   // тож паралелимо без обмежень. А ось LLM-виклик на весь скан — РІВНО
   // ОДИН пакетний запит (замість одного на кожну вакансію), плюс той,
-  // що знайшов посилання вище — разом 2 запити до Gemini на сайт.
+  // що знайшов посилання вище — разом 2 запити до Gemini на сторінку.
   const failures = [];
   const fetchedPages = [];
   await Promise.all(
@@ -145,7 +164,7 @@ export async function scanSite(admin, site) {
     try {
       fieldsList = await extractVacancyFieldsBatch(fetchedPages);
     } catch (err) {
-      return { found: links.length, created: 0, updated: 0, expired: 0, error: `fields_extract_failed: ${err.message}` };
+      return { found: links.length, created: 0, updated: 0, foundUrls, error: `fields_extract_failed: ${err.message}` };
     }
   }
   const fieldsByUrl = new Map(fieldsList.map((f) => [f.url, f]));
@@ -211,33 +230,90 @@ export async function scanSite(admin, site) {
     else console.warn("[surferScan] insert failed", page.url, insertError.message);
   }
 
-  // Вакансії цього сайту, яких більше немає в свіжому скані — позначаємо
-  // expired (не видаляємо, щоб не губити історію).
-  let expired = 0;
-  if (foundUrls.size > 0) {
-    const { data: staleRows } = await admin
-      .from("parsed_vacancies")
-      .select("id, external_url")
-      .eq("source_site_id", site.id)
-      .neq("status", "expired");
-    const stale = (staleRows || []).filter((r) => !foundUrls.has(r.external_url));
-    if (stale.length > 0) {
-      const { error } = await admin
-        .from("parsed_vacancies")
-        .update({ status: "expired" })
-        .in("id", stale.map((r) => r.id));
-      if (!error) expired = stale.length;
-    }
-  }
-
   return {
     found: links.length,
     created,
     updated,
-    expired,
+    foundUrls,
     error:
       created === 0 && updated === 0 && failures.length > 0
         ? `all_links_failed: ${failures.slice(0, 5).join(" | ")}`
         : null,
   };
+}
+
+// Позначає expired ті вакансії цього сайту, яких немає серед свіжо
+// знайдених foundUrls (не видаляє, щоб не губити історію).
+async function markExpired(admin, site, foundUrls) {
+  let expired = 0;
+  if (foundUrls.size === 0) return expired;
+  const { data: staleRows } = await admin
+    .from("parsed_vacancies")
+    .select("id, external_url")
+    .eq("source_site_id", site.id)
+    .neq("status", "expired");
+  const stale = (staleRows || []).filter((r) => !foundUrls.has(r.external_url));
+  if (stale.length > 0) {
+    const { error } = await admin
+      .from("parsed_vacancies")
+      .update({ status: "expired" })
+      .in("id", stale.map((r) => r.id));
+    if (!error) expired = stale.length;
+  }
+  return expired;
+}
+
+// Сканує один сайт (одна сторінка-список = site.url) -> кожна вакансія ->
+// upsert у ОКРЕМІЙ таблиці parsed_vacancies (не в vacancies — щоб не
+// мішати спарсене з юзерським). Повертає { found, created, updated,
+// expired, error }. Викликається кроном і кнопкою "Сканувати зараз".
+export async function scanSite(admin, site) {
+  const result = await scanOneListPage(admin, site, site.url);
+  const expired = await markExpired(admin, site, result.foundUrls);
+  return {
+    found: result.found,
+    created: result.created,
+    updated: result.updated,
+    expired,
+    error: result.error,
+  };
+}
+
+// Сканує N сторінок пагінації одного сайту поспіль, самостійно підставляючи
+// номер сторінки в URL (page=1, page=2, ... page=pageCount) — саме те, що
+// стоїть за кнопкою "парсити вказану кількість сторінок" в адмінці.
+// pageCount обрізається до MAX_MANUAL_PAGES. Повертає { found, created,
+// updated, expired, error, perPage } — perPage містить деталі по кожній
+// сторінці для показу користувачу.
+export async function scanSitePages(admin, site, pageCount) {
+  const pages = Math.max(1, Math.min(MAX_MANUAL_PAGES, Number(pageCount) || 1));
+  const allFoundUrls = new Set();
+  let found = 0;
+  let created = 0;
+  let updated = 0;
+  const perPage = [];
+
+  for (let p = 1; p <= pages; p++) {
+    const pageUrl = buildPageUrl(site.url, p);
+    const result = await scanOneListPage(admin, site, pageUrl);
+    found += result.found;
+    created += result.created;
+    updated += result.updated;
+    for (const u of result.foundUrls) allFoundUrls.add(u);
+    perPage.push({ page: p, url: pageUrl, found: result.found, created: result.created, updated: result.updated, error: result.error });
+
+    // Якщо сторінка взагалі не віддала жодної вакансії і при цьому дала
+    // помилку (403, no_links, і т.д.) — далі гортати немає сенсу, це,
+    // швидше за все, кінець списку або сайт нас заблокував.
+    if (result.found === 0 && result.error) break;
+  }
+
+  const expired = await markExpired(admin, site, allFoundUrls);
+  const failedPages = perPage.filter((pg) => pg.error);
+  const error =
+    created === 0 && updated === 0 && failedPages.length > 0
+      ? `pages_failed: ${failedPages.slice(0, 5).map((pg) => `p${pg.page}: ${pg.error}`).join(" | ")}`
+      : null;
+
+  return { found, created, updated, expired, error, perPage };
 }

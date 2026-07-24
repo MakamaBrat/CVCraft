@@ -393,6 +393,10 @@ export default function AdminPanel({ onBack, adminId }) {
   const [parsedVacancies, setParsedVacancies] = useState([]);
   const [loadingParsedVacancies, setLoadingParsedVacancies] = useState(false);
   const [deletingParsedId, setDeletingParsedId] = useState(null);
+  const [pagesScanUrl, setPagesScanUrl] = useState("");
+  const [pagesScanCount, setPagesScanCount] = useState("5");
+  const [scanningPages, setScanningPages] = useState(false);
+  const [pagesScanResult, setPagesScanResult] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -501,6 +505,30 @@ export default function AdminPanel({ onBack, adminId }) {
       setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "scan_failed"));
     }
     setScanningId(null);
+  };
+
+  const scanSurferSitePages = async () => {
+    const url = pagesScanUrl.trim();
+    if (!url) return;
+    const pages = Math.max(1, Math.min(15, Number(pagesScanCount) || 1));
+    setActionError(null);
+    setPagesScanResult(null);
+    setScanningPages(true);
+    try {
+      // Кожна сторінка — це окремий прогін фетчу + Gemini, тож тайм-аут
+      // масштабуємо на кількість сторінок (з запасом), а не лишаємо
+      // фіксованим, як для скану одного сайту.
+      const res = await apiFetch("/api/admin", {
+        method: "POST",
+        body: { action: "scanSurferSitePages", url, pages },
+        timeoutMs: Math.min(280000, 20000 + pages * 25000),
+      });
+      setPagesScanResult(res);
+      await loadSurferSites();
+    } catch (err) {
+      setActionError(t("admin.errGeneric")(err?.payload?.error || err.message || "scan_failed"));
+    }
+    setScanningPages(false);
   };
 
   const toggleSurferSite = async (site) => {
@@ -1204,6 +1232,59 @@ export default function AdminPanel({ onBack, adminId }) {
                   >
                     {addingSite ? t("common.loading") : t("admin.surferAddSiteButton")}
                   </button>
+                </div>
+
+                <div className="bg-base-850 border border-base-700 rounded-xl p-4 mt-3">
+                  <p className="text-sm font-semibold mb-1">{t("admin.surferPagesTitle")}</p>
+                  <p className="text-xs text-white/40 mb-3">{t("admin.surferPagesHint")}</p>
+                  <input
+                    value={pagesScanUrl}
+                    onChange={(e) => setPagesScanUrl(e.target.value)}
+                    placeholder="https://djinni.co/jobs/?page=2"
+                    className="w-full bg-base-900 border border-base-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-accent-500 mb-2"
+                  />
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs text-white/40 shrink-0">{t("admin.surferPagesCount")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={15}
+                      value={pagesScanCount}
+                      onChange={(e) => setPagesScanCount(e.target.value)}
+                      className="w-20 bg-base-900 border border-base-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-accent-500"
+                    />
+                  </div>
+                  <button
+                    onClick={scanSurferSitePages}
+                    disabled={scanningPages || !pagesScanUrl.trim()}
+                    className="tap w-full bg-accent-500 disabled:bg-base-700 disabled:text-white/30 text-base-950 font-semibold text-sm rounded-xl py-3"
+                  >
+                    {scanningPages ? t("admin.surferScanning") : t("admin.surferPagesButton")}
+                  </button>
+
+                  {pagesScanResult && (
+                    <div className="mt-3 text-xs text-white/50 space-y-1">
+                      <p>
+                        {t("admin.surferScanStats")(
+                          pagesScanResult.found,
+                          pagesScanResult.created,
+                          pagesScanResult.updated,
+                          pagesScanResult.expired
+                        )}
+                      </p>
+                      {pagesScanResult.error && <p className="text-red-400">{pagesScanResult.error}</p>}
+                      {Array.isArray(pagesScanResult.perPage) && (
+                        <div className="mt-1 space-y-0.5">
+                          {pagesScanResult.perPage.map((pg) => (
+                            <p key={pg.page} className="truncate">
+                              {t("admin.surferPagesPageLabel")(pg.page)}: {pg.created + pg.updated}/{pg.found}
+                              {pg.error ? ` — ${pg.error}` : ""}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {loadingSurfer && <p className="text-sm text-white/40 text-center py-4">{t("common.loading")}</p>}

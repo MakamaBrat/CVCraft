@@ -306,6 +306,11 @@ export const uk = {
     surferScanStats: (found, created, updated, expired) =>
       `Знайдено: ${found} · Нових: ${created} · Оновлено: ${updated} · Прострочено: ${expired}`,
     surferScanError: "Помилка останнього сканування",
+    surferPagesTitle: "Просканувати кілька сторінок",
+    surferPagesHint: "Встав посилання на будь-який сайт зі списком вакансій (можна з ?page=2) і вкажи скільки сторінок пройти — сканер сам переключить пагінацію.",
+    surferPagesCount: "Сторінок:",
+    surferPagesButton: "Сканувати сторінки",
+    surferPagesPageLabel: (n) => `Сторінка ${n}`,
   },
   report: {
     reportVacancy: "Поскаржитись",
@@ -756,6 +761,11 @@ export const ru = {
     surferScanStats: (found, created, updated, expired) =>
       `Найдено: ${found} · Новых: ${created} · Обновлено: ${updated} · Просрочено: ${expired}`,
     surferScanError: "Ошибка последнего сканирования",
+    surferPagesTitle: "Просканировать несколько страниц",
+    surferPagesHint: "Вставь ссылку на любой сайт со списком вакансий (можно с ?page=2) и укажи сколько страниц пройти — сканер сам переключит пагинацию.",
+    surferPagesCount: "Страниц:",
+    surferPagesButton: "Сканировать страницы",
+    surferPagesPageLabel: (n) => `Страница ${n}`,
   },
   report: {
     reportVacancy: "Пожаловаться",
@@ -1206,6 +1216,11 @@ export const en = {
     surferScanStats: (found, created, updated, expired) =>
       `Found: ${found} · New: ${created} · Updated: ${updated} · Expired: ${expired}`,
     surferScanError: "Last scan failed",
+    surferPagesTitle: "Scan multiple pages",
+    surferPagesHint: "Paste a link to any job listing site (can include ?page=2) and set how many pages to go through — the scanner will switch pagination itself.",
+    surferPagesCount: "Pages:",
+    surferPagesButton: "Scan pages",
+    surferPagesPageLabel: (n) => `Page ${n}`,
   },
   report: {
     reportVacancy: "Report",

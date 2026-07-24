@@ -2,7 +2,7 @@ import { supabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { requireUser, isAdminId } from "./_lib/telegramAuth.js";
 import { sendJson, methodNotAllowed, logDbError, logInfo } from "./_lib/respond.js";
 import { getCurrentPricing } from "./_lib/pricing.js";
-import { scanSite } from "./_lib/surferScan.js";
+import { scanSite, scanSitePages, MAX_MANUAL_PAGES } from "./_lib/surferScan.js";
 
 async function handlerImpl(req, res) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -405,6 +405,73 @@ async function handlerImpl(req, res) {
 
     logInfo("admin scanSurferSite POST: done", { telegramId: auth.user.id, id, ...result });
     return sendJson(res, 200, { ok: !result.error, ...result });
+  }
+
+  // Ручний "прогорни N сторінок" для будь-якого вставленого URL. Якщо для
+  // цього базового URL (без ?page=) вже є збережений сайт — використовує
+  // й оновлює його, інакше створює новий рядок у surfer_sites, щоб було
+  // куди прив'язати source_site_id у parsed_vacancies і щоб url лишився
+  // видимим у списку сайтів надалі.
+  if (req.method === "POST" && action === "scanSurferSitePages") {
+    const { url, pages, companyName } = req.body || {};
+    if (!url || typeof url !== "string" || !/^https?:\/\//.test(url)) {
+      return sendJson(res, 400, { error: "invalid_url" });
+    }
+    const pageCount = Math.max(1, Math.min(MAX_MANUAL_PAGES, Number(pages) || 1));
+
+    let baseUrl = url;
+    try {
+      const u = new URL(url);
+      u.searchParams.delete("page");
+      baseUrl = u.toString();
+    } catch {
+      // лишаємо url як є, якщо парсинг не вдався
+    }
+
+    let { data: site, error: siteError } = await admin
+      .from("surfer_sites")
+      .select("*")
+      .eq("url", baseUrl)
+      .maybeSingle();
+    if (siteError) {
+      logDbError("admin scanSurferSitePages: lookup", siteError, { telegramId: auth.user.id, url: baseUrl });
+      return sendJson(res, 500, { error: "db_error" });
+    }
+
+    if (!site) {
+      const { data: created, error: insertError } = await admin
+        .from("surfer_sites")
+        .insert({ url: baseUrl, company_name: companyName || null, created_by: auth.user.id })
+        .select()
+        .maybeSingle();
+      if (insertError) {
+        logDbError("admin scanSurferSitePages: create", insertError, { telegramId: auth.user.id, url: baseUrl });
+        return sendJson(res, 500, { error: "db_error" });
+      }
+      site = created;
+    }
+
+    const result = await scanSitePages(admin, site, pageCount);
+    await admin
+      .from("surfer_sites")
+      .update({
+        last_scanned_at: new Date().toISOString(),
+        last_scan_status: result.error ? "error" : "ok",
+        last_scan_error: result.error,
+        found_count: result.found,
+        created_count: result.created,
+        updated_count: result.updated,
+        expired_count: result.expired,
+      })
+      .eq("id", site.id);
+
+    logInfo("admin scanSurferSitePages POST: done", {
+      telegramId: auth.user.id,
+      url: baseUrl,
+      pageCount,
+      ...result,
+    });
+    return sendJson(res, 200, { ok: !result.error, site, ...result });
   }
 
   if (req.method === "GET" && action === "parsedVacancies") {
