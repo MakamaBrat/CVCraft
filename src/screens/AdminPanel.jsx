@@ -7,6 +7,7 @@ import { MediaPreview } from "./Wizard.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { getColorTheme, getAlign, getDocBackgroundStyle, getCellBackgroundStyle } from "../lib/docTheme.js";
 import { confirmDialog } from "../lib/telegram.js";
+import { timeAgo } from "../lib/timeAgo.js";
 
 const TAB_IDS = ["stats", "moderation", "vacancies", "resumes", "reports", "applications", "users", "pricing"];
 const TAB_LABEL_KEYS = {
@@ -791,11 +792,22 @@ export default function AdminPanel({ onBack, adminId }) {
                           <button
                             key={v.id}
                             onClick={() => openVacancyPreview(v, row, "view")}
-                            className="tap flex items-center justify-between gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-2.5 text-left"
+                            className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-xl px-3.5 py-2.5 text-left"
+                            style={getCellBackgroundStyle(v.backgroundUrl)}
                           >
-                            <div className="min-w-0">
+                            <Avatar
+                              url={v.avatarUrl}
+                              name={v.company || v.position}
+                              accent={ACCENTS[v.template] || ACCENTS.minimal}
+                              theme={getColorTheme(v.colorScheme)}
+                              size={8}
+                            />
+                            <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium truncate">{v.position || "—"}</p>
                               <p className="text-xs text-white/45 truncate">{v.company}</p>
+                              {row?.created_at && (
+                                <p className="text-[11px] text-white/35 mt-0.5">{timeAgo(row.created_at, t)}</p>
+                              )}
                             </div>
                             <span className="shrink-0 text-xs font-semibold text-accent-300">
                               {row?.views_count || 0} 👁
@@ -894,16 +906,34 @@ export default function AdminPanel({ onBack, adminId }) {
                 )}
 
                 {filteredVacancies.map(({ v, row }) => (
-                  <div key={v.id} className="bg-base-850 border border-base-700 rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="font-semibold text-sm truncate">{v.position || "—"}</p>
-                      <span className={`shrink-0 text-[11px] font-medium ${STATUS_COLOR[v.status] || "text-white/45"}`}>
-                        {t(`vacancy.status.${v.status}`)}
-                      </span>
+                  <div
+                    key={v.id}
+                    className="bg-base-850 border border-base-700 rounded-xl p-4"
+                    style={getCellBackgroundStyle(v.backgroundUrl)}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <Avatar
+                        url={v.avatarUrl}
+                        name={v.company || v.position}
+                        accent={ACCENTS[v.template] || ACCENTS.minimal}
+                        theme={getColorTheme(v.colorScheme)}
+                        size={9}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold text-sm truncate">{v.position || "—"}</p>
+                          <span className={`shrink-0 text-[11px] font-medium ${STATUS_COLOR[v.status] || "text-white/45"}`}>
+                            {t(`vacancy.status.${v.status}`)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/50 truncate">
+                          {v.company} {v.city ? `· ${v.city}` : ""}
+                        </p>
+                        {row?.created_at && (
+                          <p className="text-[11px] text-white/35 mt-0.5">{timeAgo(row.created_at, t)}</p>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-white/50 mb-2">
-                      {v.company} {v.city ? `· ${v.city}` : ""}
-                    </p>
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <LinkChip onClick={() => openUserById(row?.telegram_id, { telegram_username: row?.telegram_username })}>
                         {row?.telegram_username ? `@${row.telegram_username}` : `id ${row?.telegram_id ?? "—"}`}
@@ -1421,11 +1451,22 @@ export default function AdminPanel({ onBack, adminId }) {
                 <button
                   key={v.id}
                   onClick={() => openVacancyPreview(v, row, "delete")}
-                  className="tap flex items-center justify-between gap-2 bg-base-850 border border-base-700 rounded-lg px-3 py-2.5 text-left"
+                  className="tap flex items-center gap-3 bg-base-850 border border-base-700 rounded-lg px-3 py-2.5 text-left"
+                  style={getCellBackgroundStyle(v.backgroundUrl)}
                 >
-                  <div className="min-w-0">
+                  <Avatar
+                    url={v.avatarUrl}
+                    name={v.company || v.position}
+                    accent={ACCENTS[v.template] || ACCENTS.minimal}
+                    theme={getColorTheme(v.colorScheme)}
+                    size={8}
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium truncate">{v.position || "—"}</p>
                     <p className={`text-[11px] ${STATUS_COLOR[v.status] || "text-white/45"}`}>{t(`vacancy.status.${v.status}`)}</p>
+                    {row?.created_at && (
+                      <p className="text-[11px] text-white/35 mt-0.5">{timeAgo(row.created_at, t)}</p>
+                    )}
                   </div>
                   <span className="shrink-0 text-[11px] text-white/35">{row?.views_count || 0} 👁</span>
                 </button>
