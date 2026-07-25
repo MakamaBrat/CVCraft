@@ -153,6 +153,27 @@ export default function App() {
     return stopWatchingSafeArea;
   }, []);
 
+  // Диплінк "нова спарсена вакансія за підпискою" (?startapp=pv_<id>):
+  // спарсені вакансії публічні й анонімні, тож на відміну від
+  // pendingApplicantsId тут не треба чекати на завантаження жодного списку
+  // — просто одразу відкриваємо ParsedVacancyDetail, він сам підвантажить
+  // дані по id. Спрацьовує один раз (скидається одразу після переходу).
+  //
+  // ВАЖЛИВО: цей хук навмисно піднятий сюди, до всіх умовних `return` нижче
+  // за текстом компонента (route.screen==="...", !checkedTelegram, !identity).
+  // Раніше він стояв нижче за ці return — і коли identity змінювався з
+  // null на значення (юзер щойно визначився), кількість викликаних хуків
+  // між рендерами не збігалася ("Rendered more hooks than during the
+  // previous render"), React кидав помилку і розмонтовував усе дерево —
+  // саме це і виглядало як чорний екран одразу після запуску.
+  useEffect(() => {
+    if (!pendingParsedVacancyId || !identity) return;
+    const id = pendingParsedVacancyId;
+    setPendingParsedVacancyId(null);
+    openParsedVacancyDetail(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingParsedVacancyId, identity]);
+
   const { lang, t } = useLanguage();
 
   useEffect(() => {
@@ -688,19 +709,6 @@ export default function App() {
     if (nextIdx < 0 || nextIdx >= parsedVacancyNavIds.length) return;
     openParsedVacancyDetail(parsedVacancyNavIds[nextIdx], parsedVacancyNavIds);
   };
-
-  // Диплінк "нова спарсена вакансія за підпискою" (?startapp=pv_<id>):
-  // спарсені вакансії публічні й анонімні, тож на відміну від
-  // pendingApplicantsId тут не треба чекати на завантаження жодного списку
-  // — просто одразу відкриваємо ParsedVacancyDetail, він сам підвантажить
-  // дані по id. Спрацьовує один раз (скидається одразу після переходу).
-  useEffect(() => {
-    if (!pendingParsedVacancyId || !identity) return;
-    const id = pendingParsedVacancyId;
-    setPendingParsedVacancyId(null);
-    openParsedVacancyDetail(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingParsedVacancyId, identity]);
 
   // Перемикання стрілками "вперед/назад" усередині деталей вакансії —
   // рухаємось по vacancyNavIds (список, з яким юзер прийшов на цей екран),
