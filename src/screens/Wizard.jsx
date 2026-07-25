@@ -178,7 +178,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
               hint={t("wizard.summaryHint")}
               aside={
                 <span className="text-[11px] text-white/35 shrink-0">
-                  {(draft.summary || "").length}/200
+                  {(draft.summary || "").length}/500
                 </span>
               }
             >
@@ -186,7 +186,7 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
                 className={inputCls + " min-h-[110px] resize-none"}
                 placeholder={t("wizard.summaryPlaceholder")}
                 value={draft.summary}
-                maxLength={200}
+                maxLength={500}
                 onChange={(e) => set({ summary: e.target.value })}
               />
             </Field>

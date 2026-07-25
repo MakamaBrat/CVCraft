@@ -289,7 +289,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
               label={{ uk: "Опис вакансії", ru: "Описание вакансии", en: "Job description" }[lang]}
               aside={
                 <span className="text-[11px] text-white/35 shrink-0">
-                  {(draft.description || "").length}/200
+                  {(draft.description || "").length}/500
                 </span>
               }
             >
@@ -301,7 +301,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
                   en: "What the person will work on, which projects...",
                 }[lang]}
                 value={draft.description}
-                maxLength={200}
+                maxLength={500}
                 onChange={(e) => set({ description: e.target.value })}
               />
             </Field>
