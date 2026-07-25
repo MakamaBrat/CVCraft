@@ -285,7 +285,14 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
 
         {step === 2 && (
           <>
-            <Field label={{ uk: "Опис вакансії", ru: "Описание вакансии", en: "Job description" }[lang]}>
+            <Field
+              label={{ uk: "Опис вакансії", ru: "Описание вакансии", en: "Job description" }[lang]}
+              aside={
+                <span className="text-[11px] text-white/35 shrink-0">
+                  {(draft.description || "").length}/200
+                </span>
+              }
+            >
               <textarea
                 className={inputCls + " min-h-[120px] resize-none"}
                 placeholder={{
@@ -294,6 +301,7 @@ export default function VacancyWizard({ draft, setDraft, step, setStep, onBackHo
                   en: "What the person will work on, which projects...",
                 }[lang]}
                 value={draft.description}
+                maxLength={200}
                 onChange={(e) => set({ description: e.target.value })}
               />
             </Field>

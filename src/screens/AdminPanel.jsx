@@ -257,7 +257,7 @@ function ResumeDoc({ resume, t }) {
           <h3 className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: accent }}>
             {t("resume.sections.about")}
           </h3>
-          <p className="text-[12px] leading-relaxed" style={{ color: theme.text, opacity: 0.85 }}>
+          <p className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: theme.text, opacity: 0.85 }}>
             {resume.summary}
           </p>
         </section>

@@ -173,11 +173,20 @@ export default function Wizard({ draft, setDraft, step, setStep, onBackHome, onF
                 onChange={(e) => set({ role: e.target.value })}
               />
             </Field>
-            <Field label={t("wizard.summaryLabel")} hint={t("wizard.summaryHint")}>
+            <Field
+              label={t("wizard.summaryLabel")}
+              hint={t("wizard.summaryHint")}
+              aside={
+                <span className="text-[11px] text-white/35 shrink-0">
+                  {(draft.summary || "").length}/200
+                </span>
+              }
+            >
               <textarea
                 className={inputCls + " min-h-[110px] resize-none"}
                 placeholder={t("wizard.summaryPlaceholder")}
                 value={draft.summary}
+                maxLength={200}
                 onChange={(e) => set({ summary: e.target.value })}
               />
             </Field>
